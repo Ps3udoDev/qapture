@@ -24,4 +24,4 @@ pnpm tauri build    # instaladores en src-tauri/target/release/bundle
 
 ## Licencia
 
-Por definir. El logo y la marca Teams4Soft son propiedad de Teams4Soft.
+[MIT](LICENSE). El logo y la marca Teams4Soft no están cubiertos por la licencia: ver [NOTICE](NOTICE).

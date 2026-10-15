@@ -1,7 +1,7 @@
 # Qapture — Spec de diseño v1
 
 > **Qapture** (QA + *capture*) · Ecosistema Teams4Soft
-> Fecha: 2026-10-15 · Estado: **borrador para revisión**
+> Fecha: 2026-10-15 · Estado: **aprobado (2026-10-15)**
 > Reemplaza a: "Bitácora local" (`evidencias/app-local`, Node + HTML vanilla + CMD)
 
 ---
@@ -54,6 +54,13 @@
 | D6 | Arquitectura | **A+B:** React para todo lo visual (incluido el editor de anotaciones); Rust para captura, almacenamiento, archivos, Excel, bandeja, atajos y updater |
 | D7 | Excel | Se genera en **Rust** con `rust_xlsxwriter` (robusto con cientos de imágenes, sin cargar el webview) |
 | D8 | Persistencia | **SQLite** (`rusqlite`, bundled) para los datos estructurados. Imágenes como **archivos PNG** en el directorio de datos de la app |
+| D9 | Licencia | **MIT** (`LICENSE`). La marca Teams4Soft queda excluida (`NOTICE`). Se revisará si el repo pasa a Teams4Soft |
+| D10 | Dueño del repo | `Ps3udoDev/qapture` por ahora. La migración a una org `teams4soft` se hará con un release puente que cambie la URL del updater |
+| D11 | Ícono | Diseño propio de Qapture (no el isotipo T4S): lupa/obturador en "Q" con la paleta T4S |
+| D12 | Tipos TS↔Rust | **Tests de contrato** en lugar de `tauri-specta` (que sigue en RC): Rust serializa DTO de ejemplo a `src/infrastructure/tauri/__fixtures__/contracts.json` y el front los valida con esquemas `zod` estrictos. Si un lado cambia sin el otro, falla un test |
+| D13 | Plantillas incluidas | Las **siembra Rust** en la base de datos al arrancar (`INSERT OR IGNORE`, ids fijos `tpl-*`). Rust es la única fuente de verdad |
+| D14 | Duplicar ejecución | Cada campo tiene la marca `clearOnDuplicate`. Al duplicar se copian los valores sin esa marca, el estado vuelve a `No ejecutado` y no se copian evidencias (generaliza el comportamiento de la v1) |
+| D15 | % de éxito | `Aprobado / (Aprobado + Fallido + Bloqueado)`. Si el denominador es 0 se muestra "—" |
 
 ## 4. Arquitectura
 
@@ -98,7 +105,7 @@ flowchart LR
 
 | Capa | Hace | No hace |
 |---|---|---|
-| `domain/` (TS) | Entidades, validación de valores de campo según su tipo, cálculo de resumen, generación de `EJ-###`, plantillas por defecto | I/O, React, Tauri |
+| `domain/` (TS) | Entidades, validación de valores de campo según su tipo (espejo de Rust para UX inmediata), filtros, cálculo de resumen | I/O, React, Tauri |
 | `application/` (TS) | Orquesta casos de uso (`createCase`, `attachEvidence`, `exportProject`…) a través de puertos | Conocer SQLite o el canvas |
 | `ports/` (TS) | `ProjectRepository`, `EvidenceStore`, `TemplateRepository`, `Exporter`, `ScreenCapture`, `ClipboardImage`, `SettingsStore`, `Updater` | — |
 | `infrastructure/tauri` | Implementa los puertos con `invoke()`. También hay `infrastructure/memory` para tests | Lógica de negocio |
@@ -109,14 +116,14 @@ flowchart LR
 **Reglas:**
 - `ui → application → domain`; `infrastructure` implementa `ports`; `domain` no importa nada externo.
 - Rust revalida todo lo que llega por `invoke` (defensa en profundidad), porque el dominio TS no es la única barrera.
-- Los tipos compartidos TS↔Rust se generan con **`specta` / `tauri-specta`** para que no se desincronicen.
+- Los tipos compartidos TS↔Rust se protegen con **tests de contrato** (D12): un fixture JSON generado por Rust y validado por esquemas `zod` en el front.
 
 ### 4.3 Estructura del repositorio
 
 ```
 qapture/
 ├─ src/
-│  ├─ domain/          entities.ts, fields.ts, status.ts, summary.ts, templates/defaults.ts
+│  ├─ domain/          status.ts, fields.ts, cases.ts, project.ts, summary.ts
 │  ├─ application/     use-cases/*.ts
 │  ├─ ports/           *.ts
 │  ├─ infrastructure/  tauri/*.ts, memory/*.ts, bindings.ts (generado)
@@ -163,6 +170,7 @@ erDiagram
     text type "text|longtext|list|date|number|boolean"
     json options "para list"
     bool required
+    bool clear_on_duplicate
     int width "ancho Excel"
     int position
   }
@@ -187,6 +195,7 @@ erDiagram
     text type
     json options
     bool required
+    bool clear_on_duplicate
     int width
     int position
     bool archived "no se borra si tiene datos"
@@ -558,13 +567,15 @@ gantt
 | Área | Elección |
 |---|---|
 | Front | React 19, TypeScript, Vite, Zustand, React Router, react-hook-form + zod (formulario dinámico), react-konva, Tailwind CSS con tokens T4S |
-| Core | Tauri 2, Rust 2024, rusqlite (bundled), rust_xlsxwriter, xcap, image, zip, serde, thiserror, specta / tauri-specta |
+| Core | Tauri 2, Rust 2024, rusqlite (bundled), rust_xlsxwriter, xcap, image, zip, serde, thiserror, chrono, uuid |
 | Plugins Tauri | global-shortcut, single-instance, autostart, updater, process, dialog, clipboard-manager, notification, log, opener |
 | Calidad | ESLint, Prettier, Vitest, rustfmt, clippy, WebdriverIO |
 | Entrega | GitHub Actions + `tauri-apps/tauri-action`, NSIS + MSI + ZIP portable |
 
-## 13. Preguntas abiertas (no bloquean F1)
+## 13. Preguntas resueltas
 
-1. **Licencia** del repo público: MIT o "todos los derechos reservados Teams4Soft". El logo es marca registrada, así que conviene aclararlo en `NOTICE`.
-2. ¿El repo se mueve después a una organización GitHub `teams4soft`? Afecta la URL del updater; se puede migrar con un release puente.
-3. Ícono de la app: derivarlo del isotipo (la cabeza) de Teams4Soft o diseñar uno propio de Qapture.
+Licencia, dueño del repo e ícono quedaron resueltos el 2026-10-15 (D9–D11). El spec fue **aprobado** ese mismo día.
+
+## 14. Contratos por fase
+
+Cada fase tiene un contrato en `docs/superpowers/contracts/` con su alcance, sus entregables, las interfaces que deja a las fases siguientes, los criterios de aceptación y el checklist de pruebas locales del equipo. Una fase se cierra solo cuando el equipo firma ese checklist.
