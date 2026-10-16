@@ -12,6 +12,7 @@ pub mod seed;
 const MIGRATIONS: &[&str] = &[
     include_str!("migrations/0001_init.sql"),
     include_str!("migrations/0002_evidence.sql"),
+    include_str!("migrations/0003_doc_version.sql"),
 ];
 
 pub fn open(path: &Path) -> AppResult<Connection> {

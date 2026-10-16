@@ -4,6 +4,7 @@ mod db;
 mod domain;
 mod dto;
 mod error;
+mod excel;
 mod media;
 mod repo;
 mod state;
@@ -17,6 +18,8 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             system::tray::show_main(app);
         }))
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
             let conn = db::open(&data_dir.join("qapture.db"))?;
@@ -81,6 +84,14 @@ pub fn run() {
             commands::capture::overlay_ready,
             commands::capture::finish_capture,
             commands::capture::cancel_capture,
+            commands::doc_versions::list_doc_versions,
+            commands::doc_versions::create_doc_version,
+            commands::doc_versions::update_doc_version,
+            commands::doc_versions::delete_doc_version,
+            commands::export::export_project,
+            commands::export::export_template,
+            commands::export::open_export,
+            commands::export::reveal_export,
         ])
         .run(tauri::generate_context!())
         .expect("no se pudo iniciar Qapture");

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { CaseInput } from "../../domain/cases";
+import { emptyDocVersion } from "../../domain/doc-versions";
+import { defaultExportOptions } from "../../domain/export";
 import { toSelection } from "../../domain/capture";
 import type { EvidenceUpdateInput, NewEvidenceInput } from "../../domain/evidence";
 import type { FieldInput, NewProjectInput } from "../../domain/project";
 import fixture from "./__fixtures__/contracts.json";
-import { appErrorSchema, capturedEventSchema, caseSchema, evidenceSchema, fieldSchema, projectSchema, projectSummarySchema, stagedImageSchema, templateSchema } from "./dto";
+import { appErrorSchema, capturedEventSchema, caseSchema, docVersionSchema, evidenceSchema, exportProgressSchema, exportResultSchema, fieldSchema, projectSchema, projectSummarySchema, stagedImageSchema, templateSchema } from "./dto";
 
 describe("contrato Rust → TS", () => {
   it.each([
@@ -18,6 +20,11 @@ describe("contrato Rust → TS", () => {
     ["error", appErrorSchema],
     ["capturedEvent", capturedEventSchema],
     ["captureError", appErrorSchema],
+    ["docVersion", docVersionSchema],
+    ["exportResult", exportResultSchema],
+    ["exportProgress", exportProgressSchema],
+    ["lockedError", appErrorSchema],
+    ["exportError", appErrorSchema],
   ] as const)("%s cumple el esquema estricto", (key, schema) => {
     expect(() => schema.parse(fixture[key])).not.toThrow();
   });
@@ -41,5 +48,7 @@ describe("contrato TS → Rust", () => {
     expect(sortedKeys(evidenceUpdate)).toEqual(sortedKeys(fixture.inputs.evidenceUpdateMeta));
     const selection = toSelection({ x: 0, y: 0, width: 1, height: 1 }, { width: 1, height: 1 });
     expect(sortedKeys(selection)).toEqual(sortedKeys(fixture.inputs.selection));
+    expect(sortedKeys(emptyDocVersion(""))).toEqual(sortedKeys(fixture.inputs.docVersionInput));
+    expect(sortedKeys(defaultExportOptions(""))).toEqual(sortedKeys(fixture.inputs.exportOptions));
   });
 });

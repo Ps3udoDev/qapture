@@ -1,5 +1,7 @@
 import { normalizeCaseInput, validateCaseInput, type CaseInput, type CaseRecord, type FormErrors } from "../domain/cases";
+import { trimDocVersion, validateDocVersion, type DocVersion, type DocVersionInput } from "../domain/doc-versions";
 import { validateDescription, type Evidence, type EvidenceUpdateInput, type NewEvidenceInput } from "../domain/evidence";
+import { validateExportOptions, type ExportKind, type ExportOptions, type ExportProgress, type ExportResult } from "../domain/export";
 import type { FieldDef } from "../domain/fields";
 import {
   normalizeFieldInput,
@@ -11,7 +13,7 @@ import {
   type ProjectMeta,
   type Template,
 } from "../domain/project";
-import { isValidationError } from "../ports/errors";
+import { AppError, isValidationError } from "../ports/errors";
 import type { Repositories } from "../ports/repositories";
 
 export type Outcome<T> = { ok: true; value: T } | { ok: false; errors: FormErrors };
@@ -77,4 +79,49 @@ export async function renameEvidence(repos: Repositories, evidenceId: string, de
   const message = validateDescription(description);
   if (message) return { ok: false, errors: { description: message } };
   return guard(() => repos.evidence.updateDescription(evidenceId, description.trim()));
+}
+
+export async function saveDocVersion(repos: Repositories, projectId: string, input: DocVersionInput, id?: string): Promise<Outcome<DocVersion>> {
+  const errors = validateDocVersion(input);
+  if (invalid(errors)) return { ok: false, errors };
+  const clean = trimDocVersion(input);
+  return guard(() => (id ? repos.docVersions.update(id, clean) : repos.docVersions.create(projectId, clean)));
+}
+
+export interface ExportRequest {
+  kind: ExportKind;
+  options: ExportOptions;
+  /** Se registra antes de exportar y su id reemplaza a `options.docVersionId`. */
+  newVersion?: DocVersionInput;
+}
+
+/**
+ * UC-16 / UC-17. `value: null` = el usuario cerró «Guardar como». Una versión nueva queda
+ * registrada aunque después se cancele. «Archivo abierto en Excel» vuelve como error del formulario.
+ */
+export async function exportWorkbook(
+  repos: Repositories,
+  projectId: string,
+  request: ExportRequest,
+  onProgress: (progress: ExportProgress) => void,
+): Promise<Outcome<ExportResult | null>> {
+  const { kind, options, newVersion } = request;
+  const pending = newVersion ? { ...options, docVersionId: "nueva" } : options;
+  const errors = { ...(newVersion ? validateDocVersion(newVersion) : {}), ...validateExportOptions(pending, kind) };
+  if (invalid(errors)) return { ok: false, errors };
+  try {
+    return await guard(async () => {
+      const docVersionId = newVersion ? (await repos.docVersions.create(projectId, trimDocVersion(newVersion))).id : options.docVersionId;
+      const clean = { ...options, tester: options.tester.trim(), docVersionId };
+      const off = await repos.exporter.onProgress(onProgress);
+      try {
+        return kind === "project" ? await repos.exporter.exportProject(projectId, clean) : await repos.exporter.exportTemplate(projectId, clean);
+      } finally {
+        off();
+      }
+    });
+  } catch (error) {
+    if (error instanceof AppError && error.code === "file_locked") return { ok: false, errors: { _form: error.message } };
+    throw error;
+  }
 }

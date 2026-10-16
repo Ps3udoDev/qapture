@@ -12,10 +12,10 @@ export async function seedProject(repos: Repositories, name = "Recibos") {
   return repos.projects.create({ meta: { ...emptyMeta(), name, client: "ACME" }, templateId: "tpl-funcional" });
 }
 
-export async function renderApp(options: { setup?: (repos: Repositories) => Promise<void>; lastProject?: string | null } = {}) {
+export async function renderApp(options: { setup?: (repos: Repositories) => Promise<void>; lastProject?: string | null; tester?: string } = {}) {
   const repos = createMemoryRepositories();
   await options.setup?.(repos);
-  const store = createWorkspaceStore(repos, memoryPreferences(options.lastProject ?? null));
+  const store = createWorkspaceStore(repos, memoryPreferences(options.lastProject ?? null, options.tester ?? ""));
   const user = userEvent.setup();
   render(
     <WorkspaceProvider store={store}>

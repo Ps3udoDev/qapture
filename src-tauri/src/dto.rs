@@ -159,6 +159,70 @@ pub struct EvidenceUpdateMeta {
     pub annotations: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocVersionDto {
+    pub id: String,
+    pub project_id: String,
+    pub version: String,
+    pub date: String,
+    pub author: String,
+    pub reviewer: String,
+    pub approver: String,
+    pub changes: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DocVersionInput {
+    pub version: String,
+    pub date: String,
+    pub author: String,
+    pub reviewer: String,
+    pub approver: String,
+    pub changes: String,
+}
+
+/// Opciones del diálogo de exportación (UC-16 / UC-17).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ExportOptionsInput {
+    pub tester: String,
+    pub doc_version_id: Option<String>,
+    pub include_evidence: bool,
+    pub include_summary: bool,
+    pub image_max_width: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportResultDto {
+    pub path: String,
+    pub file_name: String,
+    pub cases: i64,
+    pub evidence: i64,
+    pub missing_images: i64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ExportStage {
+    Preparing,
+    Images,
+    Writing,
+    Saving,
+}
+
+/// Payload del evento `export:progress` (Rust → ventana principal).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportProgressDto {
+    pub stage: ExportStage,
+    pub current: i64,
+    pub total: i64,
+}
+
 #[cfg(test)]
 mod contract {
     use std::{collections::BTreeMap, path::PathBuf};
@@ -201,11 +265,39 @@ mod contract {
                                  "description": "Pantalla de recibos", "annotations": ANNOTATIONS },
             "evidenceUpdateMeta": { "evidenceId": "ev-1", "description": "Pantalla de recibos", "annotations": ANNOTATIONS },
             "selection": { "x": 10.5, "y": 20.0, "width": 300.0, "height": 200.0,
-                           "viewportWidth": 1536.0, "viewportHeight": 864.0 }
+                           "viewportWidth": 1536.0, "viewportHeight": 864.0 },
+            "docVersionInput": { "version": "1.0", "date": "2026-10-16", "author": "Ana Pérez",
+                                 "reviewer": "Luis Gómez", "approver": "", "changes": "Versión inicial" },
+            "exportOptions": { "tester": "Ana Pérez", "docVersionId": "ver-1", "includeEvidence": true,
+                               "includeSummary": true, "imageMaxWidth": 940 }
+        })
+    }
+
+    /// F4: en un objeto aparte para no superar el límite de recursión de `json!`.
+    fn export_samples() -> Value {
+        json!({
+            "docVersion": DocVersionDto { id: "ver-1".into(), project_id: "prj-1".into(), version: "1.0".into(),
+                                          date: "2026-10-16".into(), author: "Ana Pérez".into(),
+                                          reviewer: "Luis Gómez".into(), approver: String::new(),
+                                          changes: "Versión inicial".into(), created_at: "2026-10-16T12:00:00.000Z".into() },
+            "exportResult": ExportResultDto { path: "C:\\Users\\ana\\Documents\\T4S_ACME_Recibos_Evidencias_20261016_v1.0.xlsx".into(),
+                                              file_name: "T4S_ACME_Recibos_Evidencias_20261016_v1.0.xlsx".into(),
+                                              cases: 10, evidence: 20, missing_images: 0 },
+            "exportProgress": ExportProgressDto { stage: ExportStage::Images, current: 12, total: 20 },
+            "lockedError": AppError::FileLocked("C:\\Users\\ana\\Documents\\matriz.xlsx".into()),
+            "exportError": AppError::Export("rust_xlsxwriter: formato inválido".into()),
         })
     }
 
     fn sample() -> Value {
+        let mut sample = base_sample();
+        if let (Some(target), Value::Object(extra)) = (sample.as_object_mut(), export_samples()) {
+            target.extend(extra);
+        }
+        sample
+    }
+
+    fn base_sample() -> Value {
         let ts = "2026-10-15T12:00:00.000Z".to_string();
         json!({
             "field": field(),
@@ -247,6 +339,8 @@ mod contract {
         serde_json::from_value::<NewEvidenceMeta>(i["newEvidenceMeta"].clone()).unwrap();
         serde_json::from_value::<EvidenceUpdateMeta>(i["evidenceUpdateMeta"].clone()).unwrap();
         serde_json::from_value::<crate::capture::crop::Selection>(i["selection"].clone()).unwrap();
+        serde_json::from_value::<DocVersionInput>(i["docVersionInput"].clone()).unwrap();
+        serde_json::from_value::<ExportOptionsInput>(i["exportOptions"].clone()).unwrap();
     }
 
     #[test]

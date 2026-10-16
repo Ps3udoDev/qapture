@@ -6,10 +6,11 @@ import { Dialog } from "../components/Dialog";
 import { btn } from "../components/styles";
 import { useWorkspace } from "../store/context";
 import { ColumnEditor } from "./ColumnEditor";
+import { DocVersionsPanel } from "./DocVersionsPanel";
 import { ProjectMetaFields } from "./ProjectMetaFields";
 import { TemplatesPanel } from "./TemplatesPanel";
 
-const TABS = ["Datos", "Columnas", "Plantillas"] as const;
+const TABS = ["Datos", "Columnas", "Versiones", "Plantillas"] as const;
 type Tab = (typeof TABS)[number];
 
 export function ProjectSettingsDialog({ onClose }: { onClose: () => void }) {
@@ -64,6 +65,7 @@ export function ProjectSettingsDialog({ onClose }: { onClose: () => void }) {
         </form>
       )}
       {tab === "Columnas" && <ColumnEditor />}
+      {tab === "Versiones" && <DocVersionsPanel />}
       {tab === "Plantillas" && <TemplatesPanel />}
       {confirming && (
         <ConfirmDialog
