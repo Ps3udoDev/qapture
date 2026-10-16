@@ -72,13 +72,18 @@ describe("filterCases", () => {
   ];
 
   it("busca sin distinguir mayúsculas ni acentos, también en valores", () => {
-    expect(filterCases(cases, { search: "recíb", status: "" }).map((c) => c.id)).toEqual(["a"]);
-    expect(filterCases(cases, { search: "maquina", status: "" }).map((c) => c.id)).toEqual(["b"]);
-    expect(filterCases(cases, { search: "ej-002", status: "" }).map((c) => c.id)).toEqual(["b"]);
+    expect(filterCases(cases, fields, { search: "recíb", status: "" }).map((c) => c.id)).toEqual(["a"]);
+    expect(filterCases(cases, fields, { search: "maquina", status: "" }).map((c) => c.id)).toEqual(["b"]);
+    expect(filterCases(cases, fields, { search: "ej-002", status: "" }).map((c) => c.id)).toEqual(["b"]);
+  });
+
+  it("no busca en valores de columnas archivadas", () => {
+    const withArchived = [record({ id: "z", values: { mod: "Cobranzas" } })];
+    expect(filterCases(withArchived, fields, { search: "cobranzas", status: "" })).toEqual([]);
   });
 
   it("filtra por estado", () => {
-    expect(filterCases(cases, { search: "", status: "Fallido" }).map((c) => c.id)).toEqual(["b"]);
+    expect(filterCases(cases, fields, { search: "", status: "Fallido" }).map((c) => c.id)).toEqual(["b"]);
   });
 });
 

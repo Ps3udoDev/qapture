@@ -60,12 +60,18 @@ export function caseToInput(fields: FieldDef[], record: CaseRecord): CaseInput {
 
 const fold = (value: string) => value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
-export function filterCases(cases: CaseRecord[], filter: { search: string; status: Status | "" }): CaseRecord[] {
+export function filterCases(
+  cases: CaseRecord[],
+  fields: FieldDef[],
+  filter: { search: string; status: Status | "" },
+): CaseRecord[] {
   const query = fold(filter.search.trim());
+  const active = activeFields(fields);
   return cases.filter(
     (c) =>
       (!filter.status || c.status === filter.status) &&
-      (!query || fold([c.code, c.title, ...Object.values(c.values)].join("\n")).includes(query)),
+      (!query ||
+        fold([c.code, c.title, ...active.map((f) => c.values[f.id] ?? "")].join("\n")).includes(query)),
   );
 }
 

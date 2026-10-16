@@ -69,12 +69,12 @@ describe("configuración del proyecto", () => {
   it("guarda las columnas como plantilla y elimina plantillas propias", async () => {
     const { user, dialog } = await openSettings();
     await user.click(within(dialog).getByRole("tab", { name: "Plantillas" }));
-    await user.type(within(dialog).getByLabelText(/Nombre de la plantilla/), "GMX Cobranzas");
+    await user.type(within(dialog).getByLabelText(/Nombre de la plantilla/), "ACME Cobranzas");
     await user.click(within(dialog).getByRole("button", { name: "Guardar como plantilla" }));
-    expect(within(dialog).getByText("GMX Cobranzas")).toBeInTheDocument();
+    expect(within(dialog).getByText("ACME Cobranzas")).toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "Eliminar plantilla Funcional" })).not.toBeInTheDocument();
-    await user.click(within(dialog).getByRole("button", { name: "Eliminar plantilla GMX Cobranzas" }));
-    expect(within(dialog).queryByText("GMX Cobranzas")).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Eliminar plantilla ACME Cobranzas" }));
+    expect(within(dialog).queryByText("ACME Cobranzas")).not.toBeInTheDocument();
   });
 
   it("elimina el proyecto solo tras escribir su nombre", async () => {

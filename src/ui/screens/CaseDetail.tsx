@@ -14,6 +14,7 @@ export function CaseDetail({ onEdit }: { onEdit: (caseId: string) => void }) {
   const duplicateCase = useWorkspace((s) => s.duplicateCase);
   const deleteCase = useWorkspace((s) => s.deleteCase);
   const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
   const current = cases.find((c) => c.id === selectedId);
 
   if (!project) return null;
@@ -40,7 +41,19 @@ export function CaseDetail({ onEdit }: { onEdit: (caseId: string) => void }) {
             <button type="button" className={btn.secondary} onClick={() => onEdit(current.id)}>
               <Pencil size={16} /> Editar
             </button>
-            <button type="button" className={btn.secondary} onClick={() => void duplicateCase(current.id)}>
+            <button
+              type="button"
+              className={btn.secondary}
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  await duplicateCase(current.id);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
               <Copy size={16} /> Duplicar
             </button>
             <button type="button" aria-label="Eliminar caso" className={btn.ghost} onClick={() => setConfirming(true)}>

@@ -17,7 +17,7 @@ describe("AppShell", () => {
     await user.click(within(dialog).getByRole("button", { name: "Crear matriz" }));
     expect(within(dialog).getByText("«Nombre del proyecto» es obligatorio.")).toBeInTheDocument();
 
-    await user.type(within(dialog).getByLabelText(/Nombre del proyecto/), "Recibos GMX");
+    await user.type(within(dialog).getByLabelText(/Nombre del proyecto/), "Recibos ACME");
     fireEvent.change(within(dialog).getByLabelText("Fecha de inicio"), { target: { value: "2026-11-01" } });
     fireEvent.change(within(dialog).getByLabelText("Fecha de fin"), { target: { value: "2026-10-01" } });
     await user.click(within(dialog).getByRole("button", { name: "Crear matriz" }));
@@ -28,8 +28,8 @@ describe("AppShell", () => {
     await user.click(within(dialog).getByRole("button", { name: "Crear matriz" }));
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Proyecto" })).toHaveDisplayValue("Recibos GMX");
-    expect(await screen.findByText("Matriz «Recibos GMX» creada.")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Proyecto" })).toHaveDisplayValue("Recibos ACME");
+    expect(await screen.findByText("Matriz «Recibos ACME» creada.")).toBeInTheDocument();
   });
 
   it("cambia de proyecto con el selector", async () => {

@@ -22,7 +22,7 @@ export function ProjectMetaFields({ idPrefix, meta, errors, onChange }: {
         <input {...bind("name")} placeholder="Ej. Aplicación de recibos" />
       </FormField>
       <FormField label="Cliente" htmlFor={`${idPrefix}-client`} error={errors.client}>
-        <input {...bind("client")} placeholder="Ej. GMX" />
+        <input {...bind("client")} placeholder="Ej. ACME" />
       </FormField>
       <FormField label="Tipo de prueba" htmlFor={`${idPrefix}-testType`} error={errors.testType}>
         <input {...bind("testType")} placeholder="Ej. Funcional" />

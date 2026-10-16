@@ -14,6 +14,12 @@ describe("validateProjectMeta", () => {
 });
 
 describe("validateFieldInputs", () => {
+  it("rechaza anchos no enteros", () => {
+    expect(validateFieldInputs([{ ...newFieldInput(), label: "Ancho", width: 12.5 }])).toEqual({
+      "0": "El ancho de «Ancho» debe estar entre 8 y 100.",
+    });
+  });
+
   it("detecta nombres vacíos, repetidos, listas sin opciones y anchos inválidos", () => {
     const errors = validateFieldInputs([
       { ...newFieldInput(), label: "Entorno" },

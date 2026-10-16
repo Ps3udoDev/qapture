@@ -15,7 +15,10 @@ export function CaseListPane({ onNewCase }: { onNewCase: () => void }) {
   const setSearch = useWorkspace((s) => s.setSearch);
   const setStatusFilter = useWorkspace((s) => s.setStatusFilter);
   const selectCase = useWorkspace((s) => s.selectCase);
-  const visible = useMemo(() => filterCases(cases, { search, status }), [cases, search, status]);
+  const visible = useMemo(
+    () => filterCases(cases, project?.fields ?? [], { search, status }),
+    [cases, project, search, status],
+  );
   const envField = project?.fields.find((f) => f.key === "entorno" && !f.archived);
 
   return (

@@ -125,14 +125,12 @@ fn insert_case(
     title: &str,
     status: &str,
 ) -> AppResult<String> {
+    // Una sola sentencia: la secuencia se asigna de forma atómica entre instancias.
     let seq: i64 = conn.query_row(
-        "SELECT next_sequence FROM project WHERE id = ?1",
+        "UPDATE project SET next_sequence = next_sequence + 1 WHERE id = ?1
+         RETURNING next_sequence - 1",
         [project_id],
         |r| r.get(0),
-    )?;
-    conn.execute(
-        "UPDATE project SET next_sequence = next_sequence + 1 WHERE id = ?1",
-        [project_id],
     )?;
     let id = new_id();
     conn.execute(

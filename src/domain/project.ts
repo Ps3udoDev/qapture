@@ -136,7 +136,7 @@ export function validateFieldInputs(inputs: FieldInput[]): FormErrors {
       seen.add(folded);
     }
     // Mismo orden que Rust: ancho antes que opciones.
-    if (input.width < 8 || input.width > 100) {
+    if (!Number.isInteger(input.width) || input.width < 8 || input.width > 100) {
       errors[key] = `El ancho de «${input.label}» debe estar entre 8 y 100.`;
       return;
     }

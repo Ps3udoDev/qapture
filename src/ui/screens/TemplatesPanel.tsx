@@ -28,7 +28,7 @@ export function TemplatesPanel() {
       <form onSubmit={submit} noValidate className="grid grid-cols-2 gap-4">
         <p className="col-span-2 text-sm text-t4s-gray">Guarda las columnas activas de este proyecto para reutilizarlas al crear nuevas matrices.</p>
         <FormField label="Nombre de la plantilla" required htmlFor="tpl-name" error={errors.name ?? errors._form}>
-          <input id="tpl-name" className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. GMX Cobranzas" />
+          <input id="tpl-name" className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. ACME Cobranzas" />
         </FormField>
         <FormField label="Tipo de prueba" htmlFor="tpl-type">
           <input id="tpl-type" className={inputCls} value={testType} onChange={(e) => setTestType(e.target.value)} />
