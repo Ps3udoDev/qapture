@@ -2,6 +2,7 @@
   "case": {
     "code": "EJ-001",
     "createdAt": "2026-10-15T12:00:00.000Z",
+    "evidenceCount": 2,
     "id": "case-1",
     "projectId": "prj-1",
     "status": "Aprobado",

@@ -157,7 +157,7 @@ export function createMemoryRepositories(): Repositories {
         const p = getProject(projectId);
         const clean = checkCase(p, input);
         const ts = now();
-        const record: CaseRecord = { id: id("case"), projectId, code: formatCode(p.nextSequence++), ...clean, createdAt: ts, updatedAt: ts };
+        const record: CaseRecord = { id: id("case"), projectId, code: formatCode(p.nextSequence++), ...clean, evidenceCount: 0, createdAt: ts, updatedAt: ts };
         cases.set(record.id, record);
         touch(p);
         return copy(record);
@@ -185,6 +185,7 @@ export function createMemoryRepositories(): Repositories {
           title: src.title,
           status: DEFAULT_STATUS,
           values,
+          evidenceCount: 0,
           createdAt: ts,
           updatedAt: ts,
         };

@@ -14,7 +14,8 @@ use crate::{
     error::{AppError, AppResult, validation},
 };
 
-const CASE_COLUMNS: &str = "id, project_id, code, title, status, created_at, updated_at";
+const CASE_COLUMNS: &str = "id, project_id, code, title, status, created_at, updated_at,
+    (SELECT COUNT(*) FROM evidence e WHERE e.case_id = test_case.id) AS evidence_count";
 
 fn case_from_row(r: &Row) -> rusqlite::Result<CaseDto> {
     Ok(CaseDto {
@@ -24,6 +25,7 @@ fn case_from_row(r: &Row) -> rusqlite::Result<CaseDto> {
         title: r.get("title")?,
         status: r.get("status")?,
         values: BTreeMap::new(),
+        evidence_count: r.get("evidence_count")?,
         created_at: r.get("created_at")?,
         updated_at: r.get("updated_at")?,
     })
@@ -415,5 +417,34 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM field_value", [], |r| r.get(0))
             .unwrap();
         assert_eq!(values, 0);
+    }
+
+    #[test]
+    fn cases_report_their_evidence_count() {
+        let conn = conn();
+        let p = project(&conn);
+        let c = create(&conn, &p.id, &input(&p, &[("entorno", "QA")])).unwrap();
+        assert_eq!(c.evidence_count, 0);
+        for position in 0..2 {
+            conn.execute(
+                "INSERT INTO evidence (id, case_id, position, description, original_path, rendered_path,
+                                       annotations, width, height, captured_at, updated_at)
+                 VALUES (?1, ?2, ?3, 'd', 'o', 'r', '{}', 1, 1, '', '')",
+                params![new_id(), c.id, position],
+            )
+            .unwrap();
+        }
+        assert_eq!(get(&conn, &c.id).unwrap().evidence_count, 2);
+        assert_eq!(list(&conn, &p.id).unwrap()[0].evidence_count, 2);
+        assert_eq!(
+            duplicate(&conn, &c.id).unwrap().evidence_count,
+            0,
+            "duplicar no copia evidencias (D14)"
+        );
+        delete(&conn, &c.id).unwrap();
+        let rows: i64 = conn
+            .query_row("SELECT COUNT(*) FROM evidence", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(rows, 0, "borrar el caso borra sus filas de evidencia");
     }
 }

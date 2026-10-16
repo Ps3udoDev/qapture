@@ -53,6 +53,7 @@ export const caseSchema = z.strictObject({
   title: z.string(),
   status: z.enum(STATUSES),
   values: z.record(z.string(), z.string()),
+  evidenceCount: z.number().int(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

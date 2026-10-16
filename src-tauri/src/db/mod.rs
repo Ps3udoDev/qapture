@@ -1,4 +1,7 @@
-use std::{path::Path, time::Duration};
+use std::{
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use rusqlite::Connection;
 
@@ -6,7 +9,10 @@ use crate::error::AppResult;
 
 pub mod seed;
 
-const MIGRATIONS: &[&str] = &[include_str!("migrations/0001_init.sql")];
+const MIGRATIONS: &[&str] = &[
+    include_str!("migrations/0001_init.sql"),
+    include_str!("migrations/0002_evidence.sql"),
+];
 
 pub fn open(path: &Path) -> AppResult<Connection> {
     if let Some(dir) = path.parent() {
@@ -15,7 +21,24 @@ pub fn open(path: &Path) -> AppResult<Connection> {
     let conn = Connection::open(path)?;
     conn.busy_timeout(Duration::from_secs(5))?;
     conn.query_row("PRAGMA journal_mode = WAL", [], |_| Ok(()))?;
+    backup_before_migrate(&conn, path)?;
     init(conn)
+}
+
+/// Spec §8: antes de migrar una base que ya tiene datos, deja una copia en `backups/`.
+fn backup_before_migrate(conn: &Connection, path: &Path) -> AppResult<Option<PathBuf>> {
+    let current = schema_version(conn)?;
+    if current == 0 || current >= MIGRATIONS.len() as i64 {
+        return Ok(None);
+    }
+    let dir = path
+        .parent()
+        .map_or_else(|| PathBuf::from("backups"), |p| p.join("backups"));
+    std::fs::create_dir_all(&dir)?;
+    let stamp = chrono::Utc::now().format("%Y%m%d-%H%M%S");
+    let target = dir.join(format!("qapture-v{current}-{stamp}.db"));
+    conn.execute("VACUUM INTO ?1", [target.to_string_lossy().into_owned()])?;
+    Ok(Some(target))
 }
 
 #[cfg(test)]
@@ -117,6 +140,51 @@ mod tests {
         assert_eq!(total, 6);
         drop(a);
         drop(b);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn backs_up_an_existing_db_before_migrating() {
+        let dir = std::env::temp_dir().join(format!("qapture-test-{}", new_id()));
+        let path = dir.join("qapture.db");
+        std::fs::create_dir_all(&dir).unwrap();
+        {
+            let old = Connection::open(&path).unwrap();
+            old.execute_batch(MIGRATIONS[0]).unwrap();
+            old.pragma_update(None, "user_version", 1).unwrap();
+            old.execute(
+                "INSERT INTO template (id, name, test_type, builtin, created_at) VALUES ('t-old', 'Vieja', '', 0, '')",
+                [],
+            )
+            .unwrap();
+        }
+        let conn = open(&path).unwrap();
+        assert_eq!(schema_version(&conn).unwrap(), MIGRATIONS.len() as i64);
+        let kept: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM template WHERE id = 't-old'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(kept, 1);
+        let backups = || std::fs::read_dir(dir.join("backups")).unwrap().count();
+        assert_eq!(backups(), 1);
+        drop(conn);
+        drop(open(&path).unwrap());
+        assert_eq!(
+            backups(),
+            1,
+            "sin migraciones pendientes no se respalda de nuevo"
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_new_db_is_not_backed_up() {
+        let dir = std::env::temp_dir().join(format!("qapture-test-{}", new_id()));
+        drop(open(&dir.join("qapture.db")).unwrap());
+        assert!(!dir.join("backups").exists());
         let _ = std::fs::remove_dir_all(dir);
     }
 }

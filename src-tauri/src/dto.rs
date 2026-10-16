@@ -98,6 +98,7 @@ pub struct CaseDto {
     pub title: String,
     pub status: String,
     pub values: BTreeMap<String, String>,
+    pub evidence_count: i64,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -165,6 +166,7 @@ mod contract {
             "case": CaseDto { id: "case-1".into(), project_id: "prj-1".into(), code: "EJ-001".into(),
                               title: "Aplicación de recibos".into(), status: "Aprobado".into(),
                               values: BTreeMap::from([("fld-1".to_string(), "QA".to_string())]),
+                              evidence_count: 2,
                               created_at: ts.clone(), updated_at: ts },
             "error": AppError::Validation("«Entorno» es obligatorio.".into()),
             "inputs": inputs_json(),

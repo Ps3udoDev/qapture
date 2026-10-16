@@ -23,6 +23,7 @@ const record = (over: Partial<CaseRecord>): CaseRecord => ({
   title: "Aplicación de recibos",
   status: "Aprobado",
   values: {},
+  evidenceCount: 0,
   createdAt: "",
   updatedAt: "",
   ...over,
