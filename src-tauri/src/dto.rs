@@ -267,7 +267,9 @@ mod contract {
             "selection": { "x": 10.5, "y": 20.0, "width": 300.0, "height": 200.0,
                            "viewportWidth": 1536.0, "viewportHeight": 864.0 },
             "docVersionInput": { "version": "1.0", "date": "2026-10-16", "author": "Ana Pérez",
-                                 "reviewer": "Luis Gómez", "approver": "", "changes": "Versión inicial" }
+                                 "reviewer": "Luis Gómez", "approver": "", "changes": "Versión inicial" },
+            "exportOptions": { "tester": "Ana Pérez", "docVersionId": "ver-1", "includeEvidence": true,
+                               "includeSummary": true, "imageMaxWidth": 940 }
         })
     }
 
@@ -278,6 +280,12 @@ mod contract {
                                           date: "2026-10-16".into(), author: "Ana Pérez".into(),
                                           reviewer: "Luis Gómez".into(), approver: String::new(),
                                           changes: "Versión inicial".into(), created_at: "2026-10-16T12:00:00.000Z".into() },
+            "exportResult": ExportResultDto { path: "C:\\Users\\ana\\Documents\\T4S_ACME_Recibos_Evidencias_20261016_v1.0.xlsx".into(),
+                                              file_name: "T4S_ACME_Recibos_Evidencias_20261016_v1.0.xlsx".into(),
+                                              cases: 10, evidence: 20, missing_images: 0 },
+            "exportProgress": ExportProgressDto { stage: ExportStage::Images, current: 12, total: 20 },
+            "lockedError": AppError::FileLocked("C:\\Users\\ana\\Documents\\matriz.xlsx".into()),
+            "exportError": AppError::Export("rust_xlsxwriter: formato inválido".into()),
         })
     }
 
@@ -332,6 +340,7 @@ mod contract {
         serde_json::from_value::<EvidenceUpdateMeta>(i["evidenceUpdateMeta"].clone()).unwrap();
         serde_json::from_value::<crate::capture::crop::Selection>(i["selection"].clone()).unwrap();
         serde_json::from_value::<DocVersionInput>(i["docVersionInput"].clone()).unwrap();
+        serde_json::from_value::<ExportOptionsInput>(i["exportOptions"].clone()).unwrap();
     }
 
     #[test]

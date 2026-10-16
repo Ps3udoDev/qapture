@@ -36,6 +36,10 @@ pub const APP_COMMANDS: &[&str] = &[
     "create_doc_version",
     "update_doc_version",
     "delete_doc_version",
+    "export_project",
+    "export_template",
+    "open_export",
+    "reveal_export",
 ];
 
 /// Lo único que puede invocar una ventana overlay (spec §9). El resto es de la principal.

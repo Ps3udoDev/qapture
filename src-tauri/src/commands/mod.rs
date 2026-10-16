@@ -2,6 +2,7 @@ pub mod capture;
 pub mod cases;
 pub mod doc_versions;
 pub mod evidence;
+pub mod export;
 mod frame;
 pub mod projects;
 pub mod templates;

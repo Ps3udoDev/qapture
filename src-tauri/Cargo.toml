@@ -30,6 +30,8 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 xcap = "0.9.8"
 # zip 9: crates.io retiró (yank) toda la serie zip < 9.0.3 y la 0.99.1 publicada todavía pide zip 8.
 rust_xlsxwriter = { git = "https://github.com/jmcnamara/rust_xlsxwriter", rev = "ade0a017439d169b2a9c4848fe1cb66919c0ca3d" }
+tauri-plugin-dialog = "2.8.3"
+tauri-plugin-opener = "2.7.2"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

@@ -3,12 +3,14 @@ use std::sync::{Mutex, MutexGuard};
 use rusqlite::Connection;
 
 use crate::capture::session::{CaptureController, HIDE_DELAY, READY_TIMEOUT};
+use crate::excel::save::RecentExports;
 use crate::media::storage::EvidenceFiles;
 
 pub struct AppState {
     db: Mutex<Connection>,
     files: EvidenceFiles,
     capture: CaptureController,
+    exports: RecentExports,
 }
 
 impl AppState {
@@ -17,6 +19,7 @@ impl AppState {
             db: Mutex::new(conn),
             files,
             capture: CaptureController::new(HIDE_DELAY, Some(READY_TIMEOUT)),
+            exports: RecentExports::default(),
         }
     }
 
@@ -33,5 +36,9 @@ impl AppState {
 
     pub fn files(&self) -> &EvidenceFiles {
         &self.files
+    }
+
+    pub fn exports(&self) -> &RecentExports {
+        &self.exports
     }
 }
