@@ -17,8 +17,8 @@ Qapture vive en la bandeja del sistema y se invoca con atajos globales configura
 ## Tasks
 | ID | Task |
 |---|---|
-| F6-T1 | `single-instance`: abrir el exe otra vez enfoca la ventana existente |
-| F6-T2 | `system/tray.rs`: ícono, tooltip y menú (Abrir, Capturar, Pegar evidencia, Nuevo caso, Buscar actualizaciones, Salir); cerrar ventana = ocultar |
+| F6-T1 | ✅ adelantada en PR #1 · `single-instance`: abrir el exe otra vez enfoca la ventana existente |
+| F6-T2 | ✅ adelantada en PR #1 · `system/tray.rs`: ícono, tooltip, menú (Abrir Qapture, Ocultar, separador, Salir), clic izquierdo alterna mostrar/ocultar; cerrar ventana = ocultar. Pendientes en F6: Capturar, Pegar evidencia, Nuevo caso y Buscar actualizaciones |
 | F6-T3 | Settings persistidos (tabla `setting` clave/valor, migración `0004`) + puerto `SettingsStore` |
 | F6-T4 | `system/shortcuts.rs`: registro dinámico, detección de conflicto (conserva el anterior y reporta), re-registro al guardar |
 | F6-T5 | Atajo "Pegar evidencia" global: lee la imagen del portapapeles → editor de F2, o notificación si no hay imagen |
