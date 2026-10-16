@@ -209,9 +209,9 @@ fn write_value(
 ) -> AppResult<()> {
     match field.field_type {
         FieldType::Date => {
-            if let Some(d) = parse_iso(value) {
-                let date =
-                    ExcelDateTime::from_ymd(d.year() as u16, d.month() as u8, d.day() as u8)?;
+            if let Some(date) = parse_iso(value).and_then(|d| {
+                ExcelDateTime::from_ymd(d.year() as u16, d.month() as u8, d.day() as u8).ok()
+            }) {
                 ws.write_datetime_with_format(row, col, &date, &s.date)?;
                 return Ok(());
             }
@@ -351,9 +351,14 @@ mod tests {
         let values = &mut data.cases[0].case.values;
         values.insert("fld-fecha_ejecucion".into(), "ayer".into());
         values.insert("fld-horas".into(), "NaN".into());
+        data.cases[1]
+            .case
+            .values
+            .insert("fld-fecha_ejecucion".into(), "0001-01-01".into());
         let book = render(&data, None, false);
         assert_eq!(book.text(SHEET, row_of(0), 6), "ayer");
         assert_eq!(book.text(SHEET, row_of(0), 9), "NaN");
+        assert_eq!(book.text(SHEET, row_of(1), 6), "0001-01-01");
     }
 
     #[test]
