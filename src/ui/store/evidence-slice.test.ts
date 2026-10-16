@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { emptyAnnotations } from "../../domain/annotations";
 import { createMemoryRepositories } from "../../infrastructure/memory/repositories";
 import { seedProject } from "../test-utils";
@@ -51,6 +51,20 @@ describe("slice de evidencias", () => {
     if (current?.kind === "new") await expect(repos.evidence.readImage(current.imagePath)).rejects.toBeTruthy();
     expect(store.getState().editorQueue).toHaveLength(0);
     expect(store.getState().editor?.kind).toBe("new");
+  });
+
+  it("un doble cancelar seguido no pierde elementos de la cola", async () => {
+    const { repos, store } = await setup();
+    const discard = vi.spyOn(repos.evidence, "discardStaged");
+    await store.getState().intakeImages([PNG, PNG, PNG]);
+    const [firstPath, secondPath, thirdPath] = [store.getState().editor, ...store.getState().editorQueue].map((e) => (e && "imagePath" in e ? e.imagePath : ""));
+    const first = store.getState().cancelEditor();
+    const second = store.getState().cancelEditor();
+    await Promise.all([first, second]);
+    expect(discard).toHaveBeenCalledTimes(2);
+    expect(discard.mock.calls.map(([path]) => path)).toEqual([firstPath, secondPath]);
+    expect(store.getState().editorQueue).toHaveLength(0);
+    expect(store.getState().editor).toMatchObject({ kind: "new", imagePath: thirdPath });
   });
 
   it("sin caso seleccionado avisa y no abre el editor", async () => {

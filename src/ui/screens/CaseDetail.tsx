@@ -1,6 +1,7 @@
 import { Copy, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { activeFields } from "../../domain/fields";
+import { EvidenceGallery } from "../gallery/EvidenceGallery";
 import { filesFrom, hasFiles } from "../gallery/files";
 import { useEvidenceIntake } from "../gallery/useEvidenceIntake";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -88,14 +89,16 @@ export function CaseDetail({ onEdit }: { onEdit: (caseId: string) => void }) {
             </div>
           ))}
         </dl>
-        <div className="mt-6 rounded-xl border border-dashed border-t4s-line p-6 text-center text-sm text-t4s-gray">
-          Las evidencias (capturas y anotaciones) llegan en la fase F2.
-        </div>
+        <EvidenceGallery caseRecord={current} />
       </div>
       {confirming && (
         <ConfirmDialog
           title={`Eliminar ${current.code}`}
-          message="El caso se eliminará de forma permanente. Su código no se reutilizará."
+          message={
+            current.evidenceCount
+              ? `El caso y sus ${current.evidenceCount} evidencias se eliminarán de forma permanente. Su código no se reutilizará.`
+              : "El caso se eliminará de forma permanente. Su código no se reutilizará."
+          }
           confirmLabel="Eliminar caso"
           onCancel={() => setConfirming(false)}
           onConfirm={async () => {

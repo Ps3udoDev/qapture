@@ -16,7 +16,12 @@ export function useEvidenceIntake() {
             : `Se omitieron ${rejected} archivos: solo se aceptan imágenes PNG, JPEG o WebP.`,
         );
       }
-      if (images.length) await intakeImages(await Promise.all(images.map(readBytes)));
+      if (!images.length) return;
+      try {
+        await intakeImages(await Promise.all(images.map(readBytes)));
+      } catch {
+        pushToast("error", "No se pudieron leer las imágenes.");
+      }
     },
     [intakeImages, pushToast],
   );

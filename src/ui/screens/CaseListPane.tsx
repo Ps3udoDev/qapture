@@ -1,4 +1,4 @@
-import { Plus, Search } from "lucide-react";
+import { Images, Plus, Search } from "lucide-react";
 import { useMemo } from "react";
 import { filterCases } from "../../domain/cases";
 import { STATUSES, type Status } from "../../domain/status";
@@ -65,7 +65,14 @@ export function CaseListPane({ onNewCase }: { onNewCase: () => void }) {
                 <StatusBadge status={c.status} />
               </span>
               <span className="mt-0.5 block truncate font-medium">{c.title}</span>
-              {envField && c.values[envField.id] && <span className="block truncate text-xs text-t4s-gray">{c.values[envField.id]}</span>}
+              <span className="flex items-center justify-between gap-2">
+                <span className="truncate text-xs text-t4s-gray">{envField ? c.values[envField.id] ?? "" : ""}</span>
+                {c.evidenceCount > 0 && (
+                  <span aria-label={`${c.evidenceCount} ${c.evidenceCount === 1 ? "evidencia" : "evidencias"}`} className="inline-flex shrink-0 items-center gap-1 rounded-full bg-t4s-cream px-2 text-xs text-t4s-gray">
+                    <Images size={12} /> {c.evidenceCount}
+                  </span>
+                )}
+              </span>
             </button>
           </li>
         ))}

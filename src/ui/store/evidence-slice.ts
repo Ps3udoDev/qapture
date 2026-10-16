@@ -102,6 +102,7 @@ export function createEvidenceSlice(repos: Repositories, set: Set, get: Get, h: 
 
     async cancelEditor() {
       const editor = get().editor;
+      openNext();
       if (editor?.kind === "new") {
         try {
           await repos.evidence.discardStaged(editor.imagePath);
@@ -109,7 +110,6 @@ export function createEvidenceSlice(repos: Repositories, set: Set, get: Get, h: 
           // Si falla, el próximo arranque vacía evidence/_staging.
         }
       }
-      openNext();
     },
 
     async saveEditor(input) {
