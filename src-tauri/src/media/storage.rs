@@ -174,7 +174,6 @@ pub(crate) struct TempDir(PathBuf);
 
 #[cfg(test)]
 impl TempDir {
-    #[allow(dead_code)]
     pub fn new() -> Self {
         let path = std::env::temp_dir().join(format!("qapture-test-{}", new_id()));
         fs::create_dir_all(&path).unwrap();

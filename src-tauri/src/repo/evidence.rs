@@ -207,22 +207,8 @@ pub fn update(
     let annotations = validate_annotations(&meta.annotations)?;
     raster::validate_render(render)?;
     let rendered = files.absolute(&s.render_rel);
-    let backup = rendered.with_extension("png.bak");
-    let had_render = rendered.exists();
-    if had_render {
-        fs::rename(&rendered, &backup)?;
-    }
-    let restore = || {
-        if had_render {
-            let _ = fs::rename(&backup, &rendered);
-        } else {
-            let _ = fs::remove_file(&rendered);
-        }
-    };
-    if let Err(error) = write_atomic(&rendered, render) {
-        restore();
-        return Err(error);
-    }
+    let previous = fs::read(&rendered).ok();
+    write_atomic(&rendered, render)?;
     let saved = (|| -> AppResult<()> {
         let tx = conn.unchecked_transaction()?;
         tx.execute(
@@ -233,14 +219,16 @@ pub fn update(
         tx.commit()?;
         Ok(())
     })();
-    match saved {
-        Ok(()) => {
-            let _ = fs::remove_file(&backup);
+    if let Err(error) = saved {
+        match previous {
+            Some(bytes) => {
+                let _ = write_atomic(&rendered, &bytes);
+            }
+            None => {
+                let _ = fs::remove_file(&rendered);
+            }
         }
-        Err(error) => {
-            restore();
-            return Err(error);
-        }
+        return Err(error);
     }
     get(conn, files, &meta.evidence_id)
 }
