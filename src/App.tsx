@@ -1,13 +1,12 @@
-import logo from "./assets/brand/t4s-logo.png";
+import type { StoreApi } from "zustand/vanilla";
+import { AppShell } from "./ui/screens/AppShell";
+import { WorkspaceProvider } from "./ui/store/context";
+import type { WorkspaceState } from "./ui/store/workspace";
 
-export default function App() {
+export default function App({ store }: { store: StoreApi<WorkspaceState> }) {
   return (
-    <main className="grid h-full place-items-center">
-      <div className="text-center">
-        <img src={logo} alt="Teams4Soft" className="mx-auto h-28" />
-        <h1 className="mt-4 text-2xl font-semibold">Qapture</h1>
-        <p className="text-t4s-gray">Evidencias QA · Teams4Soft</p>
-      </div>
-    </main>
+    <WorkspaceProvider store={store}>
+      <AppShell />
+    </WorkspaceProvider>
   );
 }
