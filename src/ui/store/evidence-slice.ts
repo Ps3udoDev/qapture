@@ -29,6 +29,9 @@ export interface EvidenceSlice {
   moveEvidence(evidenceId: string, targetCaseId: string): Promise<void>;
   reorderEvidence(orderedIds: string[]): Promise<void>;
   deleteEvidence(evidenceId: string): Promise<void>;
+  startCapture(): Promise<void>;
+  receiveCapture(stagedPath: string): Promise<void>;
+  listenCaptures(): Promise<() => void>;
 }
 
 type Set = StoreApi<WorkspaceState>["setState"];
@@ -145,6 +148,30 @@ export function createEvidenceSlice(repos: Repositories, set: Set, get: Get, h: 
 
     readImage: (path) => repos.evidence.readImage(path),
     imageUrl: (path, version) => repos.evidence.imageUrl(path, version),
+
+    async startCapture() {
+      try {
+        await repos.capture.start();
+      } catch (error) {
+        h.report(error);
+      }
+    },
+
+    async receiveCapture(stagedPath) {
+      if (get().cases.length === 0) {
+        get().pushToast("error", "Crea un caso antes de capturar evidencias.");
+        try {
+          await repos.evidence.discardStaged(stagedPath);
+        } catch {
+          // Si falla, el próximo arranque vacía evidence/_staging.
+        }
+        return;
+      }
+      // El caso activo queda preseleccionado; si el editor está abierto, la captura espera en la cola.
+      get().openEvidenceEditor({ imagePath: stagedPath });
+    },
+
+    listenCaptures: () => repos.capture.onCaptured((stagedPath) => void get().receiveCapture(stagedPath)),
 
     updateEvidenceDescription: (evidenceId, description) =>
       h.form(

@@ -13,9 +13,26 @@ export function AppShell() {
   const project = useWorkspace((s) => s.project);
   const [dialog, setDialog] = useState<"new-project" | "settings" | null>(null);
 
+  const listenCaptures = useWorkspace((s) => s.listenCaptures);
+
   useEffect(() => {
     void init();
   }, [init]);
+
+  useEffect(() => {
+    // Siempre montado: la captura puede llegar sin proyecto abierto (F6 la dispara con el atajo global).
+    // En StrictMode el efecto corre dos veces; si la suscripción llega tarde, se cancela al llegar.
+    let active = true;
+    let unlisten: (() => void) | undefined;
+    void listenCaptures().then((off) => {
+      if (active) unlisten = off;
+      else off();
+    });
+    return () => {
+      active = false;
+      unlisten?.();
+    };
+  }, [listenCaptures]);
 
   if (!ready) return <div className="grid h-full place-items-center text-t4s-gray">Cargando Qapture…</div>;
 
