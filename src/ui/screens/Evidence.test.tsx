@@ -128,16 +128,23 @@ describe("galería de evidencias", () => {
     expect(await screen.findByRole("dialog", { name: "Editor de evidencia" })).toBeInTheDocument();
   });
 
-  it("cierra el visor si la evidencia mostrada desaparece de la lista", async () => {
+  it("el visor no se reabre tras reducirse y crecer la lista", async () => {
     const { user, store } = await renderApp({ setup: async (repos) => void (await seedWithEvidence(repos)) });
     await within(gallery()).findByRole("heading", { name: "Evidencias (2)" });
     await user.click(within(gallery()).getByRole("button", { name: "Ver evidencia 2" }));
     expect(screen.getByRole("dialog", { name: "Evidencia 2 de 2" })).toBeInTheDocument();
+    const original = store.getState().selectedCaseId!;
     const target = store.getState().cases.find((c) => c.code === "EJ-002")!;
+    const movedId = store.getState().evidence[1].id;
     await act(async () => {
-      await store.getState().moveEvidence(store.getState().evidence[1].id, target.id);
+      await store.getState().moveEvidence(movedId, target.id);
     });
     await waitFor(() => expect(within(gallery()).getByRole("heading", { name: "Evidencias (1)" })).toBeInTheDocument());
+    expect(screen.queryByRole("dialog", { name: "Evidencia 2 de 2" })).not.toBeInTheDocument();
+    await act(async () => {
+      await store.getState().moveEvidence(movedId, original);
+    });
+    await waitFor(() => expect(within(gallery()).getByRole("heading", { name: "Evidencias (2)" })).toBeInTheDocument());
     expect(screen.queryByRole("dialog", { name: "Evidencia 2 de 2" })).not.toBeInTheDocument();
   });
 
