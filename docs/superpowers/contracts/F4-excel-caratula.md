@@ -15,17 +15,17 @@ Exportar el proyecto a un `.xlsx` con las hojas **Carátula**, **Matriz** (colum
 | Nombre del tester recordado (preferencia local hasta que F6 tenga Settings) | |
 
 ## Tasks
-| ID | Task |
-|---|---|
-| F4-T1 | Migración `0003_doc_version.sql`, repositorio y comandos de versiones del documento + UI en Configuración del proyecto |
-| F4-T2 | `excel/styles.rs`: formatos T4S (Arial, `#2B629E`, `#BAC82D`, `#292B2D`, `#F6F4F1`) |
-| F4-T3 | `excel/cover.rs`: banner, logo (`include_bytes!`), datos del proyecto, tester, KPI, tabla de versiones, pie |
-| F4-T4 | `excel/matrix.rs`: columnas visibles en orden y ancho, tipos (fecha `dd/mm/yyyy`, número, sí/no), validación de lista y estado, formato condicional, autofiltro, paneles inmovilizados, impresión A4 horizontal |
-| F4-T5 | `excel/evidence_sheet.rs`: bloques por caso, vínculos ida y vuelta, imágenes renderizadas con ancho máximo configurable |
-| F4-T6 | `excel/summary.rs`: tablas por estado y por módulo/entorno + gráfico de barras nativo |
-| F4-T7 | Comando `export_project(projectId, options)` con progreso (`export:progress`), escritura atómica y manejo de "archivo abierto en Excel" |
-| F4-T8 | UI: diálogo de exportación, toast con "Abrir archivo" y "Abrir carpeta" |
-| F4-T9 | Tests: leer el xlsx con `calamine` y verificar hojas, celdas, vínculos y número de imágenes |
+| ID | Task | Estado |
+|---|---|---|
+| F4-T1 | Migración `0003_doc_version.sql`, repositorio y comandos de versiones del documento + UI en Configuración del proyecto | ✅ |
+| F4-T2 | `excel/styles.rs`: formatos T4S (Arial, `#2B629E`, `#BAC82D`, `#292B2D`, `#F6F4F1`) | ✅ |
+| F4-T3 | `excel/cover.rs`: banner, logo (`include_bytes!`), datos del proyecto, tester, KPI, tabla de versiones, pie | ✅ |
+| F4-T4 | `excel/matrix.rs`: columnas visibles en orden y ancho, tipos (fecha `dd/mm/yyyy`, número, sí/no), validación de lista y estado, formato condicional, autofiltro, paneles inmovilizados, impresión A4 horizontal | ✅ |
+| F4-T5 | `excel/evidence_sheet.rs`: bloques por caso, vínculos ida y vuelta, imágenes renderizadas con ancho máximo configurable | ✅ |
+| F4-T6 | `excel/summary.rs`: tablas por estado y por módulo/entorno + gráfico de barras nativo | ✅ |
+| F4-T7 | Comando `export_project(projectId, options)` con progreso (`export:progress`), escritura atómica y manejo de "archivo abierto en Excel" | ✅ |
+| F4-T8 | UI: diálogo de exportación, toast con "Abrir archivo" y "Abrir carpeta" | ✅ |
+| F4-T9 | Tests: leer el xlsx con `calamine` y verificar hojas, celdas, vínculos y número de imágenes | ✅ |
 
 ## Notas de implementación (acordadas en el plan)
 - crates.io retiró (*yank*) toda la serie `zip` < 9.0.3. Por eso `rust_xlsxwriter` se toma de su repositorio (commit `ade0a01`, ya con zip 9) hasta que publique una versión con zip 9. `calamine` (solo tests) usa `zip` 8.6.0 desde el tag del repositorio mediante `[patch.crates-io]`.
@@ -38,8 +38,11 @@ Exportar el proyecto a un `.xlsx` con las hojas **Carátula**, **Matriz** (colum
 - `export_project` y `export_template`. F6 agrega "carpeta por defecto" y "ancho máximo de imagen" en Settings.
 
 ## Criterios de aceptación
-- [ ] El xlsx generado se relee con `calamine`: 4 hojas, encabezados = columnas visibles, N filas = N casos, vínculos válidos.
-- [ ] 300 evidencias se exportan en menos de 20 s y con memoria estable.
+- [x] El xlsx generado se relee con `calamine`: 4 hojas, encabezados = columnas visibles, N filas = N casos, vínculos válidos. Cubierto por:
+  - `excel::tests::exports_four_sheets_that_calamine_reads_back`
+  - `excel::tests::links_go_both_ways_between_matrix_and_evidence`
+- [x] 300 evidencias se exportan en menos de 20 s y con memoria estable. Cubierto por:
+  - `excel::tests::exports_300_evidences_in_under_20_seconds` (medición en release: 2.60 s para 300 evidencias, 3.1 MB de xlsx generado). La memoria se revisa en la prueba local 9.
 
 ## Checklist de pruebas locales
 | # | Prueba | Esperado | OK |
