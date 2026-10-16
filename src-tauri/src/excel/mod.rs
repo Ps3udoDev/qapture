@@ -3,6 +3,7 @@
 // Hasta la Task 10 ningún comando usa este módulo: solo lo ejercitan los tests.
 #![allow(dead_code)]
 
+pub mod cover;
 pub mod data;
 pub mod styles;
 #[cfg(test)]
