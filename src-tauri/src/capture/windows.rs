@@ -64,12 +64,13 @@ impl CaptureHost for TauriHost<'_> {
             .build()
             .map_err(window_error)?;
             // Primero se mueve al monitor (la ventana adopta su DPI) y después se fija el tamaño físico.
-            window
-                .set_position(PhysicalPosition::new(m.x, m.y))
-                .map_err(window_error)?;
+            let position = PhysicalPosition::new(m.x, m.y);
+            window.set_position(position).map_err(window_error)?;
             window
                 .set_size(PhysicalSize::new(m.width, m.height))
                 .map_err(window_error)?;
+            // WM_DPICHANGED (Windows 10 antiguos) puede desplazarla al cambiar de DPI: se reafirma.
+            window.set_position(position).map_err(window_error)?;
         }
         Ok(())
     }

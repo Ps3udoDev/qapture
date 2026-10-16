@@ -2,7 +2,7 @@ use std::sync::{Mutex, MutexGuard};
 
 use rusqlite::Connection;
 
-use crate::capture::session::{CaptureController, HIDE_DELAY};
+use crate::capture::session::{CaptureController, HIDE_DELAY, READY_TIMEOUT};
 use crate::media::storage::EvidenceFiles;
 
 pub struct AppState {
@@ -16,7 +16,7 @@ impl AppState {
         Self {
             db: Mutex::new(conn),
             files,
-            capture: CaptureController::new(HIDE_DELAY),
+            capture: CaptureController::new(HIDE_DELAY, Some(READY_TIMEOUT)),
         }
     }
 
