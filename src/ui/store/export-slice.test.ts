@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { emptyDocVersion } from "../../domain/doc-versions";
 import { defaultExportOptions, type ExportProgress } from "../../domain/export";
+import { AppError } from "../../ports/errors";
 import { createMemoryRepositories } from "../../infrastructure/memory/repositories";
 import { seedProject } from "../test-utils";
 import { memoryPreferences } from "./preferences";
@@ -74,5 +75,13 @@ describe("slice de exportación", () => {
       errors: { _form: "Cierra el archivo en Excel y vuelve a intentar." },
     });
     expect(store.getState().exporting).toBeNull();
+  });
+
+  it("si la exportación falla tras crear la versión, recarga las versiones", async () => {
+    const { store, repos } = await setup();
+    vi.spyOn(repos.exporter, "exportProject").mockRejectedValueOnce(new AppError("export", "No se pudo generar el Excel. Inténtalo nuevamente."));
+    expect(await store.getState().exportExcel({ kind: "project", options, newVersion })).toEqual({ ok: false, errors: {} });
+    expect(store.getState().toasts.at(-1)?.message).toBe("No se pudo generar el Excel. Inténtalo nuevamente.");
+    expect(store.getState().docVersions).toHaveLength(1);
   });
 });

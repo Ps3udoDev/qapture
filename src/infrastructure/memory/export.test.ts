@@ -46,7 +46,7 @@ describe("exportador en memoria", () => {
     off();
     await repos.exporter.openFile(result!.path);
     expect(repos.exporter.opened).toEqual([result!.path]);
-    await expect(repos.exporter.revealFile("C:\otro.xlsx")).rejects.toMatchObject({ code: "validation" });
+    await expect(repos.exporter.revealFile("C:\\otro.xlsx")).rejects.toMatchObject({ code: "validation" });
   });
 
   it("simula cancelar «Guardar como» y el archivo abierto en Excel", async () => {

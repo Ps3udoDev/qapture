@@ -80,8 +80,6 @@ export function createExportSlice(repos: Repositories, prefs: Preferences, set: 
       set({ exporting: { stage: "preparing", current: 0, total: 0 } });
       try {
         const outcome = await useCases.exportWorkbook(repos, current.id, request, (exporting) => set({ exporting }));
-        // Una versión nueva queda registrada aunque luego se cancele «Guardar como».
-        if (request.newVersion) await get().loadDocVersions();
         if (!outcome.ok) return outcome;
         prefs.setTester(request.options.tester.trim());
         const result = outcome.value;
@@ -97,6 +95,8 @@ export function createExportSlice(repos: Repositories, prefs: Preferences, set: 
         h.report(error);
         return { ok: false, errors: {} };
       } finally {
+        // Una versión nueva queda registrada aunque la exportación falle o se cancele «Guardar como».
+        if (request.newVersion) await get().loadDocVersions();
         set({ exporting: null });
       }
     },
