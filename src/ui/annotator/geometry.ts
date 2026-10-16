@@ -21,7 +21,14 @@ export const rectFromPoints = (a: Point, b: Point): Rect => ({
 export function clampRect(r: Rect, width: number, height: number): Rect {
   const x = clamp(r.x, 0, width);
   const y = clamp(r.y, 0, height);
-  return { x, y, width: clamp(r.x + r.width, 0, width) - x, height: clamp(r.y + r.height, 0, height) - y };
+  const fitsX = r.x >= 0 && r.x + r.width <= width;
+  const fitsY = r.y >= 0 && r.y + r.height <= height;
+  return {
+    x,
+    y,
+    width: fitsX ? r.width : clamp(r.x + r.width, 0, width) - x,
+    height: fitsY ? r.height : clamp(r.y + r.height, 0, height) - y,
+  };
 }
 
 export const isMeaningful = (r: Rect) => r.width >= MIN_SIZE && r.height >= MIN_SIZE;
