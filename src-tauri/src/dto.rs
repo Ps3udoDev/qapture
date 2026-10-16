@@ -195,6 +195,34 @@ pub struct ExportOptionsInput {
     pub image_max_width: u32,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportResultDto {
+    pub path: String,
+    pub file_name: String,
+    pub cases: i64,
+    pub evidence: i64,
+    pub missing_images: i64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ExportStage {
+    Preparing,
+    Images,
+    Writing,
+    Saving,
+}
+
+/// Payload del evento `export:progress` (Rust → ventana principal).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportProgressDto {
+    pub stage: ExportStage,
+    pub current: i64,
+    pub total: i64,
+}
+
 #[cfg(test)]
 mod contract {
     use std::{collections::BTreeMap, path::PathBuf};
