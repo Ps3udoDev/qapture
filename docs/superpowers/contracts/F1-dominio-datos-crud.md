@@ -47,10 +47,10 @@ Que un tester cree proyectos desde plantillas, personalice columnas y registre, 
 - **Tokens de diseño:** `--color-t4s-*` en `src/ui/theme/tokens.css`.
 
 ## Criterios de aceptación (automáticos)
-- [ ] `cargo test` en verde: migraciones idempotentes, siembra, reglas de columnas, código EJ-###, duplicar, contrato.
-- [ ] `pnpm test` en verde: dominio, adaptadores, store, UI.
-- [ ] `pnpm typecheck` y `cargo clippy -- -D warnings` sin errores.
-- [ ] `pnpm tauri build` genera el instalador NSIS.
+- [x] `cargo test` en verde: migraciones idempotentes, siembra, reglas de columnas, código EJ-###, duplicar, contrato.
+- [x] `pnpm test` en verde: dominio, adaptadores, store, UI.
+- [x] `pnpm typecheck` y `cargo clippy -- -D warnings` sin errores.
+- [x] `pnpm tauri build` genera el instalador NSIS.
 
 ## Checklist de pruebas locales del equipo
 Instalar `Qapture_0.1.0_x64-setup.exe` en un equipo limpio.

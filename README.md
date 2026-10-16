@@ -22,6 +22,11 @@ pnpm tauri dev      # app en modo desarrollo
 pnpm tauri build    # instaladores en src-tauri/target/release/bundle
 ```
 
+## Probar un build
+
+El equipo prueba cada fase con el instalador local siguiendo el checklist del contrato correspondiente en
+[`docs/superpowers/contracts/`](docs/superpowers/contracts/README.md).
+
 ## Licencia
 
 [MIT](LICENSE). El logo y la marca Teams4Soft no están cubiertos por la licencia: ver [NOTICE](NOTICE).
