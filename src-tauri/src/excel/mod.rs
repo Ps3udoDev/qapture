@@ -9,5 +9,6 @@ pub mod evidence_sheet;
 pub mod images;
 pub mod matrix;
 pub mod styles;
+pub mod summary;
 #[cfg(test)]
 pub(crate) mod testing;
