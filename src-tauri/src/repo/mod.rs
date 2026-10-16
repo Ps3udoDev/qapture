@@ -1,5 +1,4 @@
 pub mod cases;
-#[allow(dead_code)]
 pub mod evidence;
 pub mod fields;
 pub mod projects;

@@ -20,7 +20,6 @@ pub struct EvidenceFiles {
 }
 
 impl EvidenceFiles {
-    #[allow(dead_code)]
     pub fn new(data_dir: impl Into<PathBuf>) -> Self {
         Self {
             data_dir: data_dir.into(),
@@ -81,13 +80,11 @@ impl EvidenceFiles {
         }
     }
 
-    #[allow(dead_code)]
     pub fn discard_staged(&self, raw: &str) -> AppResult<()> {
         fs::remove_file(self.resolve_inside(raw, true)?)?;
         Ok(())
     }
 
-    #[allow(dead_code)]
     pub fn clear_staging(&self) -> AppResult<()> {
         let dir = self.staging_dir();
         if dir.exists() {

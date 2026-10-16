@@ -161,6 +161,8 @@ mod contract {
     use super::*;
     use crate::error::AppError;
 
+    const ANNOTATIONS: &str = r#"{"version":1,"crop":null,"shapes":[]}"#;
+
     fn field() -> FieldDto {
         FieldDto {
             id: "fld-1".into(),
@@ -187,7 +189,10 @@ mod contract {
             "projectMetaInput": meta_json(),
             "fieldInput": { "id": null, "label": "Severidad", "type": "list", "options": ["Alta", "Media", "Baja"],
                             "required": false, "clearOnDuplicate": false, "width": 14, "archived": false },
-            "caseInput": { "title": "Aplicación de recibos", "status": "Aprobado", "values": { "fld-1": "QA" } }
+            "caseInput": { "title": "Aplicación de recibos", "status": "Aprobado", "values": { "fld-1": "QA" } },
+            "newEvidenceMeta": { "caseId": "case-1", "stagedPath": "C:\\datos\\evidence\\_staging\\stg-1.png",
+                                 "description": "Pantalla de recibos", "annotations": ANNOTATIONS },
+            "evidenceUpdateMeta": { "evidenceId": "ev-1", "description": "Pantalla de recibos", "annotations": ANNOTATIONS }
         })
     }
 
@@ -204,6 +209,13 @@ mod contract {
                                     start_date: "2026-10-01".into(), end_date: "2026-10-31".into(), next_sequence: 4,
                                     source_template_id: Some("tpl-funcional".into()), created_at: ts.clone(),
                                     updated_at: ts.clone(), fields: vec![field()] },
+            "evidence": EvidenceDto { id: "ev-1".into(), case_id: "case-1".into(), position: 0,
+                                      description: "Pantalla de recibos aplicados".into(),
+                                      original_path: "C:\\datos\\evidence\\prj-1\\ev-1.orig.png".into(),
+                                      rendered_path: "C:\\datos\\evidence\\prj-1\\ev-1.render.png".into(),
+                                      annotations: ANNOTATIONS.into(), width: 1920, height: 1080,
+                                      captured_at: ts.clone(), updated_at: ts.clone() },
+            "stagedImage": StagedImageDto { path: "C:\\datos\\evidence\\_staging\\stg-1.png".into(), width: 1920, height: 1080 },
             "case": CaseDto { id: "case-1".into(), project_id: "prj-1".into(), code: "EJ-001".into(),
                               title: "Aplicación de recibos".into(), status: "Aprobado".into(),
                               values: BTreeMap::from([("fld-1".to_string(), "QA".to_string())]),
@@ -221,6 +233,8 @@ mod contract {
         serde_json::from_value::<ProjectMetaInput>(i["projectMetaInput"].clone()).unwrap();
         serde_json::from_value::<FieldInput>(i["fieldInput"].clone()).unwrap();
         serde_json::from_value::<CaseInput>(i["caseInput"].clone()).unwrap();
+        serde_json::from_value::<NewEvidenceMeta>(i["newEvidenceMeta"].clone()).unwrap();
+        serde_json::from_value::<EvidenceUpdateMeta>(i["evidenceUpdateMeta"].clone()).unwrap();
     }
 
     #[test]

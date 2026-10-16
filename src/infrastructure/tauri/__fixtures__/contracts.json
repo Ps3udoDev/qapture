@@ -17,6 +17,19 @@
     "detail": "«Entorno» es obligatorio.",
     "message": "«Entorno» es obligatorio."
   },
+  "evidence": {
+    "annotations": "{\"version\":1,\"crop\":null,\"shapes\":[]}",
+    "capturedAt": "2026-10-15T12:00:00.000Z",
+    "caseId": "case-1",
+    "description": "Pantalla de recibos aplicados",
+    "height": 1080,
+    "id": "ev-1",
+    "originalPath": "C:\\datos\\evidence\\prj-1\\ev-1.orig.png",
+    "position": 0,
+    "renderedPath": "C:\\datos\\evidence\\prj-1\\ev-1.render.png",
+    "updatedAt": "2026-10-15T12:00:00.000Z",
+    "width": 1920
+  },
   "field": {
     "archived": false,
     "clearOnDuplicate": false,
@@ -40,6 +53,11 @@
         "fld-1": "QA"
       }
     },
+    "evidenceUpdateMeta": {
+      "annotations": "{\"version\":1,\"crop\":null,\"shapes\":[]}",
+      "description": "Pantalla de recibos",
+      "evidenceId": "ev-1"
+    },
     "fieldInput": {
       "archived": false,
       "clearOnDuplicate": false,
@@ -53,6 +71,12 @@
       "required": false,
       "type": "list",
       "width": 14
+    },
+    "newEvidenceMeta": {
+      "annotations": "{\"version\":1,\"crop\":null,\"shapes\":[]}",
+      "caseId": "case-1",
+      "description": "Pantalla de recibos",
+      "stagedPath": "C:\\datos\\evidence\\_staging\\stg-1.png"
     },
     "newProjectInput": {
       "meta": {
@@ -110,6 +134,11 @@
     "id": "prj-1",
     "name": "Recibos",
     "updatedAt": "2026-10-15T12:00:00.000Z"
+  },
+  "stagedImage": {
+    "height": 1080,
+    "path": "C:\\datos\\evidence\\_staging\\stg-1.png",
+    "width": 1920
   },
   "template": {
     "builtin": true,
