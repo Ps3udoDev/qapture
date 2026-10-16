@@ -6,7 +6,14 @@
 
 Qapture corre en segundo plano en Windows. Con un atajo capturas la pantalla, anotas la captura (flechas, números, texto, desenfoque), la asignas a un caso de prueba y exportas un Excel con carátula Teams4Soft, matriz, evidencias y resumen.
 
-> Estado: **en construcción (v0.1)**. El diseño está en [`docs/superpowers/specs/2026-10-15-qapture-design.md`](docs/superpowers/specs/2026-10-15-qapture-design.md).
+> Estado: **v0.4.0 (Fase 4 completada · En pruebas del equipo)**. El diseño está en [`docs/superpowers/specs/2026-10-15-qapture-design.md`](docs/superpowers/specs/2026-10-15-qapture-design.md).
+
+## Fases implementadas
+
+- **F1: Dominio, SQLite y CRUD** (`v0.1.0`) — Proyectos, columnas dinámicas, casos de prueba y plantillas.
+- **F2: Evidencias y editor de anotaciones** (`v0.2.0`) — Anotador con herramientas (flechas, cajas, texto, enumeración, blur), galería de evidencias por caso y almacenamiento transaccional.
+- **F3: Captura de pantalla integrada** (`v0.3.0`) — Botón «Capturar», selector de región/monitor completo con soporte multi-monitor y control de escala DPI.
+- **F4: Excel con carátula Teams4Soft** (`v0.4.0`) — Exportación a `.xlsx` nativo con carátula, matriz de casos, hoja de evidencias con capturas incrustadas y vínculos bidireccionales, resumen con gráficos nativos, control de versiones del documento y plantilla vacía.
 
 ## Stack
 
@@ -26,6 +33,9 @@ pnpm tauri build    # instaladores en src-tauri/target/release/bundle
 
 El equipo prueba cada fase con el instalador local siguiendo el checklist del contrato correspondiente en
 [`docs/superpowers/contracts/`](docs/superpowers/contracts/README.md).
+
+El instalador para Windows se genera en:
+`src-tauri/target/release/bundle/nsis/Qapture_0.4.0_x64-setup.exe`
 
 ## Licencia
 
