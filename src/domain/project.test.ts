@@ -31,6 +31,24 @@ describe("validateFieldInputs", () => {
     });
   });
 
+  it("replica los límites de Rust y su orden de comprobación", () => {
+    const long = "x".repeat(101);
+    const many = Array.from({ length: 51 }, (_, i) => `o${i}`);
+    const errors = validateFieldInputs([
+      { ...newFieldInput(), label: long },
+      { ...newFieldInput(), label: "Sev", type: "list", options: ["ok", long] },
+      { ...newFieldInput(), label: "Muchas", type: "list", options: many },
+      { ...newFieldInput(), label: "Ambas", type: "list", options: [], width: 4 },
+      { ...newFieldInput(), label: "Cincuenta", type: "list", options: many.slice(0, 50) },
+    ]);
+    expect(errors).toEqual({
+      "0": "«Nombre de la columna» supera 100 caracteres.",
+      "1": "Una opción de «Sev» supera 100 caracteres.",
+      "2": "La lista «Muchas» admite como máximo 50 opciones.",
+      "3": "El ancho de «Ambas» debe estar entre 8 y 100.",
+    });
+  });
+
   it("normaliza opciones solo para listas", () => {
     expect(normalizeFieldInput({ ...newFieldInput(), label: " Sev ", type: "list", options: [" Alta", "Alta", "", "Baja"] })).toMatchObject({
       label: "Sev",

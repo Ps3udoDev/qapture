@@ -123,6 +123,10 @@ export function validateFieldInputs(inputs: FieldInput[]): FormErrors {
       errors[key] = `La columna ${index + 1} necesita un nombre.`;
       return;
     }
+    if (charLength(input.label) > 100) {
+      errors[key] = "«Nombre de la columna» supera 100 caracteres.";
+      return;
+    }
     if (!input.archived) {
       const folded = input.label.toLowerCase();
       if (seen.has(folded)) {
@@ -131,10 +135,19 @@ export function validateFieldInputs(inputs: FieldInput[]): FormErrors {
       }
       seen.add(folded);
     }
-    if (input.type === "list" && input.options.length === 0) {
-      errors[key] = `La lista «${input.label}» necesita al menos una opción.`;
-    } else if (input.width < 8 || input.width > 100) {
+    // Mismo orden que Rust: ancho antes que opciones.
+    if (input.width < 8 || input.width > 100) {
       errors[key] = `El ancho de «${input.label}» debe estar entre 8 y 100.`;
+      return;
+    }
+    if (input.type === "list") {
+      if (input.options.some((o) => charLength(o) > 100)) {
+        errors[key] = `Una opción de «${input.label}» supera 100 caracteres.`;
+      } else if (input.options.length === 0) {
+        errors[key] = `La lista «${input.label}» necesita al menos una opción.`;
+      } else if (input.options.length > 50) {
+        errors[key] = `La lista «${input.label}» admite como máximo 50 opciones.`;
+      }
     }
   });
   return errors;
