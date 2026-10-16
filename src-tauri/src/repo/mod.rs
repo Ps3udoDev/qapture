@@ -1,3 +1,4 @@
+pub mod cases;
 pub mod fields;
 pub mod projects;
 pub mod templates;

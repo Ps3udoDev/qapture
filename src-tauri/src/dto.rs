@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::domain::fields::FieldType;
@@ -85,4 +87,25 @@ pub struct FieldInput {
     pub clear_on_duplicate: bool,
     pub width: i64,
     pub archived: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CaseDto {
+    pub id: String,
+    pub project_id: String,
+    pub code: String,
+    pub title: String,
+    pub status: String,
+    pub values: BTreeMap<String, String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CaseInput {
+    pub title: String,
+    pub status: String,
+    pub values: BTreeMap<String, String>,
 }
