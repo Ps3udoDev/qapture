@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { CaseInput } from "../../domain/cases";
+import { toSelection } from "../../domain/capture";
 import type { EvidenceUpdateInput, NewEvidenceInput } from "../../domain/evidence";
 import type { FieldInput, NewProjectInput } from "../../domain/project";
 import fixture from "./__fixtures__/contracts.json";
-import { appErrorSchema, caseSchema, evidenceSchema, fieldSchema, projectSchema, projectSummarySchema, stagedImageSchema, templateSchema } from "./dto";
+import { appErrorSchema, capturedEventSchema, caseSchema, evidenceSchema, fieldSchema, projectSchema, projectSummarySchema, stagedImageSchema, templateSchema } from "./dto";
 
 describe("contrato Rust → TS", () => {
   it.each([
@@ -15,6 +16,8 @@ describe("contrato Rust → TS", () => {
     ["evidence", evidenceSchema],
     ["stagedImage", stagedImageSchema],
     ["error", appErrorSchema],
+    ["capturedEvent", capturedEventSchema],
+    ["captureError", appErrorSchema],
   ] as const)("%s cumple el esquema estricto", (key, schema) => {
     expect(() => schema.parse(fixture[key])).not.toThrow();
   });
@@ -36,5 +39,7 @@ describe("contrato TS → Rust", () => {
     const evidenceUpdate: EvidenceUpdateInput = { evidenceId: "", description: "", annotations: "" };
     expect(sortedKeys(newEvidence)).toEqual(sortedKeys(fixture.inputs.newEvidenceMeta));
     expect(sortedKeys(evidenceUpdate)).toEqual(sortedKeys(fixture.inputs.evidenceUpdateMeta));
+    const selection = toSelection({ x: 0, y: 0, width: 1, height: 1 }, { width: 1, height: 1 });
+    expect(sortedKeys(selection)).toEqual(sortedKeys(fixture.inputs.selection));
   });
 });

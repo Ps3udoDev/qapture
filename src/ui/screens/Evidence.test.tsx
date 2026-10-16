@@ -201,3 +201,29 @@ describe("galería de evidencias", () => {
     expect(screen.queryByRole("dialog", { name: "Editor de evidencia" })).not.toBeInTheDocument();
   });
 });
+
+describe("captura integrada", () => {
+  it("«Capturar» abre el editor con la captura y el caso activo", async () => {
+    const { user, repos } = await renderApp({ setup: async (r) => void (await seedCases(r)) });
+    await user.click(screen.getByRole("button", { name: "Capturar" }));
+    const dialog = await editor();
+    expect(within(dialog).getByLabelText("Caso")).toHaveDisplayValue("EJ-001 · Recibos");
+    expect(repos.capture.starts).toBe(1);
+  });
+
+  it("si la captura falla muestra el motivo", async () => {
+    const { user, repos } = await renderApp({ setup: async (r) => void (await seedCases(r)) });
+    repos.capture.mode = "error";
+    await user.click(screen.getByRole("button", { name: "Capturar" }));
+    expect(await screen.findByText("No se pudo capturar la pantalla. Inténtalo nuevamente.")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Editor de evidencia" })).not.toBeInTheDocument();
+  });
+
+  it("una captura que llega sin proyecto abierto se descarta y avisa", async () => {
+    const { repos } = await renderApp();
+    const staged = await repos.evidence.stage(new Uint8Array(PNG_BYTES));
+    act(() => repos.capture.emit(staged.path));
+    expect(await screen.findByText("Crea un caso antes de capturar evidencias.")).toBeInTheDocument();
+    await waitFor(() => expect(repos.evidence.stagedCount()).toBe(0));
+  });
+});

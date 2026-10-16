@@ -121,3 +121,65 @@ describe("slice de evidencias", () => {
     expect(editorQueue.map((r) => r.imagePath)).toEqual([paths[2]]);
   });
 });
+
+describe("captura integrada", () => {
+  it("la captura abre el editor con el caso activo y se guarda", async () => {
+    const { store, repos, c1, save } = await setup();
+    await store.getState().listenCaptures();
+    await store.getState().startCapture();
+    expect(repos.capture.starts).toBe(1);
+    expect(store.getState().editor).toMatchObject({ kind: "new", caseId: c1.id });
+    expect(await save()).toEqual({ ok: true });
+    expect(store.getState().evidence).toHaveLength(1);
+  });
+
+  it("una captura con el editor abierto queda en la cola", async () => {
+    const { store } = await setup();
+    await store.getState().listenCaptures();
+    await store.getState().intakeImages([PNG]);
+    await store.getState().startCapture();
+    expect(store.getState().editorQueue).toHaveLength(1);
+  });
+
+  it("cancelar el editor de una captura no deja temporales", async () => {
+    const { store, repos } = await setup();
+    await store.getState().listenCaptures();
+    await store.getState().startCapture();
+    expect(repos.evidence.stagedCount()).toBe(1);
+    await store.getState().cancelEditor();
+    expect(store.getState().editor).toBeNull();
+    expect(repos.evidence.stagedCount()).toBe(0);
+  });
+
+  it("sin casos descarta la captura y avisa", async () => {
+    const repos = createMemoryRepositories();
+    const p = await seedProject(repos);
+    const store = createWorkspaceStore(repos, memoryPreferences(p.id));
+    await store.getState().init();
+    await store.getState().listenCaptures();
+    await store.getState().startCapture();
+    await vi.waitFor(() => expect(repos.evidence.stagedCount()).toBe(0));
+    expect(store.getState().editor).toBeNull();
+    expect(store.getState().toasts.at(-1)?.message).toBe("Crea un caso antes de capturar evidencias.");
+  });
+
+  it("si la captura falla avisa, y si se cancela en el overlay no pasa nada", async () => {
+    const { store, repos } = await setup();
+    await store.getState().listenCaptures();
+    repos.capture.mode = "error";
+    await store.getState().startCapture();
+    expect(store.getState().toasts.at(-1)?.message).toBe("No se pudo capturar la pantalla. Inténtalo nuevamente.");
+    repos.capture.mode = "cancel";
+    const toasts = store.getState().toasts.length;
+    await store.getState().startCapture();
+    expect(store.getState().editor).toBeNull();
+    expect(store.getState().toasts).toHaveLength(toasts);
+  });
+
+  it("desuscribirse deja de recibir capturas", async () => {
+    const { store, repos } = await setup();
+    const off = await store.getState().listenCaptures();
+    off();
+    expect(repos.capture.listeners()).toBe(0);
+  });
+});

@@ -1,4 +1,4 @@
-import { Upload } from "lucide-react";
+import { Camera, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { CaseRecord } from "../../domain/cases";
 import { ACCEPTED_IMAGE_TYPES, evidenceLabel, moveItem, type Evidence } from "../../domain/evidence";
@@ -18,6 +18,7 @@ export function EvidenceGallery({ caseRecord }: { caseRecord: CaseRecord }) {
   const moveEvidence = useWorkspace((s) => s.moveEvidence);
   const reorderEvidence = useWorkspace((s) => s.reorderEvidence);
   const deleteEvidence = useWorkspace((s) => s.deleteEvidence);
+  const startCapture = useWorkspace((s) => s.startCapture);
   const intake = useEvidenceIntake();
   const picker = useRef<HTMLInputElement>(null);
   const [viewing, setViewing] = useState<number | null>(null);
@@ -39,9 +40,14 @@ export function EvidenceGallery({ caseRecord }: { caseRecord: CaseRecord }) {
     <section aria-label="Evidencias" className="mt-6">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">Evidencias ({evidence.length})</h3>
-        <button type="button" className={btn.secondary} onClick={() => picker.current?.click()}>
-          <Upload size={16} /> Elegir imagen
-        </button>
+        <div className="flex gap-2">
+          <button type="button" className={btn.secondary} onClick={() => void startCapture()}>
+            <Camera size={16} /> Capturar
+          </button>
+          <button type="button" className={btn.secondary} onClick={() => picker.current?.click()}>
+            <Upload size={16} /> Elegir imagen
+          </button>
+        </div>
         <input
           ref={picker}
           type="file"
@@ -58,7 +64,7 @@ export function EvidenceGallery({ caseRecord }: { caseRecord: CaseRecord }) {
       </div>
       {evidence.length === 0 ? (
         <p className="mt-3 rounded-xl border border-dashed border-t4s-line p-6 text-center text-sm text-t4s-gray">
-          Pega una captura con <kbd className="rounded bg-t4s-cream px-1">Ctrl</kbd>+<kbd className="rounded bg-t4s-cream px-1">V</kbd>, arrástrala aquí o elige un archivo.
+          Usa «Capturar», pega una captura con <kbd className="rounded bg-t4s-cream px-1">Ctrl</kbd>+<kbd className="rounded bg-t4s-cream px-1">V</kbd>, arrástrala aquí o elige un archivo.
         </p>
       ) : (
         <ol aria-label="Lista de evidencias" className="mt-3 grid grid-cols-2 gap-4 xl:grid-cols-3">

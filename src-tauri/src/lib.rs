@@ -1,3 +1,4 @@
+mod capture;
 mod commands;
 mod db;
 mod domain;
@@ -32,6 +33,16 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            if capture::windows::overlay_index(window.label()).is_some() {
+                // Un overlay cerrado por fuera (Alt+F4, WebView caído) cancela toda la captura.
+                if let tauri::WindowEvent::Destroyed = event {
+                    let app = window.app_handle();
+                    app.state::<state::AppState>()
+                        .capture()
+                        .overlay_closed(&capture::windows::TauriHost { app });
+                }
+                return;
+            }
             if window.label() != "main" {
                 return;
             }
@@ -65,6 +76,11 @@ pub fn run() {
             commands::evidence::move_evidence,
             commands::evidence::reorder_evidence,
             commands::evidence::delete_evidence,
+            commands::capture::start_capture,
+            commands::capture::capture_frame,
+            commands::capture::overlay_ready,
+            commands::capture::finish_capture,
+            commands::capture::cancel_capture,
         ])
         .run(tauri::generate_context!())
         .expect("no se pudo iniciar Qapture");

@@ -2,6 +2,7 @@ import type { CaseInput, CaseRecord } from "../domain/cases";
 import type { Evidence, EvidenceUpdateInput, NewEvidenceInput, StagedImage } from "../domain/evidence";
 import type { FieldDef } from "../domain/fields";
 import type { FieldInput, NewProjectInput, Project, ProjectMeta, ProjectSummary, Template } from "../domain/project";
+import type { ScreenCapture } from "./capture";
 
 export interface TemplateRepository {
   list(): Promise<Template[]>;
@@ -45,4 +46,5 @@ export interface Repositories {
   projects: ProjectRepository;
   cases: CaseRepository;
   evidence: EvidenceStore;
+  capture: ScreenCapture;
 }

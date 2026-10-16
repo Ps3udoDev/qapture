@@ -1,6 +1,7 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { z } from "zod";
 import type { Repositories } from "../../ports/repositories";
+import { tauriScreenCapture } from "./capture";
 import { call, callBytes } from "./client";
 import { caseSchema, evidenceSchema, fieldSchema, projectSchema, projectSummarySchema, stagedImageSchema, templateSchema } from "./dto";
 import { encodeFrame } from "./frame";
@@ -54,5 +55,6 @@ export function tauriRepositories(): Repositories {
         await call("delete_evidence", { evidenceId }, nothing);
       },
     },
+    capture: tauriScreenCapture(),
   };
 }

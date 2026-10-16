@@ -12,6 +12,8 @@ pub enum AppError {
     Io(#[from] std::io::Error),
     #[error("json: {0}")]
     Json(#[from] serde_json::Error),
+    #[error("captura: {0}")]
+    Capture(String),
 }
 
 pub type AppResult<T> = Result<T, AppError>;
@@ -28,12 +30,14 @@ impl AppError {
             Self::Db(_) => "db",
             Self::Io(_) => "io",
             Self::Json(_) => "internal",
+            Self::Capture(_) => "capture",
         }
     }
 
     pub fn user_message(&self) -> String {
         match self {
             Self::Validation(m) | Self::NotFound(m) => m.clone(),
+            Self::Capture(_) => "No se pudo capturar la pantalla. Inténtalo nuevamente.".into(),
             _ => "No se pudo completar la operación. Revisa el espacio disponible e inténtalo nuevamente.".into(),
         }
     }
@@ -46,5 +50,22 @@ impl Serialize for AppError {
         s.serialize_field("message", &self.user_message())?;
         s.serialize_field("detail", &self.to_string())?;
         s.end()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn capture_errors_have_their_own_code_and_a_friendly_message() {
+        let error = AppError::Capture("xcap: monitor desconectado".into());
+        let json = serde_json::to_value(&error).unwrap();
+        assert_eq!(json["code"], "capture");
+        assert_eq!(
+            json["message"],
+            "No se pudo capturar la pantalla. Inténtalo nuevamente."
+        );
+        assert_eq!(json["detail"], "captura: xcap: monitor desconectado");
     }
 }

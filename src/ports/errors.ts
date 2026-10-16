@@ -1,4 +1,4 @@
-export type AppErrorCode = "validation" | "not_found" | "db" | "io" | "internal" | "contract";
+export type AppErrorCode = "validation" | "not_found" | "db" | "io" | "capture" | "internal" | "contract";
 
 export class AppError extends Error {
   readonly code: AppErrorCode;

@@ -135,6 +135,13 @@ pub struct StagedImageDto {
     pub height: i64,
 }
 
+/// Payload del evento `evidence:captured` (Rust → ventana principal).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CapturedEventDto {
+    pub tmp_path: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct NewEvidenceMeta {
@@ -192,7 +199,9 @@ mod contract {
             "caseInput": { "title": "Aplicación de recibos", "status": "Aprobado", "values": { "fld-1": "QA" } },
             "newEvidenceMeta": { "caseId": "case-1", "stagedPath": "C:\\datos\\evidence\\_staging\\stg-1.png",
                                  "description": "Pantalla de recibos", "annotations": ANNOTATIONS },
-            "evidenceUpdateMeta": { "evidenceId": "ev-1", "description": "Pantalla de recibos", "annotations": ANNOTATIONS }
+            "evidenceUpdateMeta": { "evidenceId": "ev-1", "description": "Pantalla de recibos", "annotations": ANNOTATIONS },
+            "selection": { "x": 10.5, "y": 20.0, "width": 300.0, "height": 200.0,
+                           "viewportWidth": 1536.0, "viewportHeight": 864.0 }
         })
     }
 
@@ -216,6 +225,8 @@ mod contract {
                                       annotations: ANNOTATIONS.into(), width: 1920, height: 1080,
                                       captured_at: ts.clone(), updated_at: ts.clone() },
             "stagedImage": StagedImageDto { path: "C:\\datos\\evidence\\_staging\\stg-1.png".into(), width: 1920, height: 1080 },
+            "capturedEvent": CapturedEventDto { tmp_path: "C:\\datos\\evidence\\_staging\\stg-2.png".into() },
+            "captureError": AppError::Capture("xcap: monitor desconectado".into()),
             "case": CaseDto { id: "case-1".into(), project_id: "prj-1".into(), code: "EJ-001".into(),
                               title: "Aplicación de recibos".into(), status: "Aprobado".into(),
                               values: BTreeMap::from([("fld-1".to_string(), "QA".to_string())]),
@@ -235,6 +246,7 @@ mod contract {
         serde_json::from_value::<CaseInput>(i["caseInput"].clone()).unwrap();
         serde_json::from_value::<NewEvidenceMeta>(i["newEvidenceMeta"].clone()).unwrap();
         serde_json::from_value::<EvidenceUpdateMeta>(i["evidenceUpdateMeta"].clone()).unwrap();
+        serde_json::from_value::<crate::capture::crop::Selection>(i["selection"].clone()).unwrap();
     }
 
     #[test]

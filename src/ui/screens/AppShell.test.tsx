@@ -1,5 +1,5 @@
 import { fireEvent, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderApp, seedProject } from "../test-utils";
 
 describe("AppShell", () => {
@@ -43,5 +43,16 @@ describe("AppShell", () => {
     expect(select).toHaveDisplayValue("ACME · Dos");
     await user.selectOptions(select, screen.getByRole("option", { name: "ACME · Uno" }));
     expect(select).toHaveDisplayValue("ACME · Uno");
+  });
+});
+
+describe("AppShell sin suscripción a capturas", () => {
+  it("avisa si no puede escuchar las capturas", async () => {
+    await renderApp({
+      setup: async (repos) => {
+        vi.spyOn(repos.capture, "onCaptured").mockRejectedValue(new Error("ipc"));
+      },
+    });
+    expect(await screen.findByText("No se pudo escuchar las capturas.")).toBeInTheDocument();
   });
 });
