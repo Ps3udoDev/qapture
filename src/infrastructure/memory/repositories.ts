@@ -4,6 +4,7 @@ import { normalizeFieldInput, validateFieldInputs, validateProjectMeta, type Pro
 import { DEFAULT_STATUS } from "../../domain/status";
 import { AppError } from "../../ports/errors";
 import type { Repositories } from "../../ports/repositories";
+import { createMemoryEvidence } from "./evidence";
 import { builtinTemplates } from "./fixtures";
 
 /** Implementación en memoria para tests de la aplicación y de la UI. Replica las reglas principales de Rust. */
@@ -38,6 +39,13 @@ export function createMemoryRepositories(): Repositories {
   const touch = (p: Project) => {
     p.updatedAt = now();
   };
+  const evidence = createMemoryEvidence({
+    caseProject: (caseId) => getCase(caseId).projectId,
+    touch: (projectId) => touch(getProject(projectId)),
+    id,
+    now,
+  });
+  const withCount = (c: CaseRecord): CaseRecord => ({ ...copy(c), evidenceCount: evidence.countFor(c.id) });
   const trimMeta = (m: ProjectMeta): ProjectMeta => ({
     name: m.name.trim(),
     client: m.client.trim(),
@@ -117,7 +125,10 @@ export function createMemoryRepositories(): Repositories {
       async remove(projectId) {
         getProject(projectId);
         projects.delete(projectId);
-        for (const c of projectCases(projectId)) cases.delete(c.id);
+        for (const c of projectCases(projectId)) {
+          evidence.removeForCase(c.id);
+          cases.delete(c.id);
+        }
       },
       async saveFields(projectId, inputs) {
         const p = getProject(projectId);
@@ -151,7 +162,7 @@ export function createMemoryRepositories(): Repositories {
     cases: {
       async list(projectId) {
         getProject(projectId);
-        return copy(projectCases(projectId));
+        return projectCases(projectId).map(withCount);
       },
       async create(projectId, input) {
         const p = getProject(projectId);
@@ -160,7 +171,7 @@ export function createMemoryRepositories(): Repositories {
         const record: CaseRecord = { id: id("case"), projectId, code: formatCode(p.nextSequence++), ...clean, evidenceCount: 0, createdAt: ts, updatedAt: ts };
         cases.set(record.id, record);
         touch(p);
-        return copy(record);
+        return withCount(record);
       },
       async update(caseId, input) {
         const c = getCase(caseId);
@@ -169,7 +180,7 @@ export function createMemoryRepositories(): Repositories {
         const archived = Object.fromEntries(Object.entries(c.values).filter(([fid]) => p.fields.find((f) => f.id === fid)?.archived));
         Object.assign(c, { title: clean.title, status: clean.status, values: { ...archived, ...clean.values }, updatedAt: now() });
         touch(p);
-        return copy(c);
+        return withCount(c);
       },
       async duplicate(caseId) {
         const src = getCase(caseId);
@@ -191,13 +202,15 @@ export function createMemoryRepositories(): Repositories {
         };
         cases.set(record.id, record);
         touch(p);
-        return copy(record);
+        return withCount(record);
       },
       async remove(caseId) {
         const c = getCase(caseId);
+        evidence.removeForCase(caseId);
         cases.delete(caseId);
         touch(getProject(c.projectId));
       },
     },
+    evidence,
   };
 }

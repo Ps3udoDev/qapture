@@ -63,3 +63,23 @@ export const appErrorSchema = z.strictObject({
   message: z.string(),
   detail: z.string(),
 });
+
+export const evidenceSchema = z.strictObject({
+  id: z.string(),
+  caseId: z.string(),
+  position: z.number().int(),
+  description: z.string(),
+  originalPath: z.string(),
+  renderedPath: z.string(),
+  annotations: z.string(),
+  width: z.number().int(),
+  height: z.number().int(),
+  capturedAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const stagedImageSchema = z.strictObject({
+  path: z.string(),
+  width: z.number().int(),
+  height: z.number().int(),
+});
