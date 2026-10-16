@@ -1,6 +1,6 @@
 # F3 — Captura de pantalla integrada · `v0.3.0`
 
-**Depende de:** F2 (editor y flujo de registro) · **Plan:** se escribe al iniciar la fase.
+**Depende de:** F2 (editor y flujo de registro) · **Plan:** [2026-10-16-f3-captura-integrada.md](../plans/2026-10-16-f3-captura-integrada.md)
 
 ## Objetivo
 Capturar la pantalla o una región desde Qapture, sin herramientas externas, y llevarla directo al editor de anotaciones.
@@ -22,6 +22,12 @@ Capturar la pantalla o una región desde Qapture, sin herramientas externas, y l
 | F3-T4 | `capture/crop.rs`: recorte en píxeles físicos según DPI; pruebas con escalas mixtas |
 | F3-T5 | Comando `start_capture` → evento `evidence:captured` → editor de F2 |
 | F3-T6 | Limpieza de temporales (al guardar, al cancelar y al iniciar la app) |
+
+## Notas de implementación (acordadas en el plan)
+- Las imágenes de los monitores se guardan **en memoria** mientras el overlay está abierto, no como PNG temporales. El único temporal es el recorte, en `evidence/_staging/`, con la limpieza de F2 (al guardar, al cancelar y al iniciar la app).
+- La lupa queda fuera de esta fase. Junto a la selección se muestra su medida en píxeles reales.
+- `Enter` captura el monitor completo que está bajo el puntero. Una selección vive dentro de un solo monitor.
+- Si Qapture estaba oculto (por ejemplo, con el atajo de F6), al cancelar sigue oculto y al capturar se muestra con el editor.
 
 ## Interfaces producidas
 - Comando `start_capture()` y evento `evidence:captured { tmpPath }`, que el atajo global de F6 invoca.
