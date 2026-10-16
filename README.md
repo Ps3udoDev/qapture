@@ -8,6 +8,22 @@ Qapture corre en segundo plano en Windows. Con un atajo capturas la pantalla, an
 
 > Estado: **v0.4.0 (Fase 4 completada · En pruebas del equipo)**. El diseño está en [`docs/superpowers/specs/2026-10-15-qapture-design.md`](docs/superpowers/specs/2026-10-15-qapture-design.md).
 
+## Demo del Producto (45s)
+
+<p align="center">
+  <video src="assets/video/qapture-demo.mp4" controls width="850">
+    Tu navegador no soporta la reproducción de video HTML5. Puedes ver o descargar la demo en <a href="assets/video/qapture-demo.mp4"><code>assets/video/qapture-demo.mp4</code></a>.
+  </video>
+</p>
+
+> 🎬 **Recorrido del producto mostrado en el video (subtitulado):**
+> 1. **Presentación de Qapture:** Ecosistema Teams4Soft y objetivo del producto.
+> 2. **Matriz de Casos:** Gestión de pruebas, columnas dinámicas y control de estados.
+> 3. **Captura Integrada:** Selección de regiones o monitor completo con DPI nativo.
+> 4. **Editor de Anotaciones:** Herramientas de foco (flechas, cajas, pasos numerados y blur confidencial).
+> 5. **Exportación a Excel:** 4 hojas nativas (Carátula con KPIs, Matriz, Evidencias incrustadas y Resumen con gráficos).
+> 6. **Descarga:** Instalador de Windows disponible en [GitHub Releases](https://github.com/Ps3udoDev/qapture/releases).
+
 ## Fases implementadas
 
 - **F1: Dominio, SQLite y CRUD** (`v0.1.0`) — Proyectos, columnas dinámicas, casos de prueba y plantillas.
