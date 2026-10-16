@@ -97,4 +97,27 @@ describe("slice de evidencias", () => {
     await store.getState().deleteEvidence(first.id);
     expect(store.getState().evidence).toEqual([]);
   });
+
+  it("saveEditor rechaza anotaciones con más de 500 formas y deja el editor abierto", async () => {
+    const { store, c1 } = await setup();
+    await store.getState().intakeImages([PNG]);
+    const shapes = Array.from({ length: 501 }, (_, i) => ({ id: `s${i}`, kind: "marker" as const, x: 1, y: 1, color: "#E02424", radius: 10 }));
+    const result = await store.getState().saveEditor({ caseId: c1.id, description: "x", annotations: { ...emptyAnnotations(), shapes }, render: PNG });
+    expect(result).toEqual({ ok: false, errors: { _form: "Las anotaciones no son válidas (máximo 500 formas y 500 caracteres por texto)." } });
+    expect(store.getState().editor).not.toBeNull();
+    expect(store.getState().evidence).toEqual([]);
+  });
+
+  it("cancelar mientras se guarda no salta ninguna imagen de la cola", async () => {
+    const { store, save } = await setup();
+    await store.getState().intakeImages([PNG, PNG, PNG]);
+    const paths = [store.getState().editor, ...store.getState().editorQueue].map((e) => (e && "imagePath" in e ? e.imagePath : ""));
+    const saving = save();
+    const cancelling = store.getState().cancelEditor();
+    await Promise.all([saving, cancelling]);
+    const { editor, editorQueue } = store.getState();
+    // La 2ª imagen debe quedar abierta y la 3ª en cola: ninguna se pierde sin abrir.
+    expect(editor).toMatchObject({ kind: "new", imagePath: paths[1] });
+    expect(editorQueue.map((r) => r.imagePath)).toEqual([paths[2]]);
+  });
 });

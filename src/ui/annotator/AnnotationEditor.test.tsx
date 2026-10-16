@@ -97,4 +97,19 @@ describe("editor de evidencia", () => {
     await user.keyboard("{Escape}");
     expect(onCancel).toHaveBeenCalled();
   });
+
+  it("mientras guarda, Cancelar queda deshabilitado y Esc se ignora", async () => {
+    const { user, dialog, onCancel } = setup({ onSave: () => new Promise<FormResult>(() => {}) });
+    await user.type(within(dialog).getByLabelText("Descripción"), "x");
+    await user.click(within(dialog).getByRole("button", { name: "Guardar evidencia" }));
+    expect(await within(dialog).findByRole("button", { name: "Cancelar" })).toBeDisabled();
+    await user.keyboard("{Escape}");
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("limita el texto de la anotación a 500 caracteres", async () => {
+    const { user, dialog } = setup();
+    await user.click(within(dialog).getByRole("button", { name: "dibujar texto" }));
+    expect(within(dialog).getByRole("textbox", { name: "Texto" })).toHaveAttribute("maxlength", "500");
+  });
 });

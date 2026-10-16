@@ -42,6 +42,48 @@ describe("registro de evidencias", () => {
     expect(screen.getByRole("dialog", { name: "Nuevo caso" })).toBeInTheDocument();
   });
 
+  it("soltar un archivo fuera de la zona de drop no navega (preventDefault)", async () => {
+    await renderApp({ setup: async (repos) => void (await seedCases(repos)) });
+    const notPrevented = fireEvent.drop(screen.getByRole("list", { name: "Lista de casos" }), {
+      dataTransfer: { files: [png()], items: [], types: ["Files"] },
+    });
+    expect(notPrevented).toBe(false);
+  });
+
+  it("soltar un archivo sin caso seleccionado avisa", async () => {
+    const { store } = await renderApp({ setup: async (repos) => void (await seedCases(repos)) });
+    act(() => store.getState().selectCase(null));
+    fireEvent.drop(screen.getByText("Selecciona un caso para ver su detalle."), {
+      dataTransfer: { files: [png()], items: [], types: ["Files"] },
+    });
+    expect(await screen.findByText("Crea o selecciona un caso antes de agregar evidencias.")).toBeInTheDocument();
+  });
+
+  it("no intercepta un pegado de texto en el buscador aunque el portapapeles traiga imagen", async () => {
+    await renderApp({ setup: async (repos) => void (await seedCases(repos)) });
+    fireEvent.paste(screen.getByRole("searchbox", { name: "Buscar casos" }), {
+      clipboardData: { files: [png()], items: [], types: ["Files", "text/plain"] },
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(screen.queryByRole("dialog", { name: "Editor de evidencia" })).not.toBeInTheDocument();
+  });
+
+  it("avisa una sola vez si las anotaciones guardadas no se pueden leer", async () => {
+    const { store } = await renderApp({ setup: async (repos) => void (await seedWithEvidence(repos, ["Única"])) });
+    await waitFor(() => expect(store.getState().evidence).toHaveLength(1));
+    act(() => {
+      store.setState((s) => ({ evidence: s.evidence.map((e) => ({ ...e, annotations: "no es json" })) }));
+      store.getState().editEvidence(store.getState().evidence[0].id);
+    });
+    await editor();
+    const warnings = () => store.getState().toasts.filter((t) => t.message === "Las anotaciones guardadas no se pudieron leer; se abrirá sin capa editable.");
+    await waitFor(() => expect(warnings()).toHaveLength(1));
+    act(() => store.setState({ editorQueue: [{ imagePath: "x" }] }));
+    expect(warnings()).toHaveLength(1);
+  });
+
   it("arrastrar 3 imágenes y un PDF encola las imágenes y avisa del omitido", async () => {
     await renderApp({ setup: async (repos) => void (await seedCases(repos)) });
     const pdf = new File([new Uint8Array([0x25, 0x50, 0x44, 0x46])], "informe.pdf", { type: "application/pdf" });

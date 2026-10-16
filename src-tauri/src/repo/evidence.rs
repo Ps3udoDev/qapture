@@ -207,7 +207,11 @@ pub fn update(
     let annotations = validate_annotations(&meta.annotations)?;
     raster::validate_render(render)?;
     let rendered = files.absolute(&s.render_rel);
-    let previous = fs::read(&rendered).ok();
+    let previous = match fs::read(&rendered) {
+        Ok(bytes) => Some(bytes),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+        Err(e) => return Err(e.into()),
+    };
     write_atomic(&rendered, render)?;
     let saved = (|| -> AppResult<()> {
         let tx = conn.unchecked_transaction()?;
@@ -582,6 +586,27 @@ mod tests {
             "se restaura el render previo"
         );
         assert_eq!(project_files(&e), 2);
+    }
+
+    #[test]
+    fn update_propagates_a_non_notfound_read_error_without_writing() {
+        let e = env();
+        let ev = add_one(&e, &e.case.id, "Antes");
+        fs::remove_file(&ev.rendered_path).unwrap();
+        fs::create_dir(&ev.rendered_path).unwrap();
+        let up = EvidenceUpdateMeta {
+            evidence_id: ev.id.clone(),
+            description: "Después".into(),
+            annotations: ANN.into(),
+        };
+        assert!(update(&e.conn, &e.files, &up, &sample_png(20, 20)).is_err());
+        assert!(fs::metadata(&ev.rendered_path).unwrap().is_dir());
+        let descriptions: Vec<String> = list(&e.conn, &e.files, &e.case.id)
+            .unwrap()
+            .into_iter()
+            .map(|x| x.description)
+            .collect();
+        assert_eq!(descriptions, ["Antes"]);
     }
 
     #[test]

@@ -13,6 +13,7 @@ import { useWorkspace } from "../store/context";
 export function CaseDetail({ onEdit }: { onEdit: (caseId: string) => void }) {
   const project = useWorkspace((s) => s.project);
   const cases = useWorkspace((s) => s.cases);
+  const pushToast = useWorkspace((s) => s.pushToast);
   const selectedId = useWorkspace((s) => s.selectedCaseId);
   const duplicateCase = useWorkspace((s) => s.duplicateCase);
   const deleteCase = useWorkspace((s) => s.deleteCase);
@@ -25,7 +26,18 @@ export function CaseDetail({ onEdit }: { onEdit: (caseId: string) => void }) {
   if (!project) return null;
   if (!current) {
     return (
-      <section aria-label="Detalle del caso" className="grid flex-1 place-items-center text-t4s-gray">
+      <section
+        aria-label="Detalle del caso"
+        className="grid flex-1 place-items-center text-t4s-gray"
+        onDragOver={(e) => {
+          if (hasFiles(e.dataTransfer)) e.preventDefault();
+        }}
+        onDrop={(e) => {
+          if (!hasFiles(e.dataTransfer)) return;
+          e.preventDefault();
+          pushToast("error", "Crea o selecciona un caso antes de agregar evidencias.");
+        }}
+      >
         Selecciona un caso para ver su detalle.
       </section>
     );

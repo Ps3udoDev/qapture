@@ -1,6 +1,6 @@
 import type { StoreApi } from "zustand/vanilla";
 import * as useCases from "../../application/use-cases";
-import { serializeAnnotations } from "../../domain/annotations";
+import { annotationsSchema, serializeAnnotations } from "../../domain/annotations";
 import type { Evidence } from "../../domain/evidence";
 import type { Repositories } from "../../ports/repositories";
 import type { EditorSaveInput } from "../annotator/AnnotationEditor";
@@ -115,13 +115,19 @@ export function createEvidenceSlice(repos: Repositories, set: Set, get: Get, h: 
     async saveEditor(input) {
       const editor = get().editor;
       if (!editor) return { ok: false, errors: { _form: "El editor no está abierto." } };
+      if (!annotationsSchema.safeParse(input.annotations).success) {
+        return { ok: false, errors: { _form: "Las anotaciones no son válidas (máximo 500 formas y 500 caracteres por texto)." } };
+      }
       const annotations = serializeAnnotations(input.annotations);
+      const openNextIfSame = () => {
+        if (get().editor === editor) openNext();
+      };
       if (editor.kind === "new") {
         return h.form(
           () => useCases.attachEvidence(repos, { caseId: input.caseId, stagedPath: editor.imagePath, description: input.description, annotations }, input.render),
           async (saved) => {
             const code = get().cases.find((c) => c.id === saved.caseId)?.code ?? "el caso";
-            openNext();
+            openNextIfSame();
             await afterChange();
             get().pushToast("success", `Evidencia ${saved.position + 1} agregada a ${code}.`);
           },
@@ -130,7 +136,7 @@ export function createEvidenceSlice(repos: Repositories, set: Set, get: Get, h: 
       return h.form(
         () => useCases.reannotateEvidence(repos, { evidenceId: editor.evidence.id, description: input.description, annotations }, input.render),
         async (saved) => {
-          openNext();
+          openNextIfSame();
           await afterChange();
           get().pushToast("success", `Evidencia ${saved.position + 1} actualizada.`);
         },

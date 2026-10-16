@@ -28,7 +28,11 @@ export function createMemoryEvidence(deps: MemoryEvidenceDeps): MemoryEvidence {
   const fail = (message: string): never => {
     throw new AppError("validation", message);
   };
-  const get = (evidenceId: string) => items.get(evidenceId) ?? fail("La evidencia no existe.");
+  const get = (evidenceId: string) => {
+    const found = items.get(evidenceId);
+    if (!found) throw new AppError("not_found", "La evidencia no existe.");
+    return found;
+  };
   const inCase = (caseId: string) => [...items.values()].filter((e) => e.caseId === caseId).sort((a, b) => a.position - b.position);
   const compact = (caseId: string) => inCase(caseId).forEach((e, position) => (e.position = position));
   const check = (description: string, annotations: string, render: Uint8Array) => {

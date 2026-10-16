@@ -53,6 +53,7 @@ export function AnnotationEditor(props: AnnotationEditorProps) {
   const [description, setDescription] = useState(props.initialDescription);
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const annotations = history.present;
   const selected = selectedId ? findShape(annotations, selectedId) : null;
   const apply = (next: Annotations) => setHistory((h) => commit(h, next));
@@ -73,7 +74,9 @@ export function AnnotationEditor(props: AnnotationEditorProps) {
         return;
       }
       if (typing || e.altKey || e.ctrlKey || e.metaKey) return;
-      if (e.key === "Escape") onCancel();
+      if (e.key === "Escape") {
+        if (!savingRef.current) onCancel();
+      }
       else if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
         setHistory((h) => commit(h, removeShape(h.present, selectedId)));
         setSelectedId(null);
@@ -95,6 +98,7 @@ export function AnnotationEditor(props: AnnotationEditorProps) {
     if (message) next.description = message;
     setErrors(next);
     if (Object.keys(next).length || !canvas.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const render = await canvas.current.exportPng();
@@ -103,6 +107,7 @@ export function AnnotationEditor(props: AnnotationEditorProps) {
     } catch {
       setErrors({ _form: "No se pudo generar la imagen anotada." });
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -169,7 +174,7 @@ export function AnnotationEditor(props: AnnotationEditorProps) {
           <p className="text-xs text-t4s-gray">Explica aquí qué señala cada número ①②③.</p>
           {selected?.kind === "text" && (
             <FormField label="Texto" htmlFor="annotation-text">
-              <input id="annotation-text" className={inputCls} value={selected.text} onChange={(e) => apply(updateShape(annotations, selected.id, { ...selected, text: e.target.value }))} />
+              <input id="annotation-text" maxLength={500} className={inputCls} value={selected.text} onChange={(e) => apply(updateShape(annotations, selected.id, { ...selected, text: e.target.value }))} />
             </FormField>
           )}
           {errors._form && (
@@ -178,7 +183,7 @@ export function AnnotationEditor(props: AnnotationEditorProps) {
             </p>
           )}
           <div className="mt-auto flex justify-end gap-2 border-t border-t4s-line pt-4">
-            <button type="button" className={btn.secondary} onClick={onCancel}>
+            <button type="button" className={btn.secondary} disabled={saving} onClick={onCancel}>
               Cancelar
             </button>
             <button type="button" className={btn.primary} disabled={saving} onClick={() => void save()}>

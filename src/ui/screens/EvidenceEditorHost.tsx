@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { emptyAnnotations, parseAnnotations } from "../../domain/annotations";
 import { AnnotationEditor } from "../annotator/AnnotationEditor";
 import { useWorkspace } from "../store/context";
@@ -9,9 +10,17 @@ export function EvidenceEditorHost() {
   const saveEditor = useWorkspace((s) => s.saveEditor);
   const cancelEditor = useWorkspace((s) => s.cancelEditor);
   const readImage = useWorkspace((s) => s.readImage);
-  if (!editor) return null;
+  const pushToast = useWorkspace((s) => s.pushToast);
+  const evidence = editor?.kind === "edit" ? editor.evidence : null;
+  const unreadable = !!evidence && parseAnnotations(evidence.annotations) === null;
+  const evidenceId = evidence?.id;
 
-  const evidence = editor.kind === "edit" ? editor.evidence : null;
+  useEffect(() => {
+    if (unreadable) pushToast("error", "Las anotaciones guardadas no se pudieron leer; se abrirá sin capa editable.");
+    // Solo al abrir otra evidencia en edición, no en cada render.
+  }, [evidenceId, unreadable]);
+
+  if (!editor) return null;
   return (
     <AnnotationEditor
       key={evidence ? `${evidence.id}:${evidence.updatedAt}` : editor.kind === "new" ? editor.imagePath : ""}
