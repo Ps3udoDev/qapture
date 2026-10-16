@@ -6,6 +6,7 @@ import type { Status } from "../../domain/status";
 import { AppError } from "../../ports/errors";
 import type { Repositories } from "../../ports/repositories";
 import { createEvidenceSlice, type EvidenceSlice } from "./evidence-slice";
+import { createExportSlice, type ExportSlice } from "./export-slice";
 import { browserPreferences, type Preferences } from "./preferences";
 
 export type FormResult = { ok: true } | { ok: false; errors: FormErrors };
@@ -15,7 +16,7 @@ export interface Toast {
   message: string;
 }
 
-export interface WorkspaceState extends EvidenceSlice {
+export interface WorkspaceState extends EvidenceSlice, ExportSlice {
   templates: Template[];
   projects: ProjectSummary[];
   project: Project | null;
@@ -251,12 +252,15 @@ export function createWorkspaceStore(repos: Repositories, prefs: Preferences = b
       pushToast: (kind, message) => set((s) => ({ toasts: [...s.toasts, { id: ++toastSeq, kind, message }] })),
       dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
       ...createEvidenceSlice(repos, set, get, { report, refreshCases, form }),
+      ...createExportSlice(repos, prefs, set, get, { report, refreshCases, form }),
     };
   });
 
   // Las evidencias siguen al caso seleccionado, sin importar qué acción cambió la selección.
   store.subscribe((state, previous) => {
     if (state.selectedCaseId !== previous.selectedCaseId) void state.loadEvidence();
+    // Y las versiones del documento siguen al proyecto abierto.
+    if (state.project?.id !== previous.project?.id) void state.loadDocVersions();
   });
   return store;
 }

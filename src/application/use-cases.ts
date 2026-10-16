@@ -1,4 +1,5 @@
 import { normalizeCaseInput, validateCaseInput, type CaseInput, type CaseRecord, type FormErrors } from "../domain/cases";
+import { trimDocVersion, validateDocVersion, type DocVersion, type DocVersionInput } from "../domain/doc-versions";
 import { validateDescription, type Evidence, type EvidenceUpdateInput, type NewEvidenceInput } from "../domain/evidence";
 import type { FieldDef } from "../domain/fields";
 import {
@@ -77,4 +78,11 @@ export async function renameEvidence(repos: Repositories, evidenceId: string, de
   const message = validateDescription(description);
   if (message) return { ok: false, errors: { description: message } };
   return guard(() => repos.evidence.updateDescription(evidenceId, description.trim()));
+}
+
+export async function saveDocVersion(repos: Repositories, projectId: string, input: DocVersionInput, id?: string): Promise<Outcome<DocVersion>> {
+  const errors = validateDocVersion(input);
+  if (invalid(errors)) return { ok: false, errors };
+  const clean = trimDocVersion(input);
+  return guard(() => (id ? repos.docVersions.update(id, clean) : repos.docVersions.create(projectId, clean)));
 }

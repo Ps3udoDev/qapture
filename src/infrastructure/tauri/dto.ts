@@ -87,3 +87,15 @@ export const stagedImageSchema = z.strictObject({
 export const capturedEventSchema = z.strictObject({
   tmpPath: z.string(),
 });
+
+export const docVersionSchema = z.strictObject({
+  id: z.string(),
+  projectId: z.string(),
+  version: z.string(),
+  date: z.string(),
+  author: z.string(),
+  reviewer: z.string(),
+  approver: z.string(),
+  changes: z.string(),
+  createdAt: z.string(),
+});
