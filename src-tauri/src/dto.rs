@@ -109,3 +109,100 @@ pub struct CaseInput {
     pub status: String,
     pub values: BTreeMap<String, String>,
 }
+
+#[cfg(test)]
+mod contract {
+    use std::{collections::BTreeMap, path::PathBuf};
+
+    use serde_json::{Value, json};
+
+    use super::*;
+    use crate::error::AppError;
+
+    fn field() -> FieldDto {
+        FieldDto {
+            id: "fld-1".into(),
+            key: "entorno".into(),
+            label: "Entorno".into(),
+            field_type: FieldType::List,
+            options: vec!["QA".into(), "Producción".into()],
+            required: true,
+            clear_on_duplicate: false,
+            width: 21,
+            position: 0,
+            archived: false,
+        }
+    }
+
+    fn meta_json() -> Value {
+        json!({ "name": "Recibos", "client": "ACME", "testType": "Funcional", "releaseVersion": "1.0",
+                "startDate": "2026-10-01", "endDate": "2026-10-31" })
+    }
+
+    fn inputs_json() -> Value {
+        json!({
+            "newProjectInput": { "meta": meta_json(), "templateId": "tpl-funcional" },
+            "projectMetaInput": meta_json(),
+            "fieldInput": { "id": null, "label": "Severidad", "type": "list", "options": ["Alta", "Media", "Baja"],
+                            "required": false, "clearOnDuplicate": false, "width": 14, "archived": false },
+            "caseInput": { "title": "Aplicación de recibos", "status": "Aprobado", "values": { "fld-1": "QA" } }
+        })
+    }
+
+    fn sample() -> Value {
+        let ts = "2026-10-15T12:00:00.000Z".to_string();
+        json!({
+            "field": field(),
+            "template": TemplateDto { id: "tpl-funcional".into(), name: "Funcional".into(), test_type: "Funcional".into(),
+                                      builtin: true, fields: vec![field()] },
+            "projectSummary": ProjectSummaryDto { id: "prj-1".into(), name: "Recibos".into(), client: "ACME".into(),
+                                                  case_count: 3, updated_at: ts.clone() },
+            "project": ProjectDto { id: "prj-1".into(), name: "Recibos".into(), client: "ACME".into(),
+                                    test_type: "Funcional".into(), release_version: "1.0".into(),
+                                    start_date: "2026-10-01".into(), end_date: "2026-10-31".into(), next_sequence: 4,
+                                    source_template_id: Some("tpl-funcional".into()), created_at: ts.clone(),
+                                    updated_at: ts.clone(), fields: vec![field()] },
+            "case": CaseDto { id: "case-1".into(), project_id: "prj-1".into(), code: "EJ-001".into(),
+                              title: "Aplicación de recibos".into(), status: "Aprobado".into(),
+                              values: BTreeMap::from([("fld-1".to_string(), "QA".to_string())]),
+                              created_at: ts.clone(), updated_at: ts },
+            "error": AppError::Validation("«Entorno» es obligatorio.".into()),
+            "inputs": inputs_json(),
+        })
+    }
+
+    #[test]
+    fn inputs_deserialize_from_ts_shape() {
+        let i = inputs_json();
+        serde_json::from_value::<NewProjectInput>(i["newProjectInput"].clone()).unwrap();
+        serde_json::from_value::<ProjectMetaInput>(i["projectMetaInput"].clone()).unwrap();
+        serde_json::from_value::<FieldInput>(i["fieldInput"].clone()).unwrap();
+        serde_json::from_value::<CaseInput>(i["caseInput"].clone()).unwrap();
+    }
+
+    #[test]
+    fn inputs_reject_unknown_fields() {
+        let mut case = inputs_json()["caseInput"].clone();
+        case["extra"] = json!(1);
+        assert!(serde_json::from_value::<CaseInput>(case).is_err());
+    }
+
+    /// Regenerar: `UPDATE_CONTRACTS=1 cargo test contract`
+    #[test]
+    fn dto_contract_matches_fixture() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../src/infrastructure/tauri/__fixtures__/contracts.json");
+        let actual = serde_json::to_string_pretty(&sample()).unwrap() + "\n";
+        if std::env::var("UPDATE_CONTRACTS").is_ok() {
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, &actual).unwrap();
+        }
+        let expected = std::fs::read_to_string(&path)
+            .expect("falta el fixture; ejecuta UPDATE_CONTRACTS=1 cargo test contract")
+            .replace("\r\n", "\n");
+        assert_eq!(
+            actual, expected,
+            "El contrato cambió: regenera el fixture y actualiza src/infrastructure/tauri/dto.ts"
+        );
+    }
+}

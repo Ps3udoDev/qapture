@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection, OptionalExtension, Row};
+use rusqlite::{Connection, OptionalExtension, Row, params};
 
 use super::{fields, templates};
 use crate::{
@@ -8,7 +8,7 @@ use crate::{
         text::{optional_text, required_text},
     },
     dto::{NewProjectInput, ProjectDto, ProjectMetaInput, ProjectSummaryDto},
-    error::{validation, AppError, AppResult},
+    error::{AppError, AppResult, validation},
 };
 
 fn not_found() -> AppError {
@@ -22,15 +22,29 @@ pub(crate) fn validate_meta(m: &ProjectMetaInput) -> AppResult<ProjectMetaInput>
     let release_version = optional_text("Versión / release", &m.release_version, 100)?;
     let start_date = optional_text("Fecha de inicio", &m.start_date, 10)?;
     let end_date = optional_text("Fecha de fin", &m.end_date, 10)?;
-    for (label, date) in [("Fecha de inicio", &start_date), ("Fecha de fin", &end_date)] {
+    for (label, date) in [
+        ("Fecha de inicio", &start_date),
+        ("Fecha de fin", &end_date),
+    ] {
         if !date.is_empty() && !is_iso_date(date) {
-            return Err(validation(format!("«{label}» debe ser una fecha válida (AAAA-MM-DD).")));
+            return Err(validation(format!(
+                "«{label}» debe ser una fecha válida (AAAA-MM-DD)."
+            )));
         }
     }
     if !start_date.is_empty() && !end_date.is_empty() && start_date > end_date {
-        return Err(validation("La fecha de fin no puede ser anterior a la de inicio."));
+        return Err(validation(
+            "La fecha de fin no puede ser anterior a la de inicio.",
+        ));
     }
-    Ok(ProjectMetaInput { name, client, test_type, release_version, start_date, end_date })
+    Ok(ProjectMetaInput {
+        name,
+        client,
+        test_type,
+        release_version,
+        start_date,
+        end_date,
+    })
 }
 
 fn project_from_row(r: &Row) -> rusqlite::Result<ProjectDto> {
@@ -51,16 +65,27 @@ fn project_from_row(r: &Row) -> rusqlite::Result<ProjectDto> {
 }
 
 pub fn ensure_exists(conn: &Connection, id: &str) -> AppResult<()> {
-    let exists: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM project WHERE id = ?1)", [id], |r| r.get(0))?;
+    let exists: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM project WHERE id = ?1)",
+        [id],
+        |r| r.get(0),
+    )?;
     if exists { Ok(()) } else { Err(not_found()) }
 }
 
 pub fn get(conn: &Connection, id: &str) -> AppResult<ProjectDto> {
     let project = conn
-        .query_row("SELECT * FROM project WHERE id = ?1", [id], project_from_row)
+        .query_row(
+            "SELECT * FROM project WHERE id = ?1",
+            [id],
+            project_from_row,
+        )
         .optional()?
         .ok_or_else(not_found)?;
-    Ok(ProjectDto { fields: fields::list_for_project(conn, id)?, ..project })
+    Ok(ProjectDto {
+        fields: fields::list_for_project(conn, id)?,
+        ..project
+    })
 }
 
 pub fn list(conn: &Connection) -> AppResult<Vec<ProjectSummaryDto>> {
@@ -93,7 +118,17 @@ pub fn create(conn: &Connection, input: NewProjectInput) -> AppResult<ProjectDto
         "INSERT INTO project (id, name, client, test_type, release_version, start_date, end_date,
                               next_sequence, source_template_id, created_at, updated_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8, ?9, ?9)",
-        params![id, meta.name, meta.client, meta.test_type, meta.release_version, meta.start_date, meta.end_date, template.id, ts],
+        params![
+            id,
+            meta.name,
+            meta.client,
+            meta.test_type,
+            meta.release_version,
+            meta.start_date,
+            meta.end_date,
+            template.id,
+            ts
+        ],
     )?;
     for (position, f) in template.fields.iter().enumerate() {
         fields::insert_project_field(&tx, &id, f, position as i64)?;
@@ -109,18 +144,34 @@ pub fn update_meta(conn: &Connection, id: &str, input: &ProjectMetaInput) -> App
         "UPDATE project SET name = ?1, client = ?2, test_type = ?3, release_version = ?4,
                             start_date = ?5, end_date = ?6, updated_at = ?7
          WHERE id = ?8",
-        params![m.name, m.client, m.test_type, m.release_version, m.start_date, m.end_date, now(), id],
+        params![
+            m.name,
+            m.client,
+            m.test_type,
+            m.release_version,
+            m.start_date,
+            m.end_date,
+            now(),
+            id
+        ],
     )?;
     get(conn, id)
 }
 
 pub fn delete(conn: &Connection, id: &str) -> AppResult<()> {
     let removed = conn.execute("DELETE FROM project WHERE id = ?1", [id])?;
-    if removed == 0 { Err(not_found()) } else { Ok(()) }
+    if removed == 0 {
+        Err(not_found())
+    } else {
+        Ok(())
+    }
 }
 
 pub(crate) fn touch(conn: &Connection, id: &str) -> AppResult<()> {
-    conn.execute("UPDATE project SET updated_at = ?1 WHERE id = ?2", params![now(), id])?;
+    conn.execute(
+        "UPDATE project SET updated_at = ?1 WHERE id = ?2",
+        params![now(), id],
+    )?;
     Ok(())
 }
 
@@ -148,13 +199,37 @@ mod tests {
     fn create_validates_meta_and_template() {
         let conn = conn();
         let mut bad = meta("  ");
-        let err = create(&conn, NewProjectInput { meta: bad.clone(), template_id: "tpl-funcional".into() }).unwrap_err();
+        let err = create(
+            &conn,
+            NewProjectInput {
+                meta: bad.clone(),
+                template_id: "tpl-funcional".into(),
+            },
+        )
+        .unwrap_err();
         assert_eq!(err.to_string(), "«Nombre del proyecto» es obligatorio.");
         bad.name = "Ok".into();
         bad.start_date = "2026-11-01".into();
-        let err = create(&conn, NewProjectInput { meta: bad.clone(), template_id: "tpl-funcional".into() }).unwrap_err();
-        assert_eq!(err.to_string(), "La fecha de fin no puede ser anterior a la de inicio.");
-        let err = create(&conn, NewProjectInput { meta: meta("Ok"), template_id: "nope".into() }).unwrap_err();
+        let err = create(
+            &conn,
+            NewProjectInput {
+                meta: bad.clone(),
+                template_id: "tpl-funcional".into(),
+            },
+        )
+        .unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "La fecha de fin no puede ser anterior a la de inicio."
+        );
+        let err = create(
+            &conn,
+            NewProjectInput {
+                meta: meta("Ok"),
+                template_id: "nope".into(),
+            },
+        )
+        .unwrap_err();
         assert_eq!(err.code(), "not_found");
     }
 
@@ -180,7 +255,9 @@ mod tests {
         assert_eq!(summaries[0].case_count, 0);
         delete(&conn, &p.id).unwrap();
         assert!(list(&conn).unwrap().is_empty());
-        let fields: i64 = conn.query_row("SELECT COUNT(*) FROM project_field", [], |r| r.get(0)).unwrap();
+        let fields: i64 = conn
+            .query_row("SELECT COUNT(*) FROM project_field", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(fields, 0);
         assert_eq!(delete(&conn, &p.id).unwrap_err().code(), "not_found");
     }

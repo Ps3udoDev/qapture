@@ -1,4 +1,4 @@
-use crate::error::{validation, AppResult};
+use crate::error::{AppResult, validation};
 
 pub fn required_text(label: &str, value: &str, max: usize) -> AppResult<String> {
     let v = value.trim();
@@ -43,7 +43,11 @@ pub fn slugify(label: &str) -> String {
     }
     let limited: String = out.trim_end_matches('_').chars().take(40).collect();
     let limited = limited.trim_end_matches('_');
-    if limited.is_empty() { "campo".into() } else { limited.to_string() }
+    if limited.is_empty() {
+        "campo".into()
+    } else {
+        limited.to_string()
+    }
 }
 
 #[cfg(test)]

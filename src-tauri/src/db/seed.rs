@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 
 use crate::{db::now, error::AppResult};
 
@@ -13,7 +13,15 @@ struct SeedField {
 }
 
 fn field(key: &'static str, label: &'static str, ty: &'static str, width: i64) -> SeedField {
-    SeedField { key, label, ty, options: &[], required: false, clear: false, width }
+    SeedField {
+        key,
+        label,
+        ty,
+        options: &[],
+        required: false,
+        clear: false,
+        width,
+    }
 }
 
 impl SeedField {
@@ -81,7 +89,8 @@ fn builtins() -> Vec<SeedTemplate> {
             fields: vec![
                 field("entorno", "Entorno", "text", 21).required(),
                 field("endpoint", "Endpoint", "text", 40),
-                field("metodo", "Método", "list", 12).options(&["GET", "POST", "PUT", "PATCH", "DELETE"]),
+                field("metodo", "Método", "list", 12)
+                    .options(&["GET", "POST", "PUT", "PATCH", "DELETE"]),
                 field("request", "Request", "longtext", 48),
                 field("response_esperado", "Response esperado", "longtext", 44),
                 field("response_obtenido", "Response obtenido", "longtext", 44).clear(),

@@ -1,4 +1,11 @@
-pub const STATUSES: [&str; 6] = ["No ejecutado", "En ejecución", "Por documentar", "Aprobado", "Fallido", "Bloqueado"];
+pub const STATUSES: [&str; 6] = [
+    "No ejecutado",
+    "En ejecución",
+    "Por documentar",
+    "Aprobado",
+    "Fallido",
+    "Bloqueado",
+];
 pub const DEFAULT_STATUS: &str = "No ejecutado";
 
 pub fn is_status(value: &str) -> bool {

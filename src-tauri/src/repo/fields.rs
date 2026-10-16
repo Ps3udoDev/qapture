@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use rusqlite::{params, types::Type, Connection, Row};
+use rusqlite::{Connection, Row, params, types::Type};
 
 use super::projects;
 use crate::{
@@ -10,10 +10,11 @@ use crate::{
         text::{required_text, slugify},
     },
     dto::{FieldDto, FieldInput},
-    error::{validation, AppResult},
+    error::{AppResult, validation},
 };
 
-const FIELD_COLUMNS: &str = "id, key, label, type, options, required, clear_on_duplicate, width, position";
+const FIELD_COLUMNS: &str =
+    "id, key, label, type, options, required, clear_on_duplicate, width, position";
 
 pub(crate) fn field_from_row(r: &Row) -> rusqlite::Result<FieldDto> {
     let ty: String = r.get("type")?;
@@ -38,7 +39,9 @@ pub fn list_for_template(conn: &Connection, template_id: &str) -> AppResult<Vec<
     let mut stmt = conn.prepare(&format!(
         "SELECT {FIELD_COLUMNS}, 0 AS archived FROM template_field WHERE template_id = ?1 ORDER BY position"
     ))?;
-    let rows = stmt.query_map([template_id], field_from_row)?.collect::<Result<Vec<_>, _>>()?;
+    let rows = stmt
+        .query_map([template_id], field_from_row)?
+        .collect::<Result<Vec<_>, _>>()?;
     Ok(rows)
 }
 
@@ -47,11 +50,18 @@ pub fn list_for_project(conn: &Connection, project_id: &str) -> AppResult<Vec<Fi
     let mut stmt = conn.prepare(&format!(
         "SELECT {FIELD_COLUMNS}, archived FROM project_field WHERE project_id = ?1 ORDER BY archived, position"
     ))?;
-    let rows = stmt.query_map([project_id], field_from_row)?.collect::<Result<Vec<_>, _>>()?;
+    let rows = stmt
+        .query_map([project_id], field_from_row)?
+        .collect::<Result<Vec<_>, _>>()?;
     Ok(rows)
 }
 
-pub(crate) fn insert_template_field(conn: &Connection, template_id: &str, f: &FieldDto, position: i64) -> AppResult<()> {
+pub(crate) fn insert_template_field(
+    conn: &Connection,
+    template_id: &str,
+    f: &FieldDto,
+    position: i64,
+) -> AppResult<()> {
     conn.execute(
         "INSERT INTO template_field (id, template_id, key, label, type, options, required, clear_on_duplicate, width, position)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
@@ -71,7 +81,12 @@ pub(crate) fn insert_template_field(conn: &Connection, template_id: &str, f: &Fi
     Ok(())
 }
 
-pub(crate) fn insert_project_field(conn: &Connection, project_id: &str, f: &FieldDto, position: i64) -> AppResult<String> {
+pub(crate) fn insert_project_field(
+    conn: &Connection,
+    project_id: &str,
+    f: &FieldDto,
+    position: i64,
+) -> AppResult<String> {
     let id = new_id();
     conn.execute(
         "INSERT INTO project_field (id, project_id, key, label, type, options, required, clear_on_duplicate, width, position, archived)
@@ -96,12 +111,19 @@ pub(crate) fn insert_project_field(conn: &Connection, project_id: &str, f: &Fiel
 const MAX_FIELDS: usize = 60;
 
 fn has_values(conn: &Connection, field_id: &str) -> AppResult<bool> {
-    Ok(conn.query_row("SELECT EXISTS(SELECT 1 FROM field_value WHERE field_id = ?1)", [field_id], |r| r.get(0))?)
+    Ok(conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM field_value WHERE field_id = ?1)",
+        [field_id],
+        |r| r.get(0),
+    )?)
 }
 
 fn values_in_use(conn: &Connection, field_id: &str) -> AppResult<Vec<String>> {
-    let mut stmt = conn.prepare("SELECT DISTINCT value FROM field_value WHERE field_id = ?1 ORDER BY value")?;
-    let values = stmt.query_map([field_id], |r| r.get(0))?.collect::<Result<Vec<String>, _>>()?;
+    let mut stmt =
+        conn.prepare("SELECT DISTINCT value FROM field_value WHERE field_id = ?1 ORDER BY value")?;
+    let values = stmt
+        .query_map([field_id], |r| r.get(0))?
+        .collect::<Result<Vec<String>, _>>()?;
     Ok(values)
 }
 
@@ -113,15 +135,21 @@ fn normalize_options(label: &str, options: &[String]) -> AppResult<Vec<String>> 
             continue;
         }
         if o.chars().count() > 100 {
-            return Err(validation(format!("Una opción de «{label}» supera 100 caracteres.")));
+            return Err(validation(format!(
+                "Una opción de «{label}» supera 100 caracteres."
+            )));
         }
         out.push(o.to_string());
     }
     if out.is_empty() {
-        return Err(validation(format!("La lista «{label}» necesita al menos una opción.")));
+        return Err(validation(format!(
+            "La lista «{label}» necesita al menos una opción."
+        )));
     }
     if out.len() > 50 {
-        return Err(validation(format!("La lista «{label}» admite como máximo 50 opciones.")));
+        return Err(validation(format!(
+            "La lista «{label}» admite como máximo 50 opciones."
+        )));
     }
     Ok(out)
 }
@@ -143,10 +171,16 @@ struct Normalized<'a> {
     options: Vec<String>,
 }
 
-pub fn save(conn: &Connection, project_id: &str, inputs: Vec<FieldInput>) -> AppResult<Vec<FieldDto>> {
+pub fn save(
+    conn: &Connection,
+    project_id: &str,
+    inputs: Vec<FieldInput>,
+) -> AppResult<Vec<FieldDto>> {
     projects::ensure_exists(conn, project_id)?;
     if inputs.len() > MAX_FIELDS {
-        return Err(validation(format!("Un proyecto admite como máximo {MAX_FIELDS} columnas.")));
+        return Err(validation(format!(
+            "Un proyecto admite como máximo {MAX_FIELDS} columnas."
+        )));
     }
     let existing = list_for_project(conn, project_id)?;
 
@@ -159,16 +193,25 @@ pub fn save(conn: &Connection, project_id: &str, inputs: Vec<FieldInput>) -> App
             return Err(validation(format!("La columna «{label}» está repetida.")));
         }
         if !(8..=100).contains(&input.width) {
-            return Err(validation(format!("El ancho de «{label}» debe estar entre 8 y 100.")));
+            return Err(validation(format!(
+                "El ancho de «{label}» debe estar entre 8 y 100."
+            )));
         }
-        if let Some(id) = &input.id {
-            if !ids.insert(id.clone()) {
-                return Err(validation(format!("La columna «{label}» está repetida.")));
-            }
+        if let Some(id) = &input.id
+            && !ids.insert(id.clone())
+        {
+            return Err(validation(format!("La columna «{label}» está repetida.")));
         }
-        let options =
-            if input.field_type == FieldType::List { normalize_options(&label, &input.options)? } else { Vec::new() };
-        normalized.push(Normalized { input, label, options });
+        let options = if input.field_type == FieldType::List {
+            normalize_options(&label, &input.options)?
+        } else {
+            Vec::new()
+        };
+        normalized.push(Normalized {
+            input,
+            label,
+            options,
+        });
     }
 
     let tx = conn.unchecked_transaction()?;
@@ -184,17 +227,23 @@ pub fn save(conn: &Connection, project_id: &str, inputs: Vec<FieldInput>) -> App
                     .find(|f| &f.id == id)
                     .ok_or_else(|| validation("La columna ya no existe. Recarga el proyecto."))?;
                 let with_data = has_values(&tx, id)?;
-                if with_data && current.field_type != input.field_type && !input.field_type.is_textual() {
+                if with_data
+                    && current.field_type != input.field_type
+                    && !input.field_type.is_textual()
+                {
                     return Err(validation(format!(
                         "No se puede cambiar el tipo de «{label}» porque ya tiene datos. Solo se permite cambiar a Texto o Texto largo."
                     )));
                 }
-                if with_data && input.field_type == FieldType::List {
-                    if let Some(missing) = values_in_use(&tx, id)?.into_iter().find(|v| !n.options.contains(v)) {
-                        return Err(validation(format!(
-                            "La opción «{missing}» de «{label}» está en uso; no se puede quitar."
-                        )));
-                    }
+                if with_data
+                    && input.field_type == FieldType::List
+                    && let Some(missing) = values_in_use(&tx, id)?
+                        .into_iter()
+                        .find(|v| !n.options.contains(v))
+                {
+                    return Err(validation(format!(
+                        "La opción «{missing}» de «{label}» está en uso; no se puede quitar."
+                    )));
                 }
                 tx.execute(
                     "UPDATE project_field SET label = ?1, type = ?2, options = ?3, required = ?4,
@@ -242,7 +291,10 @@ pub fn save(conn: &Connection, project_id: &str, inputs: Vec<FieldInput>) -> App
         if has_values(&tx, &removed.id)? {
             tx.execute(
                 "UPDATE project_field SET archived = 1, position = ?1 WHERE id = ?2",
-                params![(normalized.len() + removed.position as usize) as i64, removed.id],
+                params![
+                    (normalized.len() + removed.position as usize) as i64,
+                    removed.id
+                ],
             )?;
         } else {
             tx.execute("DELETE FROM project_field WHERE id = ?1", [&removed.id])?;
@@ -292,7 +344,11 @@ mod tests {
         let conn = conn();
         let p = project(&conn);
         let mut inputs: Vec<FieldInput> = p.fields.iter().rev().map(to_input).collect();
-        inputs.push(new_input("Severidad", FieldType::List, &[" Alta ", "Media", "Media", ""]));
+        inputs.push(new_input(
+            "Severidad",
+            FieldType::List,
+            &[" Alta ", "Media", "Media", ""],
+        ));
         let saved = save(&conn, &p.id, inputs).unwrap();
         assert_eq!(saved[0].key, "observaciones");
         let sev = saved.iter().find(|f| f.label == "Severidad").unwrap();
@@ -319,7 +375,10 @@ mod tests {
 
         let mut dup = base.clone();
         dup.push(new_input("ENTORNO", FieldType::Text, &[]));
-        assert_eq!(save(&conn, &p.id, dup).unwrap_err().to_string(), "La columna «ENTORNO» está repetida.");
+        assert_eq!(
+            save(&conn, &p.id, dup).unwrap_err().to_string(),
+            "La columna «ENTORNO» está repetida."
+        );
 
         let mut empty_list = base.clone();
         empty_list.push(new_input("Severidad", FieldType::List, &["  "]));
@@ -330,11 +389,17 @@ mod tests {
 
         let mut narrow = base.clone();
         narrow[0].width = 4;
-        assert_eq!(save(&conn, &p.id, narrow).unwrap_err().to_string(), "El ancho de «Entorno» debe estar entre 8 y 100.");
+        assert_eq!(
+            save(&conn, &p.id, narrow).unwrap_err().to_string(),
+            "El ancho de «Entorno» debe estar entre 8 y 100."
+        );
 
         let mut unknown = base;
         unknown[0].id = Some("no-existe".into());
-        assert_eq!(save(&conn, &p.id, unknown).unwrap_err().to_string(), "La columna ya no existe. Recarga el proyecto.");
+        assert_eq!(
+            save(&conn, &p.id, unknown).unwrap_err().to_string(),
+            "La columna ya no existe. Recarga el proyecto."
+        );
     }
 
     #[test]
@@ -342,8 +407,12 @@ mod tests {
         let conn = conn();
         let p = project(&conn);
         insert_value(&conn, &p.id, &field_id(&p, "modulo"), "Cobranzas");
-        let inputs: Vec<FieldInput> =
-            p.fields.iter().filter(|f| f.key != "menu" && f.key != "modulo").map(to_input).collect();
+        let inputs: Vec<FieldInput> = p
+            .fields
+            .iter()
+            .filter(|f| f.key != "menu" && f.key != "modulo")
+            .map(to_input)
+            .collect();
         let saved = save(&conn, &p.id, inputs).unwrap();
         assert!(saved.iter().all(|f| f.key != "menu"));
         let modulo = saved.iter().find(|f| f.key == "modulo").unwrap();
@@ -353,7 +422,13 @@ mod tests {
         let mut restore: Vec<FieldInput> = saved.iter().map(to_input).collect();
         restore.last_mut().unwrap().archived = false;
         let restored = save(&conn, &p.id, restore).unwrap();
-        assert!(!restored.iter().find(|f| f.key == "modulo").unwrap().archived);
+        assert!(
+            !restored
+                .iter()
+                .find(|f| f.key == "modulo")
+                .unwrap()
+                .archived
+        );
     }
 
     #[test]
@@ -361,7 +436,11 @@ mod tests {
         let conn = conn();
         let p = project(&conn);
         insert_value(&conn, &p.id, &field_id(&p, "fecha_ejecucion"), "2026-10-15");
-        let idx = p.fields.iter().position(|f| f.key == "fecha_ejecucion").unwrap();
+        let idx = p
+            .fields
+            .iter()
+            .position(|f| f.key == "fecha_ejecucion")
+            .unwrap();
 
         let mut to_number: Vec<FieldInput> = p.fields.iter().map(to_input).collect();
         to_number[idx].field_type = FieldType::Number;
@@ -386,7 +465,11 @@ mod tests {
         insert_value(&conn, &p.id, &sev.id, "Media");
 
         let mut shrink: Vec<FieldInput> = saved.iter().map(to_input).collect();
-        shrink.iter_mut().find(|f| f.id.as_deref() == Some(sev.id.as_str())).unwrap().options = vec!["Alta".into()];
+        shrink
+            .iter_mut()
+            .find(|f| f.id.as_deref() == Some(sev.id.as_str()))
+            .unwrap()
+            .options = vec!["Alta".into()];
         assert_eq!(
             save(&conn, &p.id, shrink).unwrap_err().to_string(),
             "La opción «Media» de «Severidad» está en uso; no se puede quitar."

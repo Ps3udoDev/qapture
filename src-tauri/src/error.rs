@@ -1,4 +1,4 @@
-use serde::{ser::SerializeStruct, Serialize, Serializer};
+use serde::{Serialize, Serializer, ser::SerializeStruct};
 
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {

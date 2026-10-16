@@ -18,6 +18,7 @@ pub fn open(path: &Path) -> AppResult<Connection> {
     init(conn)
 }
 
+#[cfg(test)]
 pub fn open_in_memory() -> AppResult<Connection> {
     init(Connection::open_in_memory()?)
 }
@@ -69,10 +70,16 @@ mod tests {
         let conn = open_in_memory().unwrap();
         seed::ensure_builtin_templates(&conn).unwrap();
         let templates: i64 = conn
-            .query_row("SELECT COUNT(*) FROM template WHERE builtin = 1", [], |r| r.get(0))
+            .query_row("SELECT COUNT(*) FROM template WHERE builtin = 1", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         let funcional: i64 = conn
-            .query_row("SELECT COUNT(*) FROM template_field WHERE template_id = 'tpl-funcional'", [], |r| r.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM template_field WHERE template_id = 'tpl-funcional'",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(templates, 4);
         assert_eq!(funcional, 11);
@@ -81,7 +88,9 @@ mod tests {
     #[test]
     fn foreign_keys_are_enabled() {
         let conn = open_in_memory().unwrap();
-        let fk: i64 = conn.query_row("PRAGMA foreign_keys", [], |r| r.get(0)).unwrap();
+        let fk: i64 = conn
+            .query_row("PRAGMA foreign_keys", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(fk, 1);
     }
 
@@ -91,7 +100,9 @@ mod tests {
         let path = dir.join("nested").join("qapture.db");
         let a = open(&path).unwrap();
         let b = open(&path).unwrap();
-        let mode: String = a.query_row("PRAGMA journal_mode", [], |r| r.get(0)).unwrap();
+        let mode: String = a
+            .query_row("PRAGMA journal_mode", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(mode, "wal");
         for (conn, name) in [(&a, "A"), (&b, "B")] {
             conn.execute(
@@ -100,7 +111,9 @@ mod tests {
             )
             .unwrap();
         }
-        let total: i64 = b.query_row("SELECT COUNT(*) FROM template", [], |r| r.get(0)).unwrap();
+        let total: i64 = b
+            .query_row("SELECT COUNT(*) FROM template", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(total, 6);
         drop(a);
         drop(b);

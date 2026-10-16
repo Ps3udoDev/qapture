@@ -1,17 +1,17 @@
 use std::collections::{BTreeMap, HashMap};
 
-use rusqlite::{params, Connection, OptionalExtension, Row};
+use rusqlite::{Connection, OptionalExtension, Row, params};
 
 use super::{fields, projects};
 use crate::{
     db::{new_id, now},
     domain::{
-        fields::{normalize_value, validate_value, FieldRule},
-        status::{is_status, DEFAULT_STATUS},
+        fields::{FieldRule, normalize_value, validate_value},
+        status::{DEFAULT_STATUS, is_status},
         text::required_text,
     },
     dto::{CaseDto, CaseInput, FieldDto},
-    error::{validation, AppError, AppResult},
+    error::{AppError, AppResult, validation},
 };
 
 const CASE_COLUMNS: &str = "id, project_id, code, title, status, created_at, updated_at";
@@ -31,14 +31,24 @@ fn case_from_row(r: &Row) -> rusqlite::Result<CaseDto> {
 
 pub fn list(conn: &Connection, project_id: &str) -> AppResult<Vec<CaseDto>> {
     projects::ensure_exists(conn, project_id)?;
-    let mut stmt = conn.prepare(&format!("SELECT {CASE_COLUMNS} FROM test_case WHERE project_id = ?1 ORDER BY rowid"))?;
-    let mut cases = stmt.query_map([project_id], case_from_row)?.collect::<Result<Vec<_>, _>>()?;
+    let mut stmt = conn.prepare(&format!(
+        "SELECT {CASE_COLUMNS} FROM test_case WHERE project_id = ?1 ORDER BY rowid"
+    ))?;
+    let mut cases = stmt
+        .query_map([project_id], case_from_row)?
+        .collect::<Result<Vec<_>, _>>()?;
     let mut stmt = conn.prepare(
         "SELECT v.case_id, v.field_id, v.value FROM field_value v
          JOIN test_case c ON c.id = v.case_id WHERE c.project_id = ?1",
     )?;
     let mut by_case: HashMap<String, BTreeMap<String, String>> = HashMap::new();
-    let rows = stmt.query_map([project_id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?)))?;
+    let rows = stmt.query_map([project_id], |r| {
+        Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, String>(2)?,
+        ))
+    })?;
     for row in rows {
         let (case_id, field_id, value) = row?;
         by_case.entry(case_id).or_default().insert(field_id, value);
@@ -53,12 +63,18 @@ pub fn list(conn: &Connection, project_id: &str) -> AppResult<Vec<CaseDto>> {
 
 pub fn get(conn: &Connection, id: &str) -> AppResult<CaseDto> {
     let mut case = conn
-        .query_row(&format!("SELECT {CASE_COLUMNS} FROM test_case WHERE id = ?1"), [id], case_from_row)
+        .query_row(
+            &format!("SELECT {CASE_COLUMNS} FROM test_case WHERE id = ?1"),
+            [id],
+            case_from_row,
+        )
         .optional()?
         .ok_or_else(|| AppError::NotFound("El caso no existe.".into()))?;
     let mut stmt = conn.prepare("SELECT field_id, value FROM field_value WHERE case_id = ?1")?;
     case.values = stmt
-        .query_map([id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
+        .query_map([id], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+        })?
         .collect::<Result<BTreeMap<_, _>, _>>()?;
     Ok(case)
 }
@@ -76,25 +92,48 @@ fn validate_input(project_fields: &[FieldDto], input: &CaseInput) -> AppResult<V
     }
     for key in input.values.keys() {
         if !project_fields.iter().any(|f| &f.id == key && !f.archived) {
-            return Err(validation("La columna enviada no pertenece al proyecto. Recarga el proyecto."));
+            return Err(validation(
+                "La columna enviada no pertenece al proyecto. Recarga el proyecto.",
+            ));
         }
     }
     let mut values = Vec::new();
     for f in project_fields.iter().filter(|f| !f.archived) {
         let raw = input.values.get(&f.id).map(String::as_str).unwrap_or("");
-        let rule = FieldRule { label: &f.label, field_type: f.field_type, options: &f.options, required: f.required };
+        let rule = FieldRule {
+            label: &f.label,
+            field_type: f.field_type,
+            options: &f.options,
+            required: f.required,
+        };
         validate_value(&rule, raw).map_err(AppError::Validation)?;
         let value = normalize_value(f.field_type, raw);
         if !value.is_empty() {
             values.push((f.id.clone(), value));
         }
     }
-    Ok(Validated { title, status: input.status.clone(), values })
+    Ok(Validated {
+        title,
+        status: input.status.clone(),
+        values,
+    })
 }
 
-fn insert_case(conn: &Connection, project_id: &str, title: &str, status: &str) -> AppResult<String> {
-    let seq: i64 = conn.query_row("SELECT next_sequence FROM project WHERE id = ?1", [project_id], |r| r.get(0))?;
-    conn.execute("UPDATE project SET next_sequence = next_sequence + 1 WHERE id = ?1", [project_id])?;
+fn insert_case(
+    conn: &Connection,
+    project_id: &str,
+    title: &str,
+    status: &str,
+) -> AppResult<String> {
+    let seq: i64 = conn.query_row(
+        "SELECT next_sequence FROM project WHERE id = ?1",
+        [project_id],
+        |r| r.get(0),
+    )?;
+    conn.execute(
+        "UPDATE project SET next_sequence = next_sequence + 1 WHERE id = ?1",
+        [project_id],
+    )?;
     let id = new_id();
     conn.execute(
         "INSERT INTO test_case (id, project_id, code, title, status, created_at, updated_at)
@@ -105,7 +144,8 @@ fn insert_case(conn: &Connection, project_id: &str, title: &str, status: &str) -
 }
 
 fn insert_values(conn: &Connection, case_id: &str, values: &[(String, String)]) -> AppResult<()> {
-    let mut stmt = conn.prepare("INSERT INTO field_value (case_id, field_id, value) VALUES (?1, ?2, ?3)")?;
+    let mut stmt =
+        conn.prepare("INSERT INTO field_value (case_id, field_id, value) VALUES (?1, ?2, ?3)")?;
     for (field_id, value) in values {
         stmt.execute(params![case_id, field_id, value])?;
     }
@@ -148,7 +188,11 @@ pub fn duplicate(conn: &Connection, case_id: &str) -> AppResult<CaseDto> {
     let kept: Vec<(String, String)> = source
         .values
         .iter()
-        .filter(|(field_id, _)| project_fields.iter().any(|f| &f.id == *field_id && !f.clear_on_duplicate))
+        .filter(|(field_id, _)| {
+            project_fields
+                .iter()
+                .any(|f| &f.id == *field_id && !f.clear_on_duplicate)
+        })
         .map(|(f, v)| (f.clone(), v.clone()))
         .collect();
     let tx = conn.unchecked_transaction()?;
@@ -182,9 +226,15 @@ mod tests {
     };
 
     fn input(p: &crate::dto::ProjectDto, pairs: &[(&str, &str)]) -> CaseInput {
-        let values: BTreeMap<String, String> =
-            pairs.iter().map(|(k, v)| (field_id(p, k), v.to_string())).collect();
-        CaseInput { title: "Aplicación de recibos".into(), status: "Aprobado".into(), values }
+        let values: BTreeMap<String, String> = pairs
+            .iter()
+            .map(|(k, v)| (field_id(p, k), v.to_string()))
+            .collect();
+        CaseInput {
+            title: "Aplicación de recibos".into(),
+            status: "Aprobado".into(),
+            values,
+        }
     }
 
     #[test]
@@ -202,7 +252,12 @@ mod tests {
     fn create_validates() {
         let conn = conn();
         let p = project(&conn);
-        assert_eq!(create(&conn, &p.id, &input(&p, &[])).unwrap_err().to_string(), "«Entorno» es obligatorio.");
+        assert_eq!(
+            create(&conn, &p.id, &input(&p, &[]))
+                .unwrap_err()
+                .to_string(),
+            "«Entorno» es obligatorio."
+        );
 
         let mut bad_status = input(&p, &[("entorno", "QA")]);
         bad_status.status = "Listo".into();
@@ -220,7 +275,10 @@ mod tests {
 
         let mut blank_title = input(&p, &[("entorno", "QA")]);
         blank_title.title = "   ".into();
-        assert_eq!(create(&conn, &p.id, &blank_title).unwrap_err().to_string(), "«Caso de prueba» es obligatorio.");
+        assert_eq!(
+            create(&conn, &p.id, &blank_title).unwrap_err().to_string(),
+            "«Caso de prueba» es obligatorio."
+        );
     }
 
     #[test]
@@ -230,19 +288,34 @@ mod tests {
         let c = create(
             &conn,
             &p.id,
-            &input(&p, &[("entorno", " QA "), ("modulo", "   "), ("datos_entrada", "Recibo: 1\nSucursal: 2 ✅")]),
+            &input(
+                &p,
+                &[
+                    ("entorno", " QA "),
+                    ("modulo", "   "),
+                    ("datos_entrada", "Recibo: 1\nSucursal: 2 ✅"),
+                ],
+            ),
         )
         .unwrap();
         assert_eq!(c.values.get(&field_id(&p, "entorno")).unwrap(), " QA ");
         assert!(!c.values.contains_key(&field_id(&p, "modulo")));
-        assert_eq!(c.values.get(&field_id(&p, "datos_entrada")).unwrap(), "Recibo: 1\nSucursal: 2 ✅");
+        assert_eq!(
+            c.values.get(&field_id(&p, "datos_entrada")).unwrap(),
+            "Recibo: 1\nSucursal: 2 ✅"
+        );
     }
 
     #[test]
     fn update_keeps_archived_values() {
         let conn = conn();
         let p = project(&conn);
-        let c = create(&conn, &p.id, &input(&p, &[("entorno", "QA"), ("modulo", "Cobranzas")])).unwrap();
+        let c = create(
+            &conn,
+            &p.id,
+            &input(&p, &[("entorno", "QA"), ("modulo", "Cobranzas")]),
+        )
+        .unwrap();
         let without_modulo: Vec<FieldInput> = p
             .fields
             .iter()
@@ -261,8 +334,14 @@ mod tests {
         field_repo::save(&conn, &p.id, without_modulo).unwrap();
 
         let updated = update(&conn, &c.id, &input(&p, &[("entorno", "Producción")])).unwrap();
-        assert_eq!(updated.values.get(&field_id(&p, "entorno")).unwrap(), "Producción");
-        assert_eq!(updated.values.get(&field_id(&p, "modulo")).unwrap(), "Cobranzas");
+        assert_eq!(
+            updated.values.get(&field_id(&p, "entorno")).unwrap(),
+            "Producción"
+        );
+        assert_eq!(
+            updated.values.get(&field_id(&p, "modulo")).unwrap(),
+            "Cobranzas"
+        );
 
         let stale = input(&p, &[("entorno", "QA"), ("modulo", "Otro")]);
         assert!(update(&conn, &c.id, &stale).is_err());
@@ -273,9 +352,15 @@ mod tests {
         let conn = conn();
         let p = project(&conn);
         let c = create(&conn, &p.id, &input(&p, &[("entorno", "QA")])).unwrap();
-        conn.execute("UPDATE project_field SET required = 1 WHERE id = ?1", [field_id(&p, "responsable")]).unwrap();
+        conn.execute(
+            "UPDATE project_field SET required = 1 WHERE id = ?1",
+            [field_id(&p, "responsable")],
+        )
+        .unwrap();
         assert_eq!(
-            update(&conn, &c.id, &input(&p, &[("entorno", "QA")])).unwrap_err().to_string(),
+            update(&conn, &c.id, &input(&p, &[("entorno", "QA")]))
+                .unwrap_err()
+                .to_string(),
             "«Responsable» es obligatorio."
         );
     }
@@ -303,9 +388,15 @@ mod tests {
         assert_eq!(copy.code, "EJ-002");
         assert_eq!(copy.status, "No ejecutado");
         assert_eq!(copy.title, src.title);
-        assert_eq!(copy.values.get(&field_id(&p, "datos_entrada")).unwrap(), "Póliza 1");
+        assert_eq!(
+            copy.values.get(&field_id(&p, "datos_entrada")).unwrap(),
+            "Póliza 1"
+        );
         for key in ["resultado_obtenido", "fecha_ejecucion", "observaciones"] {
-            assert!(!copy.values.contains_key(&field_id(&p, key)), "{key} debería limpiarse");
+            assert!(
+                !copy.values.contains_key(&field_id(&p, key)),
+                "{key} debería limpiarse"
+            );
         }
     }
 
@@ -322,7 +413,9 @@ mod tests {
         assert_eq!(delete(&conn, &b.id).unwrap_err().code(), "not_found");
 
         project_repo::delete(&conn, &p.id).unwrap();
-        let values: i64 = conn.query_row("SELECT COUNT(*) FROM field_value", [], |r| r.get(0)).unwrap();
+        let values: i64 = conn
+            .query_row("SELECT COUNT(*) FROM field_value", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(values, 0);
     }
 }

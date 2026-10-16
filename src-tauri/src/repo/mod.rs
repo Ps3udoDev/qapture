@@ -5,7 +5,7 @@ pub mod templates;
 
 #[cfg(test)]
 pub(crate) mod test_support {
-    use rusqlite::{params, Connection};
+    use rusqlite::{Connection, params};
 
     use crate::{
         db,
@@ -28,12 +28,24 @@ pub(crate) mod test_support {
     }
 
     pub fn project(conn: &Connection) -> ProjectDto {
-        super::projects::create(conn, NewProjectInput { meta: meta("Recibos"), template_id: "tpl-funcional".into() })
-            .expect("proyecto")
+        super::projects::create(
+            conn,
+            NewProjectInput {
+                meta: meta("Recibos"),
+                template_id: "tpl-funcional".into(),
+            },
+        )
+        .expect("proyecto")
     }
 
     pub fn field_id(project: &ProjectDto, key: &str) -> String {
-        project.fields.iter().find(|f| f.key == key).unwrap_or_else(|| panic!("falta la columna {key}")).id.clone()
+        project
+            .fields
+            .iter()
+            .find(|f| f.key == key)
+            .unwrap_or_else(|| panic!("falta la columna {key}"))
+            .id
+            .clone()
     }
 
     /// Inserta un caso mínimo con un valor directamente en SQL, para probar columnas
