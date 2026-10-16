@@ -1,0 +1,33 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "Ventana principal: núcleo de Tauri y los comandos propios de Qapture (el I/O pasa por comandos con rutas validadas).",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "allow-list-templates",
+    "allow-save-template-from-project",
+    "allow-delete-template",
+    "allow-list-projects",
+    "allow-get-project",
+    "allow-create-project",
+    "allow-update-project",
+    "allow-delete-project",
+    "allow-save-project-fields",
+    "allow-list-cases",
+    "allow-create-case",
+    "allow-update-case",
+    "allow-duplicate-case",
+    "allow-delete-case",
+    "allow-stage-evidence-image",
+    "allow-discard-staged-image",
+    "allow-read-evidence-image",
+    "allow-list-evidence",
+    "allow-add-evidence",
+    "allow-update-evidence",
+    "allow-update-evidence-description",
+    "allow-move-evidence",
+    "allow-reorder-evidence",
+    "allow-delete-evidence"
+  ]
+}
