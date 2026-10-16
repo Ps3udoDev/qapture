@@ -1,5 +1,5 @@
 import { Upload } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CaseRecord } from "../../domain/cases";
 import { ACCEPTED_IMAGE_TYPES, evidenceLabel, moveItem, type Evidence } from "../../domain/evidence";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -23,6 +23,10 @@ export function EvidenceGallery({ caseRecord }: { caseRecord: CaseRecord }) {
   const [viewing, setViewing] = useState<number | null>(null);
   const [renaming, setRenaming] = useState<Evidence | null>(null);
   const [deleting, setDeleting] = useState<Evidence | null>(null);
+  useEffect(() => {
+    if (viewing !== null && viewing >= evidence.length) setViewing(null);
+  }, [viewing, evidence.length]);
+  useEffect(() => setViewing(null), [caseRecord.id]);
   const ids = evidence.map((e) => e.id);
   const others = cases.filter((c) => c.id !== caseRecord.id);
   const urlFor = (e: Evidence) => imageUrl(e.renderedPath, e.updatedAt);
@@ -72,12 +76,15 @@ export function EvidenceGallery({ caseRecord }: { caseRecord: CaseRecord }) {
               onShift={(delta) => void reorderEvidence(moveItem(ids, index, index + delta))}
               onMove={(target) => void moveEvidence(e.id, target)}
               onDelete={() => setDeleting(e)}
-              onDropEvidence={(dragged) => void reorderEvidence(moveItem(ids, ids.indexOf(dragged), index))}
+              onDropEvidence={(dragged) => {
+                const from = ids.indexOf(dragged);
+                if (from >= 0) void reorderEvidence(moveItem(ids, from, index));
+              }}
             />
           ))}
         </ol>
       )}
-      {viewing !== null && (
+      {viewing !== null && viewing < evidence.length && (
         <EvidenceViewer items={evidence} index={viewing} urlFor={urlFor} onIndex={setViewing} onAnnotate={annotate} onClose={() => setViewing(null)} />
       )}
       {renaming && <DescriptionDialog evidence={renaming} onClose={() => setRenaming(null)} />}

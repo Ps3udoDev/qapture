@@ -17,11 +17,14 @@ export function useEvidenceIntake() {
         );
       }
       if (!images.length) return;
+      let bytes: Uint8Array[];
       try {
-        await intakeImages(await Promise.all(images.map(readBytes)));
+        bytes = await Promise.all(images.map(readBytes));
       } catch {
         pushToast("error", "No se pudieron leer las imágenes.");
+        return;
       }
+      await intakeImages(bytes);
     },
     [intakeImages, pushToast],
   );

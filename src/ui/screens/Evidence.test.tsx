@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { emptyAnnotations, serializeAnnotations } from "../../domain/annotations";
 import type { Repositories } from "../../ports/repositories";
@@ -126,5 +126,29 @@ describe("galería de evidencias", () => {
     const { user } = await renderApp({ setup: async (repos) => void (await seedCases(repos)) });
     await user.upload(screen.getByLabelText("Elegir imágenes de evidencia"), png());
     expect(await screen.findByRole("dialog", { name: "Editor de evidencia" })).toBeInTheDocument();
+  });
+
+  it("cierra el visor si la evidencia mostrada desaparece de la lista", async () => {
+    const { user, store } = await renderApp({ setup: async (repos) => void (await seedWithEvidence(repos)) });
+    await within(gallery()).findByRole("heading", { name: "Evidencias (2)" });
+    await user.click(within(gallery()).getByRole("button", { name: "Ver evidencia 2" }));
+    expect(screen.getByRole("dialog", { name: "Evidencia 2 de 2" })).toBeInTheDocument();
+    const target = store.getState().cases.find((c) => c.code === "EJ-002")!;
+    await act(async () => {
+      await store.getState().moveEvidence(store.getState().evidence[1].id, target.id);
+    });
+    await waitFor(() => expect(within(gallery()).getByRole("heading", { name: "Evidencias (1)" })).toBeInTheDocument());
+    expect(screen.queryByRole("dialog", { name: "Evidencia 2 de 2" })).not.toBeInTheDocument();
+  });
+
+  it("avisa si no se pueden leer las imágenes soltadas", async () => {
+    await renderApp({ setup: async (repos) => void (await seedCases(repos)) });
+    const file = png();
+    Object.defineProperty(file, "arrayBuffer", { value: () => Promise.reject(new Error("x")) });
+    fireEvent.drop(screen.getByRole("region", { name: "Detalle del caso" }), {
+      dataTransfer: { files: [file], items: [], types: ["Files"] },
+    });
+    expect(await screen.findByText("No se pudieron leer las imágenes.")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Editor de evidencia" })).not.toBeInTheDocument();
   });
 });
