@@ -1,6 +1,8 @@
 import { Copy, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { activeFields } from "../../domain/fields";
+import { filesFrom, hasFiles } from "../gallery/files";
+import { useEvidenceIntake } from "../gallery/useEvidenceIntake";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { displayValue } from "../components/FieldControl";
 import { StatusBadge } from "../components/StatusBadge";
@@ -15,6 +17,8 @@ export function CaseDetail({ onEdit }: { onEdit: (caseId: string) => void }) {
   const deleteCase = useWorkspace((s) => s.deleteCase);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  const intake = useEvidenceIntake();
+  const [dropping, setDropping] = useState(false);
   const current = cases.find((c) => c.id === selectedId);
 
   if (!project) return null;
@@ -27,7 +31,22 @@ export function CaseDetail({ onEdit }: { onEdit: (caseId: string) => void }) {
   }
 
   return (
-    <section aria-label="Detalle del caso" className="flex-1 overflow-y-auto p-6">
+    <section
+      aria-label="Detalle del caso"
+      className={`flex-1 overflow-y-auto p-6 ${dropping ? "bg-t4s-blue/5 outline-2 outline-dashed outline-t4s-blue" : ""}`}
+      onDragOver={(e) => {
+        if (!hasFiles(e.dataTransfer)) return;
+        e.preventDefault();
+        setDropping(true);
+      }}
+      onDragLeave={() => setDropping(false)}
+      onDrop={(e) => {
+        if (!hasFiles(e.dataTransfer)) return;
+        e.preventDefault();
+        setDropping(false);
+        void intake(filesFrom(e.dataTransfer));
+      }}
+    >
       <div className="mx-auto max-w-4xl">
         <div className="flex items-start justify-between gap-4">
           <div>

@@ -5,6 +5,7 @@ import type { FieldInput, NewProjectInput, Project, ProjectMeta, ProjectSummary,
 import type { Status } from "../../domain/status";
 import { AppError } from "../../ports/errors";
 import type { Repositories } from "../../ports/repositories";
+import { createEvidenceSlice, type EvidenceSlice } from "./evidence-slice";
 import { browserPreferences, type Preferences } from "./preferences";
 
 export type FormResult = { ok: true } | { ok: false; errors: FormErrors };
@@ -14,7 +15,7 @@ export interface Toast {
   message: string;
 }
 
-export interface WorkspaceState {
+export interface WorkspaceState extends EvidenceSlice {
   templates: Template[];
   projects: ProjectSummary[];
   project: Project | null;
@@ -47,7 +48,7 @@ const NO_PROJECT: FormResult = { ok: false, errors: { _form: "No hay un proyecto
 export function createWorkspaceStore(repos: Repositories, prefs: Preferences = browserPreferences()): StoreApi<WorkspaceState> {
   let toastSeq = 0;
 
-  return createStore<WorkspaceState>()((set, get) => {
+  const store = createStore<WorkspaceState>()((set, get) => {
     const report = (error: unknown) => {
       const message = error instanceof AppError ? error.message : "Ocurrió un error inesperado.";
       get().pushToast("error", message);
@@ -82,6 +83,11 @@ export function createWorkspaceStore(repos: Repositories, prefs: Preferences = b
         report(error);
         return { ok: false, errors: {} };
       }
+    };
+
+    const refreshCases = async () => {
+      const current = get().project;
+      if (current) set({ cases: await repos.cases.list(current.id) });
     };
 
     return {
@@ -244,6 +250,13 @@ export function createWorkspaceStore(repos: Repositories, prefs: Preferences = b
       setStatusFilter: (statusFilter) => set({ statusFilter }),
       pushToast: (kind, message) => set((s) => ({ toasts: [...s.toasts, { id: ++toastSeq, kind, message }] })),
       dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+      ...createEvidenceSlice(repos, set, get, { report, refreshCases, form }),
     };
   });
+
+  // Las evidencias siguen al caso seleccionado, sin importar qué acción cambió la selección.
+  store.subscribe((state, previous) => {
+    if (state.selectedCaseId !== previous.selectedCaseId) void state.loadEvidence();
+  });
+  return store;
 }
