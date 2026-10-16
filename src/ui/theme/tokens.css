@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+@theme {
+  --color-t4s-blue: #2b629e;
+  --color-t4s-blue-dark: #1f4a78;
+  --color-t4s-lime: #bac82d;
+  --color-t4s-charcoal: #292b2d;
+  --color-t4s-cream: #f6f4f1;
+  --color-t4s-gray: #596069;
+  --color-t4s-line: #e3e0da;
+  --font-sans: "Segoe UI", Arial, system-ui, sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-t4s-cream font-sans text-t4s-charcoal antialiased;
+}
