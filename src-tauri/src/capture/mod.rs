@@ -3,3 +3,4 @@
 
 pub mod crop;
 pub mod screen;
+pub mod session;
