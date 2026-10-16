@@ -32,6 +32,10 @@ pub const APP_COMMANDS: &[&str] = &[
     "overlay_ready",
     "finish_capture",
     "cancel_capture",
+    "list_doc_versions",
+    "create_doc_version",
+    "update_doc_version",
+    "delete_doc_version",
 ];
 
 /// Lo único que puede invocar una ventana overlay (spec §9). El resto es de la principal.

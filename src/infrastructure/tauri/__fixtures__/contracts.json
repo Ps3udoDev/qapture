@@ -20,6 +20,17 @@
       "fld-1": "QA"
     }
   },
+  "docVersion": {
+    "approver": "",
+    "author": "Ana Pérez",
+    "changes": "Versión inicial",
+    "createdAt": "2026-10-16T12:00:00.000Z",
+    "date": "2026-10-16",
+    "id": "ver-1",
+    "projectId": "prj-1",
+    "reviewer": "Luis Gómez",
+    "version": "1.0"
+  },
   "error": {
     "code": "validation",
     "detail": "«Entorno» es obligatorio.",
@@ -60,6 +71,14 @@
       "values": {
         "fld-1": "QA"
       }
+    },
+    "docVersionInput": {
+      "approver": "",
+      "author": "Ana Pérez",
+      "changes": "Versión inicial",
+      "date": "2026-10-16",
+      "reviewer": "Luis Gómez",
+      "version": "1.0"
     },
     "evidenceUpdateMeta": {
       "annotations": "{\"version\":1,\"crop\":null,\"shapes\":[]}",

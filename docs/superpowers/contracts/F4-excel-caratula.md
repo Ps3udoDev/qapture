@@ -1,6 +1,6 @@
 # F4 — Excel con carátula Teams4Soft · `v0.4.0`
 
-**Depende de:** F1 (y F2 para incluir imágenes; sin F2 la hoja Evidencias sale con marcadores) · **Plan:** se escribe al iniciar la fase.
+**Depende de:** F1 (y F2 para incluir imágenes) · **Plan:** [2026-10-16-f4-excel-caratula.md](../plans/2026-10-16-f4-excel-caratula.md)
 
 ## Objetivo
 Exportar el proyecto a un `.xlsx` con las hojas **Carátula**, **Matriz** (columnas dinámicas), **Evidencias** y **Resumen**, con branding Teams4Soft, generado en Rust con `rust_xlsxwriter`.
@@ -27,6 +27,13 @@ Exportar el proyecto a un `.xlsx` con las hojas **Carátula**, **Matriz** (colum
 | F4-T8 | UI: diálogo de exportación, toast con "Abrir archivo" y "Abrir carpeta" |
 | F4-T9 | Tests: leer el xlsx con `calamine` y verificar hojas, celdas, vínculos y número de imágenes |
 
+## Notas de implementación (acordadas en el plan)
+- crates.io retiró (*yank*) toda la serie `zip` < 9.0.3. Por eso `rust_xlsxwriter` se toma de su repositorio (commit `ade0a01`, ya con zip 9) hasta que publique una versión con zip 9. `calamine` (solo tests) usa `zip` 8.6.0 desde el tag del repositorio mediante `[patch.crates-io]`.
+- Plantilla vacía: Carátula (sin KPI) + Matriz con 100 filas con formato y listas. Sin Evidencias ni Resumen, y sin versión en el nombre.
+- Ancho máximo de imagen: 940 px por defecto (rango 400–1600). Las capturas más anchas se reducen al exportar. F6 lo lleva a Settings.
+- «Abrir archivo» y «Abrir carpeta» solo aceptan archivos exportados en la sesión.
+- El tester se recuerda en el equipo (`localStorage`) hasta F6-T9.
+
 ## Interfaces producidas
 - `export_project` y `export_template`. F6 agrega "carpeta por defecto" y "ancho máximo de imagen" en Settings.
 
@@ -45,3 +52,4 @@ Exportar el proyecto a un `.xlsx` con las hojas **Carátula**, **Matriz** (colum
 | 6 | Exportar con el archivo abierto en Excel | Mensaje claro para cerrarlo | ☐ |
 | 7 | Imprimir la Matriz | A4 horizontal, ajustada al ancho, encabezados repetidos | ☐ |
 | 8 | Plantilla vacía | Columnas del proyecto, sin datos, con carátula | ☐ |
+| 9 | Exportar un proyecto con ~300 evidencias con el Administrador de tareas abierto | Termina en menos de 20 s; la memoria de Qapture vuelve a su nivel al terminar | ☐ |

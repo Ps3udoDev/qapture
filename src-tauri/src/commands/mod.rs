@@ -1,5 +1,6 @@
 pub mod capture;
 pub mod cases;
+pub mod doc_versions;
 pub mod evidence;
 mod frame;
 pub mod projects;

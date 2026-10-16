@@ -1,4 +1,5 @@
 pub mod cases;
+pub mod doc_versions;
 pub mod evidence;
 pub mod fields;
 pub mod projects;

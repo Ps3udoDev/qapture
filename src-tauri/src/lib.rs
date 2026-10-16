@@ -81,6 +81,10 @@ pub fn run() {
             commands::capture::overlay_ready,
             commands::capture::finish_capture,
             commands::capture::cancel_capture,
+            commands::doc_versions::list_doc_versions,
+            commands::doc_versions::create_doc_version,
+            commands::doc_versions::update_doc_version,
+            commands::doc_versions::delete_doc_version,
         ])
         .run(tauri::generate_context!())
         .expect("no se pudo iniciar Qapture");

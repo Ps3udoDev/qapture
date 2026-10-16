@@ -29,6 +29,10 @@
     "allow-move-evidence",
     "allow-reorder-evidence",
     "allow-delete-evidence",
-    "allow-start-capture"
+    "allow-start-capture",
+    "allow-list-doc-versions",
+    "allow-create-doc-version",
+    "allow-update-doc-version",
+    "allow-delete-doc-version"
   ]
 }
