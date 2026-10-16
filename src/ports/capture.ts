@@ -10,3 +10,11 @@ export interface OverlayApi {
   finish(selection: CaptureSelection | null): Promise<void>;
   cancel(): Promise<void>;
 }
+
+/** Captura integrada (UC-11). F6 la dispara también desde el atajo global. */
+export interface ScreenCapture {
+  /** Oculta Qapture y abre el overlay; termina cuando el overlay está abierto, no cuando el usuario elige. */
+  start(): Promise<void>;
+  /** Suscribe al evento `evidence:captured`; devuelve la función para desuscribirse. */
+  onCaptured(handler: (stagedPath: string) => void): Promise<() => void>;
+}

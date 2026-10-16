@@ -16,6 +16,7 @@ export interface MemoryEvidenceDeps {
 }
 
 export interface MemoryEvidence extends EvidenceStore {
+  stagedCount(): number;
   countFor(caseId: string): number;
   removeForCase(caseId: string): void;
 }
@@ -63,6 +64,7 @@ export function createMemoryEvidence(deps: MemoryEvidenceDeps): MemoryEvidence {
       if (!bytes) throw new AppError("not_found", "La imagen no existe.");
       return bytes;
     },
+    stagedCount: () => staged.size,
     imageUrl: (path, version) => `memory://${path}?v=${encodeURIComponent(version)}`,
     async list(caseId) {
       deps.caseProject(caseId);

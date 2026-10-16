@@ -4,11 +4,17 @@ import { normalizeFieldInput, validateFieldInputs, validateProjectMeta, type Pro
 import { DEFAULT_STATUS } from "../../domain/status";
 import { AppError } from "../../ports/errors";
 import type { Repositories } from "../../ports/repositories";
-import { createMemoryEvidence } from "./evidence";
+import { createMemoryCapture, type MemoryCapture } from "./capture";
+import { createMemoryEvidence, type MemoryEvidence } from "./evidence";
 import { builtinTemplates } from "./fixtures";
 
+export interface MemoryRepositories extends Repositories {
+  evidence: MemoryEvidence;
+  capture: MemoryCapture;
+}
+
 /** Implementación en memoria para tests de la aplicación y de la UI. Replica las reglas principales de Rust. */
-export function createMemoryRepositories(): Repositories {
+export function createMemoryRepositories(): MemoryRepositories {
   let seq = 0;
   const id = (prefix: string) => `${prefix}-${++seq}`;
   let tick = 0;
@@ -212,5 +218,6 @@ export function createMemoryRepositories(): Repositories {
       },
     },
     evidence,
+    capture: createMemoryCapture(evidence),
   };
 }
