@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { emptyDocVersion } from "../../domain/doc-versions";
+import { defaultExportOptions } from "../../domain/export";
 import { emptyMeta } from "../../domain/project";
 import { createMemoryRepositories } from "./repositories";
 
@@ -31,5 +32,32 @@ describe("versiones del documento en memoria", () => {
     await repos.docVersions.create(p.id, input("1.0"));
     await repos.projects.remove(p.id);
     await expect(repos.docVersions.list(p.id)).rejects.toMatchObject({ code: "not_found" });
+  });
+});
+
+describe("exportador en memoria", () => {
+  it("exporta, emite avance y solo abre lo exportado", async () => {
+    const { repos, p } = await setup();
+    const progress = vi.fn();
+    const off = await repos.exporter.onProgress(progress);
+    const result = await repos.exporter.exportProject(p.id, { ...defaultExportOptions("Ana"), docVersionId: "ver-1" });
+    expect(result).toMatchObject({ fileName: "T4S_ACME_Recibos_Evidencias_20261016_v1.0.xlsx", cases: 0, evidence: 0 });
+    expect(progress).toHaveBeenCalledWith({ stage: "saving", current: 0, total: 0 });
+    off();
+    await repos.exporter.openFile(result!.path);
+    expect(repos.exporter.opened).toEqual([result!.path]);
+    await expect(repos.exporter.revealFile("C:\otro.xlsx")).rejects.toMatchObject({ code: "validation" });
+  });
+
+  it("simula cancelar «Guardar como» y el archivo abierto en Excel", async () => {
+    const { repos, p } = await setup();
+    repos.exporter.mode = "cancel";
+    await expect(repos.exporter.exportTemplate(p.id, defaultExportOptions("Ana"))).resolves.toBeNull();
+    repos.exporter.mode = "locked";
+    await expect(repos.exporter.exportProject(p.id, defaultExportOptions("Ana"))).rejects.toMatchObject({
+      code: "file_locked",
+      message: "Cierra el archivo en Excel y vuelve a intentar.",
+    });
+    expect(repos.exporter.calls.map((c) => c.kind)).toEqual(["template", "project"]);
   });
 });

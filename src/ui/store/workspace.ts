@@ -10,10 +10,15 @@ import { createExportSlice, type ExportSlice } from "./export-slice";
 import { browserPreferences, type Preferences } from "./preferences";
 
 export type FormResult = { ok: true } | { ok: false; errors: FormErrors };
+export interface ToastAction {
+  label: string;
+  run(): void;
+}
 export interface Toast {
   id: number;
   kind: "success" | "error";
   message: string;
+  actions?: ToastAction[];
 }
 
 export interface WorkspaceState extends EvidenceSlice, ExportSlice {
@@ -40,7 +45,7 @@ export interface WorkspaceState extends EvidenceSlice, ExportSlice {
   selectCase(id: string | null): void;
   setSearch(search: string): void;
   setStatusFilter(status: Status | ""): void;
-  pushToast(kind: Toast["kind"], message: string): void;
+  pushToast(kind: Toast["kind"], message: string, actions?: ToastAction[]): void;
   dismissToast(id: number): void;
 }
 
@@ -249,7 +254,7 @@ export function createWorkspaceStore(repos: Repositories, prefs: Preferences = b
       selectCase: (id) => set({ selectedCaseId: id }),
       setSearch: (search) => set({ search }),
       setStatusFilter: (statusFilter) => set({ statusFilter }),
-      pushToast: (kind, message) => set((s) => ({ toasts: [...s.toasts, { id: ++toastSeq, kind, message }] })),
+      pushToast: (kind, message, actions) => set((s) => ({ toasts: [...s.toasts, { id: ++toastSeq, kind, message, actions }] })),
       dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
       ...createEvidenceSlice(repos, set, get, { report, refreshCases, form }),
       ...createExportSlice(repos, prefs, set, get, { report, refreshCases, form }),

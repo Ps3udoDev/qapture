@@ -6,13 +6,14 @@ import { AppError } from "../../ports/errors";
 import type { Repositories } from "../../ports/repositories";
 import { createMemoryCapture, type MemoryCapture } from "./capture";
 import { createMemoryEvidence, type MemoryEvidence } from "./evidence";
-import { createMemoryDocVersions, type MemoryDocVersions } from "./export";
+import { createMemoryDocVersions, createMemoryExporter, type MemoryDocVersions, type MemoryExporter } from "./export";
 import { builtinTemplates } from "./fixtures";
 
 export interface MemoryRepositories extends Repositories {
   evidence: MemoryEvidence;
   capture: MemoryCapture;
   docVersions: MemoryDocVersions;
+  exporter: MemoryExporter;
 }
 
 /** Implementación en memoria para tests de la aplicación y de la UI. Replica las reglas principales de Rust. */
@@ -229,5 +230,9 @@ export function createMemoryRepositories(): MemoryRepositories {
     evidence,
     capture: createMemoryCapture(evidence),
     docVersions,
+    exporter: createMemoryExporter((projectId) => {
+      const list = projectCases(projectId);
+      return { cases: list.length, evidence: list.reduce((n, c) => n + evidence.countFor(c.id), 0) };
+    }),
   };
 }

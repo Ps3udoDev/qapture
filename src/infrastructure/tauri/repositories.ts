@@ -4,7 +4,7 @@ import type { Repositories } from "../../ports/repositories";
 import { tauriScreenCapture } from "./capture";
 import { call, callBytes } from "./client";
 import { caseSchema, evidenceSchema, fieldSchema, projectSchema, projectSummarySchema, stagedImageSchema, templateSchema } from "./dto";
-import { tauriDocVersions } from "./export";
+import { tauriDocVersions, tauriExporter } from "./export";
 import { encodeFrame } from "./frame";
 
 const nothing = z.null();
@@ -58,5 +58,6 @@ export function tauriRepositories(): Repositories {
     },
     capture: tauriScreenCapture(),
     docVersions: tauriDocVersions(),
+    exporter: tauriExporter(),
   };
 }

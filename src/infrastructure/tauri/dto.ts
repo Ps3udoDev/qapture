@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { FIELD_TYPES } from "../../domain/fields";
+import { EXPORT_STAGES } from "../../domain/export";
 import { STATUSES } from "../../domain/status";
 
 export const fieldSchema = z.strictObject({
@@ -59,7 +60,7 @@ export const caseSchema = z.strictObject({
 });
 
 export const appErrorSchema = z.strictObject({
-  code: z.enum(["validation", "not_found", "db", "io", "capture", "internal"]),
+  code: z.enum(["validation", "not_found", "db", "io", "capture", "file_locked", "export", "internal"]),
   message: z.string(),
   detail: z.string(),
 });
@@ -98,4 +99,18 @@ export const docVersionSchema = z.strictObject({
   approver: z.string(),
   changes: z.string(),
   createdAt: z.string(),
+});
+
+export const exportResultSchema = z.strictObject({
+  path: z.string(),
+  fileName: z.string(),
+  cases: z.number().int(),
+  evidence: z.number().int(),
+  missingImages: z.number().int(),
+});
+
+export const exportProgressSchema = z.strictObject({
+  stage: z.enum(EXPORT_STAGES),
+  current: z.number().int(),
+  total: z.number().int(),
 });
