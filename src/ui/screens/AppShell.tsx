@@ -14,6 +14,7 @@ export function AppShell() {
   const [dialog, setDialog] = useState<"new-project" | "settings" | null>(null);
 
   const listenCaptures = useWorkspace((s) => s.listenCaptures);
+  const pushToast = useWorkspace((s) => s.pushToast);
 
   useEffect(() => {
     void init();
@@ -24,15 +25,19 @@ export function AppShell() {
     // En StrictMode el efecto corre dos veces; si la suscripción llega tarde, se cancela al llegar.
     let active = true;
     let unlisten: (() => void) | undefined;
-    void listenCaptures().then((off) => {
-      if (active) unlisten = off;
-      else off();
-    });
+    void listenCaptures()
+      .then((off) => {
+        if (active) unlisten = off;
+        else off();
+      })
+      .catch(() => {
+        if (active) pushToast("error", "No se pudo escuchar las capturas.");
+      });
     return () => {
       active = false;
       unlisten?.();
     };
-  }, [listenCaptures]);
+  }, [listenCaptures, pushToast]);
 
   if (!ready) return <div className="grid h-full place-items-center text-t4s-gray">Cargando Qapture…</div>;
 

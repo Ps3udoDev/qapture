@@ -26,7 +26,9 @@ export function OverlayApp({ api }: { api: OverlayApi }) {
         created = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "image/png" }));
         setUrl(created);
       })
-      .catch(() => void api.cancel());
+      .catch(() => {
+        if (alive) void api.cancel().catch(() => {});
+      });
     return () => {
       alive = false;
       if (created) URL.revokeObjectURL(created);
@@ -103,6 +105,8 @@ export function OverlayApp({ api }: { api: OverlayApi }) {
           draggable={false}
           className="pointer-events-none absolute inset-0 h-full w-full"
           onLoad={() => void api.ready().catch(() => {})}
+          // Una imagen que no se decodifica dejaría la captura colgada: se cancela.
+          onError={() => void api.cancel().catch(() => {})}
         />
       )}
       {rect ? (

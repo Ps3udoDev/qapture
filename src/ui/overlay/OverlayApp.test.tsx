@@ -97,4 +97,50 @@ describe("overlay de captura", () => {
     render(<OverlayApp api={api} />);
     await waitFor(() => expect(api.cancel).toHaveBeenCalledTimes(1));
   });
+
+  /** `cancel` que falla y registra si alguien manejó su rechazo (sin `vi.fn`, que lo observa por su cuenta). */
+  function failingCancel() {
+    const handled = vi.fn();
+    const calls = vi.fn();
+    const cancel: OverlayApi["cancel"] = () => {
+      calls();
+      const rejected = Promise.reject(new Error("sin sesión"));
+      const then = rejected.then.bind(rejected);
+      return Object.assign(rejected, {
+        then: ((onFulfilled, onRejected) => {
+          if (onRejected) handled();
+          return then(onFulfilled, onRejected);
+        }) as typeof rejected.then,
+      });
+    };
+    return { cancel, calls, handled };
+  }
+
+  it("si la imagen no se puede decodificar cancela la captura, aunque cancelar falle", async () => {
+    const { cancel, calls, handled } = failingCancel();
+    const { api, frame } = await renderOverlay(fakeApi({ cancel }));
+    fireEvent.error(frame);
+    expect(calls).toHaveBeenCalledTimes(1);
+    expect(handled).toHaveBeenCalled();
+    expect(api.ready).not.toHaveBeenCalled();
+  });
+
+  it("si falla al leer su imagen y cancelar también falla, maneja el rechazo", async () => {
+    const { cancel, calls, handled } = failingCancel();
+    const api = fakeApi({ loadFrame: vi.fn(async () => Promise.reject(new Error("sin sesión"))), cancel });
+    render(<OverlayApp api={api} />);
+    await waitFor(() => expect(calls).toHaveBeenCalledTimes(1));
+    expect(handled).toHaveBeenCalled();
+  });
+
+  it("si ya se desmontó cuando falla la lectura, no cancela", async () => {
+    let fail: (error: Error) => void = () => {};
+    const api = fakeApi({
+      loadFrame: vi.fn(() => new Promise<Uint8Array>((_, reject) => (fail = reject))),
+    });
+    const { unmount } = render(<OverlayApp api={api} />);
+    unmount();
+    await act(async () => fail(new Error("cerrado")));
+    expect(api.cancel).not.toHaveBeenCalled();
+  });
 });
