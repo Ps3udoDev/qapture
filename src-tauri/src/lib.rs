@@ -3,6 +3,7 @@ mod db;
 mod domain;
 mod dto;
 mod error;
+mod media;
 mod repo;
 mod state;
 mod system;
