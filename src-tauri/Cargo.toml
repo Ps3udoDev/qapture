@@ -28,6 +28,8 @@ thiserror = "2"
 chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
 xcap = "0.9.8"
+# zip 9: crates.io retiró (yank) toda la serie zip < 9.0.3 y la 0.99.1 publicada todavía pide zip 8.
+rust_xlsxwriter = { git = "https://github.com/jmcnamara/rust_xlsxwriter", rev = "ade0a017439d169b2a9c4848fe1cb66919c0ca3d" }
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
@@ -40,3 +42,9 @@ strip = true
 
 [dev-dependencies]
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
+calamine = "0.36.1"
+zip = { version = "9.0.4", default-features = false, features = ["deflate"] }
+
+# calamine 0.36 (solo tests) pide zip ^8.6 y crates.io retiró toda la serie 8.x: se toma del tag.
+[patch.crates-io]
+zip8 = { package = "zip", git = "https://github.com/zip-rs/zip2", tag = "v8.6.0" }

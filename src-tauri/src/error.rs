@@ -14,6 +14,14 @@ pub enum AppError {
     Json(#[from] serde_json::Error),
     #[error("captura: {0}")]
     Capture(String),
+    #[error("excel: {0}")]
+    Export(String),
+}
+
+impl From<rust_xlsxwriter::XlsxError> for AppError {
+    fn from(error: rust_xlsxwriter::XlsxError) -> Self {
+        Self::Export(error.to_string())
+    }
 }
 
 pub type AppResult<T> = Result<T, AppError>;
@@ -31,6 +39,7 @@ impl AppError {
             Self::Io(_) => "io",
             Self::Json(_) => "internal",
             Self::Capture(_) => "capture",
+            Self::Export(_) => "export",
         }
     }
 
@@ -38,6 +47,7 @@ impl AppError {
         match self {
             Self::Validation(m) | Self::NotFound(m) => m.clone(),
             Self::Capture(_) => "No se pudo capturar la pantalla. Inténtalo nuevamente.".into(),
+            Self::Export(_) => "No se pudo generar el Excel. Inténtalo nuevamente.".into(),
             _ => "No se pudo completar la operación. Revisa el espacio disponible e inténtalo nuevamente.".into(),
         }
     }
@@ -67,5 +77,18 @@ mod tests {
             "No se pudo capturar la pantalla. Inténtalo nuevamente."
         );
         assert_eq!(json["detail"], "captura: xcap: monitor desconectado");
+    }
+
+    #[test]
+    fn excel_errors_have_their_own_code_and_a_friendly_message() {
+        let export = serde_json::to_value(AppError::from(
+            rust_xlsxwriter::XlsxError::SheetnameCannotBeBlank(String::new()),
+        ))
+        .unwrap();
+        assert_eq!(export["code"], "export");
+        assert_eq!(
+            export["message"],
+            "No se pudo generar el Excel. Inténtalo nuevamente."
+        );
     }
 }

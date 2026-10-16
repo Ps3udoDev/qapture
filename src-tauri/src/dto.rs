@@ -184,6 +184,17 @@ pub struct DocVersionInput {
     pub changes: String,
 }
 
+/// Opciones del diálogo de exportación (UC-16 / UC-17).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ExportOptionsInput {
+    pub tester: String,
+    pub doc_version_id: Option<String>,
+    pub include_evidence: bool,
+    pub include_summary: bool,
+    pub image_max_width: u32,
+}
+
 #[cfg(test)]
 mod contract {
     use std::{collections::BTreeMap, path::PathBuf};

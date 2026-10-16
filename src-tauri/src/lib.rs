@@ -4,6 +4,7 @@ mod db;
 mod domain;
 mod dto;
 mod error;
+mod excel;
 mod media;
 mod repo;
 mod state;
