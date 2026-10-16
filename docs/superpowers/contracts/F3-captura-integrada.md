@@ -14,14 +14,14 @@ Capturar la pantalla o una región desde Qapture, sin herramientas externas, y l
 | Soporte de escalado DPI (125 %, 150 %) y monitores con distinta escala | |
 
 ## Tasks
-| ID | Task |
-|---|---|
-| F3-T1 | `capture/screen.rs`: captura de todos los monitores a PNG temporal + metadatos de posición y escala |
-| F3-T2 | Ventana overlay (label `overlay`) sin bordes, siempre encima, una por monitor; capability mínima propia |
-| F3-T3 | UI del overlay: imagen congelada, oscurecido, rectángulo de selección con medidas, lupa opcional |
-| F3-T4 | `capture/crop.rs`: recorte en píxeles físicos según DPI; pruebas con escalas mixtas |
-| F3-T5 | Comando `start_capture` → evento `evidence:captured` → editor de F2 |
-| F3-T6 | Limpieza de temporales (al guardar, al cancelar y al iniciar la app) |
+| ID | Task | Estado |
+|---|---|---|
+| F3-T1 | `capture/screen.rs`: captura de todos los monitores a PNG temporal + metadatos de posición y escala | ✅ |
+| F3-T2 | Ventana overlay (label `overlay`) sin bordes, siempre encima, una por monitor; capability mínima propia | ✅ |
+| F3-T3 | UI del overlay: imagen congelada, oscurecido, rectángulo de selección con medidas, lupa opcional | ✅ |
+| F3-T4 | `capture/crop.rs`: recorte en píxeles físicos según DPI; pruebas con escalas mixtas | ✅ |
+| F3-T5 | Comando `start_capture` → evento `evidence:captured` → editor de F2 | ✅ |
+| F3-T6 | Limpieza de temporales (al guardar, al cancelar y al iniciar la app) | ✅ |
 
 ## Notas de implementación (acordadas en el plan)
 - Las imágenes de los monitores se guardan **en memoria** mientras el overlay está abierto, no como PNG temporales. El único temporal es el recorte, en `evidence/_staging/`, con la limpieza de F2 (al guardar, al cancelar y al iniciar la app).
@@ -33,8 +33,13 @@ Capturar la pantalla o una región desde Qapture, sin herramientas externas, y l
 - Comando `start_capture()` y evento `evidence:captured { tmpPath }`, que el atajo global de F6 invoca.
 
 ## Criterios de aceptación
-- [ ] Prueba Rust del recorte con escalas 1.0 / 1.25 / 1.5 y monitores con offset negativo.
-- [ ] No quedan temporales después de cancelar.
+- [x] Prueba Rust del recorte con escalas 1.0 / 1.25 / 1.5 y monitores con offset negativo. Cubierta por:
+  - `capture::crop::tests::scales_css_pixels_to_physical_pixels_at_100_125_and_150_percent`
+  - `capture::session::tests::finish_crops_the_selected_monitor_even_with_a_negative_offset`
+  - `capture::screen::tests::finds_the_monitor_under_a_point_with_negative_offsets`
+- [x] No quedan temporales después de cancelar. Cubierta por:
+  - `capture::session::tests::cancel_leaves_no_temporary_files_and_restores_visibility`
+  - `src/ui/store/evidence-slice.test.ts` («cancelar el editor de una captura no deja temporales»)
 
 ## Checklist de pruebas locales
 | # | Prueba | Esperado | OK |
