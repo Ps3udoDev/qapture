@@ -6,6 +6,7 @@
 pub mod cover;
 pub mod data;
 pub mod evidence_sheet;
+pub mod images;
 pub mod matrix;
 pub mod styles;
 #[cfg(test)]
