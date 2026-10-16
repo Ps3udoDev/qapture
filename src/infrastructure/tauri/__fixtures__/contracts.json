@@ -1,0 +1,136 @@
+{
+  "case": {
+    "code": "EJ-001",
+    "createdAt": "2026-10-15T12:00:00.000Z",
+    "id": "case-1",
+    "projectId": "prj-1",
+    "status": "Aprobado",
+    "title": "Aplicación de recibos",
+    "updatedAt": "2026-10-15T12:00:00.000Z",
+    "values": {
+      "fld-1": "QA"
+    }
+  },
+  "error": {
+    "code": "validation",
+    "detail": "«Entorno» es obligatorio.",
+    "message": "«Entorno» es obligatorio."
+  },
+  "field": {
+    "archived": false,
+    "clearOnDuplicate": false,
+    "id": "fld-1",
+    "key": "entorno",
+    "label": "Entorno",
+    "options": [
+      "QA",
+      "Producción"
+    ],
+    "position": 0,
+    "required": true,
+    "type": "list",
+    "width": 21
+  },
+  "inputs": {
+    "caseInput": {
+      "status": "Aprobado",
+      "title": "Aplicación de recibos",
+      "values": {
+        "fld-1": "QA"
+      }
+    },
+    "fieldInput": {
+      "archived": false,
+      "clearOnDuplicate": false,
+      "id": null,
+      "label": "Severidad",
+      "options": [
+        "Alta",
+        "Media",
+        "Baja"
+      ],
+      "required": false,
+      "type": "list",
+      "width": 14
+    },
+    "newProjectInput": {
+      "meta": {
+        "client": "ACME",
+        "endDate": "2026-10-31",
+        "name": "Recibos",
+        "releaseVersion": "1.0",
+        "startDate": "2026-10-01",
+        "testType": "Funcional"
+      },
+      "templateId": "tpl-funcional"
+    },
+    "projectMetaInput": {
+      "client": "ACME",
+      "endDate": "2026-10-31",
+      "name": "Recibos",
+      "releaseVersion": "1.0",
+      "startDate": "2026-10-01",
+      "testType": "Funcional"
+    }
+  },
+  "project": {
+    "client": "ACME",
+    "createdAt": "2026-10-15T12:00:00.000Z",
+    "endDate": "2026-10-31",
+    "fields": [
+      {
+        "archived": false,
+        "clearOnDuplicate": false,
+        "id": "fld-1",
+        "key": "entorno",
+        "label": "Entorno",
+        "options": [
+          "QA",
+          "Producción"
+        ],
+        "position": 0,
+        "required": true,
+        "type": "list",
+        "width": 21
+      }
+    ],
+    "id": "prj-1",
+    "name": "Recibos",
+    "nextSequence": 4,
+    "releaseVersion": "1.0",
+    "sourceTemplateId": "tpl-funcional",
+    "startDate": "2026-10-01",
+    "testType": "Funcional",
+    "updatedAt": "2026-10-15T12:00:00.000Z"
+  },
+  "projectSummary": {
+    "caseCount": 3,
+    "client": "ACME",
+    "id": "prj-1",
+    "name": "Recibos",
+    "updatedAt": "2026-10-15T12:00:00.000Z"
+  },
+  "template": {
+    "builtin": true,
+    "fields": [
+      {
+        "archived": false,
+        "clearOnDuplicate": false,
+        "id": "fld-1",
+        "key": "entorno",
+        "label": "Entorno",
+        "options": [
+          "QA",
+          "Producción"
+        ],
+        "position": 0,
+        "required": true,
+        "type": "list",
+        "width": 21
+      }
+    ],
+    "id": "tpl-funcional",
+    "name": "Funcional",
+    "testType": "Funcional"
+  }
+}

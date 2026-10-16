@@ -31,3 +31,6 @@ evidence/
 *.xlsx
 !docs/**/*.xlsx
 .env*
+
+# Espacio de trabajo de agentes (superpowers)
+.superpowers/
