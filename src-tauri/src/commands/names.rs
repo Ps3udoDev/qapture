@@ -27,10 +27,20 @@ pub const APP_COMMANDS: &[&str] = &[
     "move_evidence",
     "reorder_evidence",
     "delete_evidence",
+    "start_capture",
+    "capture_frame",
+    "overlay_ready",
+    "finish_capture",
+    "cancel_capture",
 ];
 
 /// Lo único que puede invocar una ventana overlay (spec §9). El resto es de la principal.
-pub const OVERLAY_COMMANDS: &[&str] = &[];
+pub const OVERLAY_COMMANDS: &[&str] = &[
+    "capture_frame",
+    "overlay_ready",
+    "finish_capture",
+    "cancel_capture",
+];
 
 #[cfg(test)]
 mod tests {
@@ -83,6 +93,13 @@ mod tests {
         );
         expected.insert("core:default".into());
         assert_eq!(permissions, expected);
+    }
+
+    #[test]
+    fn overlay_can_only_call_the_capture_commands() {
+        let (windows, permissions) = capability("overlay.json");
+        assert_eq!(windows, ["overlay-*"]);
+        assert_eq!(permissions, allow(OVERLAY_COMMANDS));
     }
 
     #[test]

@@ -28,6 +28,7 @@
     "allow-update-evidence-description",
     "allow-move-evidence",
     "allow-reorder-evidence",
-    "allow-delete-evidence"
+    "allow-delete-evidence",
+    "allow-start-capture"
   ]
 }

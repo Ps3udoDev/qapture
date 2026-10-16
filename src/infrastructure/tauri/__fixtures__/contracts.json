@@ -1,4 +1,12 @@
 {
+  "captureError": {
+    "code": "capture",
+    "detail": "captura: xcap: monitor desconectado",
+    "message": "No se pudo capturar la pantalla. Inténtalo nuevamente."
+  },
+  "capturedEvent": {
+    "tmpPath": "C:\\datos\\evidence\\_staging\\stg-2.png"
+  },
   "case": {
     "code": "EJ-001",
     "createdAt": "2026-10-15T12:00:00.000Z",
@@ -96,6 +104,14 @@
       "releaseVersion": "1.0",
       "startDate": "2026-10-01",
       "testType": "Funcional"
+    },
+    "selection": {
+      "height": 200.0,
+      "viewportHeight": 864.0,
+      "viewportWidth": 1536.0,
+      "width": 300.0,
+      "x": 10.5,
+      "y": 20.0
     }
   },
   "project": {

@@ -59,7 +59,7 @@ export const caseSchema = z.strictObject({
 });
 
 export const appErrorSchema = z.strictObject({
-  code: z.enum(["validation", "not_found", "db", "io", "internal"]),
+  code: z.enum(["validation", "not_found", "db", "io", "capture", "internal"]),
   message: z.string(),
   detail: z.string(),
 });
@@ -82,4 +82,8 @@ export const stagedImageSchema = z.strictObject({
   path: z.string(),
   width: z.number().int(),
   height: z.number().int(),
+});
+
+export const capturedEventSchema = z.strictObject({
+  tmpPath: z.string(),
 });

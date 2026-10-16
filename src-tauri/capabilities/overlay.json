@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "overlay",
+  "description": "Overlay de captura: solo lee la imagen congelada de su monitor y devuelve la selección (spec §9).",
+  "windows": ["overlay-*"],
+  "permissions": ["allow-capture-frame", "allow-overlay-ready", "allow-finish-capture", "allow-cancel-capture"]
+}

@@ -1,3 +1,4 @@
+pub mod capture;
 pub mod cases;
 pub mod evidence;
 mod frame;
