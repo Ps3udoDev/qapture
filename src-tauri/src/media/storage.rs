@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::{
     collections::HashSet,
     fs,
@@ -22,6 +20,7 @@ pub struct EvidenceFiles {
 }
 
 impl EvidenceFiles {
+    #[allow(dead_code)]
     pub fn new(data_dir: impl Into<PathBuf>) -> Self {
         Self {
             data_dir: data_dir.into(),
@@ -82,11 +81,13 @@ impl EvidenceFiles {
         }
     }
 
+    #[allow(dead_code)]
     pub fn discard_staged(&self, raw: &str) -> AppResult<()> {
         fs::remove_file(self.resolve_inside(raw, true)?)?;
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn clear_staging(&self) -> AppResult<()> {
         let dir = self.staging_dir();
         if dir.exists() {
@@ -103,7 +104,11 @@ impl EvidenceFiles {
     }
 
     pub fn remove_project(&self, project_id: &str) {
-        if project_id.is_empty() || project_id.contains(['/', '\\', '.']) {
+        let safe = !project_id.is_empty()
+            && project_id
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
+        if !safe {
             return;
         }
         let _ = fs::remove_dir_all(self.project_dir(project_id));
@@ -169,6 +174,7 @@ pub(crate) struct TempDir(PathBuf);
 
 #[cfg(test)]
 impl TempDir {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         let path = std::env::temp_dir().join(format!("qapture-test-{}", new_id()));
         fs::create_dir_all(&path).unwrap();
@@ -284,7 +290,7 @@ mod tests {
         let tmp = TempDir::new();
         let files = tmp.files();
         files.stage(b"x").unwrap();
-        for id in ["", "..", "a/b", "a\\b"] {
+        for id in ["", "..", "a/b", "a\\b", "C:"] {
             files.remove_project(id);
         }
         assert!(files.staging_dir().exists());

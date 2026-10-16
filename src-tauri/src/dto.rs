@@ -111,6 +111,47 @@ pub struct CaseInput {
     pub values: BTreeMap<String, String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EvidenceDto {
+    pub id: String,
+    pub case_id: String,
+    pub position: i64,
+    pub description: String,
+    pub original_path: String,
+    pub rendered_path: String,
+    pub annotations: String,
+    pub width: i64,
+    pub height: i64,
+    pub captured_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StagedImageDto {
+    pub path: String,
+    pub width: i64,
+    pub height: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct NewEvidenceMeta {
+    pub case_id: String,
+    pub staged_path: String,
+    pub description: String,
+    pub annotations: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct EvidenceUpdateMeta {
+    pub evidence_id: String,
+    pub description: String,
+    pub annotations: String,
+}
+
 #[cfg(test)]
 mod contract {
     use std::{collections::BTreeMap, path::PathBuf};
