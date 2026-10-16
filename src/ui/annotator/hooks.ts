@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
 export function useBoxSize(ref: RefObject<HTMLElement | null>) {
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -17,11 +17,13 @@ export function useBoxSize(ref: RefObject<HTMLElement | null>) {
 /** Carga el original por IPC y lo expone como `blob:` (mismo origen: el canvas no queda "tainted" al exportar). */
 export function useLoadedImage(path: string, load: (path: string) => Promise<Uint8Array>) {
   const [state, setState] = useState<{ image: HTMLImageElement | null; error: string | null }>({ image: null, error: null });
+  const loadRef = useRef(load);
+  loadRef.current = load;
   useEffect(() => {
     let cancelled = false;
     let url: string | null = null;
     setState({ image: null, error: null });
-    load(path)
+    loadRef.current(path)
       .then((bytes) => {
         if (cancelled) return;
         url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "image/png" }));
@@ -35,6 +37,6 @@ export function useLoadedImage(path: string, load: (path: string) => Promise<Uin
       cancelled = true;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [path, load]);
+  }, [path]);
   return state;
 }

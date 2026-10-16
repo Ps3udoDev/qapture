@@ -1,5 +1,5 @@
 import Konva from "konva";
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { Arrow, Circle, Ellipse, Group, Image as KImage, Label, Rect, Tag, Text } from "react-konva";
 import type { Shape } from "../../domain/annotations";
 import { pixelSizeFor } from "./geometry";
@@ -85,10 +85,10 @@ export function ShapeNode({ shape, image, number, draggable, preview = false, on
 /** Pixela la región del ORIGINAL que cubre la forma. El render final queda aplanado y no se puede revertir. */
 function PixelatedRegion({ shape, image, common }: { shape: Extract<Shape, { kind: "blur" }>; image: HTMLImageElement; common: object }) {
   const ref = useRef<Konva.Image>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const node = ref.current;
     if (!node) return;
-    node.cache();
+    node.cache({ pixelRatio: 1 });
     node.getLayer()?.batchDraw();
     return () => {
       node.clearCache();

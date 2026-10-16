@@ -39,8 +39,9 @@ export function AnnotatorCanvas({ ref, imagePath, loadImage, annotations, tool, 
         const raw = layer.toCanvas({
           x: region.x * scale,
           y: region.y * scale,
-          width: region.width * scale,
-          height: region.height * scale,
+          // +1: Konva redondea hacia abajo (floor) el tamaño del canvas; así nunca queda 1 px más chico.
+          width: region.width * scale + 1,
+          height: region.height * scale + 1,
           pixelRatio: 1 / scale,
         });
         const out = document.createElement("canvas");
@@ -48,7 +49,7 @@ export function AnnotatorCanvas({ ref, imagePath, loadImage, annotations, tool, 
         out.height = region.height;
         const ctx = out.getContext("2d");
         if (!ctx) throw new Error("No se pudo preparar el render.");
-        ctx.drawImage(raw, 0, 0, region.width, region.height);
+        ctx.drawImage(raw, 0, 0, region.width, region.height, 0, 0, region.width, region.height);
         const blob = await new Promise<Blob>((resolve, reject) =>
           out.toBlob((b) => (b ? resolve(b) : reject(new Error("No se pudo generar el PNG."))), "image/png"),
         );
@@ -67,7 +68,7 @@ export function AnnotatorCanvas({ ref, imagePath, loadImage, annotations, tool, 
     tr.keepRatio(shape?.kind === "text" || shape?.kind === "marker");
     tr.nodes(node ? [node] : []);
     tr.getLayer()?.batchDraw();
-  }, [annotations, selectedId, tool]);
+  }, [annotations, selectedId, tool, scale]);
 
   const pointer = (e: Konva.KonvaEventObject<MouseEvent>): Point | null => {
     const p = e.target.getStage()?.getPointerPosition();
@@ -122,7 +123,7 @@ export function AnnotatorCanvas({ ref, imagePath, loadImage, annotations, tool, 
         </p>
       )}
       {!image && !error && <p className="absolute inset-0 grid place-items-center text-sm text-white/80">Cargando imagen…</p>}
-      {image && size.width > 0 && (
+      {image && size.width > 0 && size.height > 0 && (
         <Stage
           width={Math.round(image.width * scale)}
           height={Math.round(image.height * scale)}
