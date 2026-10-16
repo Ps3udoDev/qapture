@@ -26,8 +26,8 @@ flowchart LR
 | Fase | Contrato | Plan | Estado | Tag |
 |---|---|---|---|---|
 | F0 | [Scaffold + repo + spec](F0-scaffold.md) | — | ✅ Cerrada | — |
-| F1 | [Dominio + SQLite + CRUD](F1-dominio-datos-crud.md) | [plan](../plans/2026-10-15-f1-dominio-datos-crud.md) | 🟡 En curso | `v0.1.0` |
-| F2 | [Evidencias + editor de anotaciones](F2-evidencias-anotaciones.md) | al iniciar | ⏳ | `v0.2.0` |
+| F1 | [Dominio + SQLite + CRUD](F1-dominio-datos-crud.md) | [plan](../plans/2026-10-15-f1-dominio-datos-crud.md) | ✅ Cerrada | `v0.1.0` |
+| F2 | [Evidencias + editor de anotaciones](F2-evidencias-anotaciones.md) | [plan](../plans/2026-10-15-f2-evidencias-anotaciones.md) | 🧪 En pruebas del equipo | `v0.2.0` |
 | F3 | [Captura integrada](F3-captura-integrada.md) | al iniciar | ⏳ | `v0.3.0` |
 | F4 | [Excel con carátula](F4-excel-caratula.md) | al iniciar | ⏳ | `v0.4.0` |
 | F5 | [Importación v1 + paquetes + respaldo](F5-importacion-paquetes.md) | al iniciar | ⏳ | `v0.5.0` |

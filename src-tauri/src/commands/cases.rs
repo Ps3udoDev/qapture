@@ -3,7 +3,7 @@ use tauri::State;
 use crate::{
     dto::{CaseDto, CaseInput},
     error::AppResult,
-    repo::cases,
+    repo::{cases, evidence},
     state::AppState,
 };
 
@@ -37,5 +37,5 @@ pub fn duplicate_case(state: State<'_, AppState>, case_id: String) -> AppResult<
 
 #[tauri::command(async)]
 pub fn delete_case(state: State<'_, AppState>, case_id: String) -> AppResult<()> {
-    cases::delete(&state.db(), &case_id)
+    evidence::delete_case(&state.db(), state.files(), &case_id)
 }

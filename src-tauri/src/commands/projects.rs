@@ -3,7 +3,7 @@ use tauri::State;
 use crate::{
     dto::{FieldDto, FieldInput, NewProjectInput, ProjectDto, ProjectMetaInput, ProjectSummaryDto},
     error::AppResult,
-    repo::{fields, projects},
+    repo::{evidence, fields, projects},
     state::AppState,
 };
 
@@ -33,7 +33,7 @@ pub fn update_project(
 
 #[tauri::command(async)]
 pub fn delete_project(state: State<'_, AppState>, id: String) -> AppResult<()> {
-    projects::delete(&state.db(), &id)
+    evidence::delete_project(&state.db(), state.files(), &id)
 }
 
 #[tauri::command(async)]

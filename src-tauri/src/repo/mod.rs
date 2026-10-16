@@ -1,15 +1,18 @@
 pub mod cases;
+pub mod evidence;
 pub mod fields;
 pub mod projects;
 pub mod templates;
 
 #[cfg(test)]
 pub(crate) mod test_support {
+    use std::collections::BTreeMap;
+
     use rusqlite::{Connection, params};
 
     use crate::{
         db,
-        dto::{NewProjectInput, ProjectDto, ProjectMetaInput},
+        dto::{CaseDto, CaseInput, NewProjectInput, ProjectDto, ProjectMetaInput},
     };
 
     pub fn conn() -> Connection {
@@ -32,6 +35,31 @@ pub(crate) mod test_support {
             conn,
             NewProjectInput {
                 meta: meta("Recibos"),
+                template_id: "tpl-funcional".into(),
+            },
+        )
+        .expect("proyecto")
+    }
+
+    pub fn case(conn: &Connection, project: &ProjectDto) -> CaseDto {
+        let values = BTreeMap::from([(field_id(project, "entorno"), "QA".to_string())]);
+        super::cases::create(
+            conn,
+            &project.id,
+            &CaseInput {
+                title: "Aplicación de recibos".into(),
+                status: "No ejecutado".into(),
+                values,
+            },
+        )
+        .expect("caso")
+    }
+
+    pub fn other_project(conn: &Connection) -> ProjectDto {
+        super::projects::create(
+            conn,
+            NewProjectInput {
+                meta: meta("Pólizas"),
                 template_id: "tpl-funcional".into(),
             },
         )

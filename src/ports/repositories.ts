@@ -1,4 +1,5 @@
 import type { CaseInput, CaseRecord } from "../domain/cases";
+import type { Evidence, EvidenceUpdateInput, NewEvidenceInput, StagedImage } from "../domain/evidence";
 import type { FieldDef } from "../domain/fields";
 import type { FieldInput, NewProjectInput, Project, ProjectMeta, ProjectSummary, Template } from "../domain/project";
 
@@ -25,8 +26,23 @@ export interface CaseRepository {
   remove(caseId: string): Promise<void>;
 }
 
+export interface EvidenceStore {
+  stage(image: Uint8Array): Promise<StagedImage>;
+  discardStaged(path: string): Promise<void>;
+  readImage(path: string): Promise<Uint8Array>;
+  imageUrl(path: string, version: string): string;
+  list(caseId: string): Promise<Evidence[]>;
+  add(input: NewEvidenceInput, render: Uint8Array): Promise<Evidence>;
+  update(input: EvidenceUpdateInput, render: Uint8Array): Promise<Evidence>;
+  updateDescription(evidenceId: string, description: string): Promise<Evidence>;
+  move(evidenceId: string, targetCaseId: string): Promise<Evidence>;
+  reorder(caseId: string, orderedIds: string[]): Promise<Evidence[]>;
+  remove(evidenceId: string): Promise<void>;
+}
+
 export interface Repositories {
   templates: TemplateRepository;
   projects: ProjectRepository;
   cases: CaseRepository;
+  evidence: EvidenceStore;
 }

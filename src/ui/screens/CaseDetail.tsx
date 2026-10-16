@@ -1,6 +1,9 @@
 import { Copy, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { activeFields } from "../../domain/fields";
+import { EvidenceGallery } from "../gallery/EvidenceGallery";
+import { filesFrom, hasFiles } from "../gallery/files";
+import { useEvidenceIntake } from "../gallery/useEvidenceIntake";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { displayValue } from "../components/FieldControl";
 import { StatusBadge } from "../components/StatusBadge";
@@ -10,24 +13,53 @@ import { useWorkspace } from "../store/context";
 export function CaseDetail({ onEdit }: { onEdit: (caseId: string) => void }) {
   const project = useWorkspace((s) => s.project);
   const cases = useWorkspace((s) => s.cases);
+  const pushToast = useWorkspace((s) => s.pushToast);
   const selectedId = useWorkspace((s) => s.selectedCaseId);
   const duplicateCase = useWorkspace((s) => s.duplicateCase);
   const deleteCase = useWorkspace((s) => s.deleteCase);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  const intake = useEvidenceIntake();
+  const [dropping, setDropping] = useState(false);
   const current = cases.find((c) => c.id === selectedId);
 
   if (!project) return null;
   if (!current) {
     return (
-      <section aria-label="Detalle del caso" className="grid flex-1 place-items-center text-t4s-gray">
+      <section
+        aria-label="Detalle del caso"
+        className="grid flex-1 place-items-center text-t4s-gray"
+        onDragOver={(e) => {
+          if (hasFiles(e.dataTransfer)) e.preventDefault();
+        }}
+        onDrop={(e) => {
+          if (!hasFiles(e.dataTransfer)) return;
+          e.preventDefault();
+          pushToast("error", "Crea o selecciona un caso antes de agregar evidencias.");
+        }}
+      >
         Selecciona un caso para ver su detalle.
       </section>
     );
   }
 
   return (
-    <section aria-label="Detalle del caso" className="flex-1 overflow-y-auto p-6">
+    <section
+      aria-label="Detalle del caso"
+      className={`flex-1 overflow-y-auto p-6 ${dropping ? "bg-t4s-blue/5 outline-2 outline-dashed outline-t4s-blue" : ""}`}
+      onDragOver={(e) => {
+        if (!hasFiles(e.dataTransfer)) return;
+        e.preventDefault();
+        setDropping(true);
+      }}
+      onDragLeave={() => setDropping(false)}
+      onDrop={(e) => {
+        if (!hasFiles(e.dataTransfer)) return;
+        e.preventDefault();
+        setDropping(false);
+        void intake(filesFrom(e.dataTransfer));
+      }}
+    >
       <div className="mx-auto max-w-4xl">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -69,14 +101,16 @@ export function CaseDetail({ onEdit }: { onEdit: (caseId: string) => void }) {
             </div>
           ))}
         </dl>
-        <div className="mt-6 rounded-xl border border-dashed border-t4s-line p-6 text-center text-sm text-t4s-gray">
-          Las evidencias (capturas y anotaciones) llegan en la fase F2.
-        </div>
+        <EvidenceGallery caseRecord={current} />
       </div>
       {confirming && (
         <ConfirmDialog
           title={`Eliminar ${current.code}`}
-          message="El caso se eliminará de forma permanente. Su código no se reutilizará."
+          message={
+            current.evidenceCount
+              ? `El caso y sus ${current.evidenceCount} evidencias se eliminarán de forma permanente. Su código no se reutilizará.`
+              : "El caso se eliminará de forma permanente. Su código no se reutilizará."
+          }
           confirmLabel="Eliminar caso"
           onCancel={() => setConfirming(false)}
           onConfirm={async () => {

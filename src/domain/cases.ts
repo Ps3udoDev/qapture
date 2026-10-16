@@ -8,6 +8,7 @@ export interface CaseRecord {
   title: string;
   status: Status;
   values: Record<string, string>;
+  evidenceCount: number;
   createdAt: string;
   updatedAt: string;
 }

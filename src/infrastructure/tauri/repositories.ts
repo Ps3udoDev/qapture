@@ -1,7 +1,9 @@
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { z } from "zod";
 import type { Repositories } from "../../ports/repositories";
-import { call } from "./client";
-import { caseSchema, fieldSchema, projectSchema, projectSummarySchema, templateSchema } from "./dto";
+import { call, callBytes } from "./client";
+import { caseSchema, evidenceSchema, fieldSchema, projectSchema, projectSummarySchema, stagedImageSchema, templateSchema } from "./dto";
+import { encodeFrame } from "./frame";
 
 const nothing = z.null();
 
@@ -32,6 +34,24 @@ export function tauriRepositories(): Repositories {
       duplicate: (caseId) => call("duplicate_case", { caseId }, caseSchema),
       remove: async (caseId) => {
         await call("delete_case", { caseId }, nothing);
+      },
+    },
+    evidence: {
+      stage: (image) => call("stage_evidence_image", image, stagedImageSchema),
+      discardStaged: async (path) => {
+        await call("discard_staged_image", { path }, nothing);
+      },
+      readImage: (path) => callBytes("read_evidence_image", { path }),
+      // `?v=` evita que el webview muestre un render viejo tras re-anotar.
+      imageUrl: (path, version) => `${convertFileSrc(path)}?v=${encodeURIComponent(version)}`,
+      list: (caseId) => call("list_evidence", { caseId }, z.array(evidenceSchema)),
+      add: (input, render) => call("add_evidence", encodeFrame(input, render), evidenceSchema),
+      update: (input, render) => call("update_evidence", encodeFrame(input, render), evidenceSchema),
+      updateDescription: (evidenceId, description) => call("update_evidence_description", { evidenceId, description }, evidenceSchema),
+      move: (evidenceId, targetCaseId) => call("move_evidence", { evidenceId, targetCaseId }, evidenceSchema),
+      reorder: (caseId, orderedIds) => call("reorder_evidence", { caseId, orderedIds }, z.array(evidenceSchema)),
+      remove: async (evidenceId) => {
+        await call("delete_evidence", { evidenceId }, nothing);
       },
     },
   };
