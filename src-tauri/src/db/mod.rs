@@ -24,10 +24,11 @@ pub fn prepare(conn: &Connection) -> AppResult<()> {
     seed::ensure_builtin_templates(conn)
 }
 
-const MIGRATIONS: &[&str] = &[
+pub(crate) const MIGRATIONS: &[&str] = &[
     include_str!("migrations/0001_init.sql"),
     include_str!("migrations/0002_evidence.sql"),
     include_str!("migrations/0003_doc_version.sql"),
+    include_str!("migrations/0004_setting.sql"),
 ];
 
 pub fn open(path: &Path) -> AppResult<Connection> {

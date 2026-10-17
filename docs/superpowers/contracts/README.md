@@ -31,7 +31,7 @@ flowchart LR
 | F3 | [Captura integrada](F3-captura-integrada.md) | [plan](../plans/2026-10-16-f3-captura-integrada.md) | ✅ Cerrada | `v0.3.0` |
 | F4 | [Excel con carátula](F4-excel-caratula.md) | [plan](../plans/2026-10-16-f4-excel-caratula.md) | 🧪 En pruebas del equipo | `v0.4.0` |
 | F5 | [Importación v1 + paquetes + respaldo](F5-importacion-paquetes.md) | [plan](../plans/2026-10-16-f5-importacion-paquetes.md) | 🧪 En pruebas del equipo | `v0.5.0` |
-| F6 | [Bandeja, atajos y settings](F6-bandeja-atajos-settings.md) | al iniciar | ⏳ | `v0.6.0` |
+| F6 | [Bandeja, atajos y settings](F6-bandeja-atajos-settings.md) | [plan](../plans/2026-10-17-f6-bandeja-atajos-settings.md) | 🟡 En curso | `v0.6.0` |
 | F7 | [CI/CD, updater, release y docs](F7-cicd-release.md) | al iniciar | ⏳ | `v1.0.0` |
 
 **Orden:** F1 → F2 → F4 → F6 → F7 forma el **MVP**; F3 y F5 pueden ir antes o después de F7 según la presión del equipo. F4 solo depende de F1, así que puede ir en paralelo a F2.

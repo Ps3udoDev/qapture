@@ -8,6 +8,9 @@ mod error;
 mod excel;
 mod media;
 mod repo;
+// TODO(F6-T4): quitar el allow cuando los comandos usen los ajustes.
+#[allow(dead_code)]
+mod settings;
 mod state;
 mod system;
 mod transfer;

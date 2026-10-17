@@ -1,6 +1,6 @@
 # F6 — Segundo plano, bandeja, atajos globales y Settings · `v0.6.0`
 
-**Depende de:** F2 (y F3 para el atajo de captura) · **Plan:** se escribe al iniciar la fase.
+**Depende de:** F2 (y F3 para el atajo de captura) · **Plan:** [2026-10-17-f6-bandeja-atajos-settings](../plans/2026-10-17-f6-bandeja-atajos-settings.md).
 
 ## Objetivo
 Qapture vive en la bandeja del sistema y se invoca con atajos globales configurables desde Settings.
@@ -13,6 +13,24 @@ Qapture vive en la bandeja del sistema y se invoca con atajos globales configura
 | Atajos por defecto: Mostrar/ocultar `Ctrl+Alt+Q` · Capturar `Ctrl+Alt+S` · Pegar evidencia `Ctrl+Alt+V` · Nuevo caso `Ctrl+Alt+N` | |
 | Iniciar con Windows (autostart), opción minimizado | |
 | Notificaciones nativas para eventos en segundo plano | |
+
+## Notas de implementación (acordadas en el plan)
+- **Una fila JSON por sección** (`profile`, `shortcuts`, `system`, `export`) en `setting(key, value, updated_at)`. Cada campo tiene `#[serde(default)]`, así que agregar ajustes nuevos no requiere migraciones.
+- **Tema claro/oscuro** (spec §6.9) queda fuera: no hay tema oscuro diseñado. Se anota para después de v1.
+- **«Buscar actualizaciones»** (bandeja y Acerca de) llega con el updater en F7. En F6, Acerca de muestra la versión y los enlaces a releases y documentación.
+- **El tester de Ajustes reemplaza la preferencia local de F4.** La primera vez que se cargan los ajustes, si el perfil está vacío y existe `localStorage['qapture.tester']`, se copia al perfil una sola vez. Un tester distinto escrito en el diálogo de exportación vale solo para esa exportación y no modifica Ajustes.
+- **Cerrar con la X:** por defecto oculta en la bandeja. Con «Cerrar oculta en la bandeja» desactivado, cierra la app.
+- **Esc oculta:** desactivado por defecto. Solo actúa si no hay un diálogo ni el editor abiertos.
+- **Notificaciones nativas:** solo para eventos con la ventana oculta: pegar sin imagen, o una imagen del portapapeles que no se pudo usar. Con la ventana visible se usan los toasts de siempre.
+- **Pendientes heredados de F5** (anotados en el PR #6) se resuelven en la Task 9:
+  - la base bloqueada durante importaciones grandes;
+  - el cambio de «Texto largo» a «Texto» con valores de más de 500 caracteres;
+  - el teclado en el menú Datos.
+
+## Interfaces producidas
+- Comandos (Task 4): `get_settings() -> SettingsDto`, `save_settings({ settings }) -> SettingsDto`, `pick_export_folder() -> string | null`, `open_data_folder() -> null`, `hide_main_window() -> null`, `open_link({ target: "releases" | "docs" }) -> null`.
+- `SettingsDto { settings, shortcutFailures: ShortcutFailureDto[], appVersion, dataDir }`; `ShortcutFailureDto { action: "toggle"|"capture"|"paste"|"newCase", accelerator }`.
+- Evento `shortcut:new-case`: sin payload, hacia la ventana `main`; lo emite el atajo «Nuevo caso».
 
 ## Tasks
 | ID | Task |
