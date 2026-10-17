@@ -5,9 +5,9 @@ const backup: Backup = { fileName: "qapture-diario-20261015.db", kind: "daily", 
 
 describe("importSummaryMessage", () => {
   it("usa singular y plural", () => {
-    expect(importSummaryMessage({ projects: [{ id: "p1", name: "A" }], cases: 1, evidence: 1 })).toBe("Importado: 1 proyecto, 1 caso y 1 captura.");
+    expect(importSummaryMessage({ projects: [{ id: "p1", name: "A" }], cases: 1, evidence: 1 })).toBe("Importado «A»: 1 caso y 1 captura.");
     expect(importSummaryMessage({ projects: [{ id: "p1", name: "A" }, { id: "p2", name: "B" }], cases: 3, evidence: 0 })).toBe(
-      "Importado: 2 proyectos, 3 casos y 0 capturas.",
+      "Importado: 2 proyectos («A» y «B»), 3 casos y 0 capturas.",
     );
   });
 });

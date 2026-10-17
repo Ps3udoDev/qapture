@@ -31,7 +31,7 @@ describe("pantalla de recuperación", () => {
     const { user, repos } = await renderApp({ setup: damaged });
     await user.click(screen.getByRole("button", { name: "Empezar vacía e importar un paquete" }));
     await user.click(within(screen.getByRole("dialog", { name: "Empezar con una base vacía" })).getByRole("button", { name: "Empezar vacía" }));
-    expect(await screen.findByText("Importado: 1 proyecto, 3 casos y 4 capturas.")).toBeInTheDocument();
+    expect(await screen.findByText("Importado «Recibos (importado)»: 3 casos y 4 capturas.")).toBeInTheDocument();
     expect(repos.data.calls).toEqual(["recover:vacía", "importPackage"]);
     expect(screen.getByRole("combobox", { name: "Proyecto" })).toHaveDisplayValue("Recibos (importado)");
   });

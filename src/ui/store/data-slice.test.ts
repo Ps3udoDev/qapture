@@ -27,7 +27,7 @@ describe("importar", () => {
     const s = store.getState();
     expect(s.project?.name).toBe("Aplicación de recibos");
     expect(s.projects.map((p) => p.name)).toEqual(["Aplicación de recibos"]);
-    expect(lastToast(store)).toMatchObject({ kind: "success", message: "Importado: 1 proyecto, 1 caso y 2 capturas." });
+    expect(lastToast(store)).toMatchObject({ kind: "success", message: "Importado «Aplicación de recibos»: 1 caso y 2 capturas." });
     expect(repos.data.calls).toEqual(["importLegacy"]);
     expect(s.dataBusy).toBe(false);
   });
@@ -125,6 +125,6 @@ describe("modo recuperación", () => {
     await store.getState().recover(null, true);
     expect(repos.data.calls).toEqual(["recover:vacía", "importPackage"]);
     expect(store.getState().project?.name).toBe("Recibos (importado)");
-    expect(lastToast(store).message).toBe("Importado: 1 proyecto, 3 casos y 4 capturas.");
+    expect(lastToast(store).message).toBe("Importado «Recibos (importado)»: 3 casos y 4 capturas.");
   });
 });

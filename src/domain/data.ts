@@ -56,9 +56,13 @@ export const BACKUP_KIND_LABEL: Record<BackupKind, string> = {
 
 const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+/** Nombra el proyecto creado: una copia «(importado)» puede quedar lejos en la lista. */
 export function importSummaryMessage(summary: ImportSummary): string {
-  const projects = count(summary.projects.length, "proyecto", "proyectos");
-  return `Importado: ${projects}, ${count(summary.cases, "caso", "casos")} y ${count(summary.evidence, "captura", "capturas")}.`;
+  const totals = `${count(summary.cases, "caso", "casos")} y ${count(summary.evidence, "captura", "capturas")}`;
+  const names = summary.projects.map((p) => `«${p.name}»`);
+  if (names.length === 1) return `Importado ${names[0]}: ${totals}.`;
+  const listed = names.length > 1 ? `${names.slice(0, -1).join(", ")} y ${names[names.length - 1]}` : "";
+  return `Importado: ${count(names.length, "proyecto", "proyectos")}${listed ? ` (${listed})` : ""}, ${totals}.`;
 }
 
 /** Rust envía «encabezado\n• problema\n• problema…» (máximo 10 + resto). */

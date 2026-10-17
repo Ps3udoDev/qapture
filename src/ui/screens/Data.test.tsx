@@ -16,7 +16,7 @@ describe("menú Datos", () => {
   it("importa la Bitácora v1, abre el proyecto importado y cierra el menú", async () => {
     const { user } = await renderApp();
     await choose(user, "Importar Bitácora v1…");
-    expect(await screen.findByText("Importado: 1 proyecto, 1 caso y 2 capturas.")).toBeInTheDocument();
+    expect(await screen.findByText("Importado «Aplicación de recibos»: 1 caso y 2 capturas.")).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Proyecto" })).toHaveDisplayValue("Aplicación de recibos");
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
