@@ -4,3 +4,4 @@
 
 pub mod bundle;
 pub mod legacy;
+pub mod package;
