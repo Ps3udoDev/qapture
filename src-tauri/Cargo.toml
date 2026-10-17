@@ -22,7 +22,10 @@ tauri = { version = "2", features = ["tray-icon", "protocol-asset"] }
 tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-rusqlite = { version = "0.40", features = ["bundled"] }
+rusqlite = { version = "0.40", features = ["bundled", "backup"] }
+base64 = "0.22.1"
+# Paquetes .qapture (F5). zip 9: crates.io retiró (yank) toda la serie < 9.0.3.
+zip = { version = "9.0.4", default-features = false, features = ["deflate"] }
 uuid = { version = "1.28.0", features = ["v4"] }
 thiserror = "2"
 chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
@@ -45,7 +48,6 @@ strip = true
 [dev-dependencies]
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
 calamine = "0.36.1"
-zip = { version = "9.0.4", default-features = false, features = ["deflate"] }
 
 # calamine 0.36 (solo tests) pide zip ^8.6 y crates.io retiró toda la serie 8.x: se toma del tag.
 [patch.crates-io]

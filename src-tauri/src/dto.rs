@@ -223,6 +223,22 @@ pub struct ExportProgressDto {
     pub total: i64,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportedProjectDto {
+    pub id: String,
+    pub name: String,
+}
+
+/// Resumen de una importación (UC-18 / UC-19): los proyectos creados, en orden, y sus totales.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportSummaryDto {
+    pub projects: Vec<ImportedProjectDto>,
+    pub cases: i64,
+    pub evidence: i64,
+}
+
 #[cfg(test)]
 mod contract {
     use std::{collections::BTreeMap, path::PathBuf};

@@ -9,6 +9,7 @@ mod media;
 mod repo;
 mod state;
 mod system;
+mod transfer;
 
 use tauri::Manager;
 
