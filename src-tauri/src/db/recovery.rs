@@ -2,12 +2,13 @@
 //! restaurar un respaldo o empezar con una base vacía. La base dañada nunca se borra.
 
 use std::{
+    collections::HashSet,
     fs,
     path::{Path, PathBuf},
 };
 
 use chrono::NaiveDateTime;
-use rusqlite::{Connection, ErrorCode};
+use rusqlite::{Connection, ErrorCode, OpenFlags};
 
 use crate::{
     backup::Backups,
@@ -49,26 +50,54 @@ fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
     PathBuf::from(raw)
 }
 
-/// Renombra la base (y sus `-wal`/`-shm`) a `qapture-danada-<fecha>.db` en la misma carpeta.
+/// Renombra la base (y sus `-wal`/`-shm`) a `qapture-danada-<fecha>.db` en la misma carpeta, con
+/// `-2`, `-3`… si ya existe uno. Un error al mover los auxiliares aborta: el `-wal` dañado no
+/// debe quedar junto a la base nueva.
 pub fn set_aside_corrupt(path: &Path, now: NaiveDateTime) -> AppResult<Option<PathBuf>> {
     if !path.exists() {
         return Ok(None);
     }
     let dir = path.parent().unwrap_or_else(|| Path::new("."));
-    let target = dir.join(format!("qapture-danada-{}.db", now.format("%Y%m%d-%H%M%S")));
+    let base = format!("qapture-danada-{}", now.format("%Y%m%d-%H%M%S"));
+    let mut target = dir.join(format!("{base}.db"));
+    let mut n = 2;
+    while target.exists() {
+        target = dir.join(format!("{base}-{n}.db"));
+        n += 1;
+    }
     fs::rename(path, &target)?;
     for suffix in ["-wal", "-shm"] {
         let side = with_suffix(path, suffix);
         if side.exists() {
-            let _ = fs::rename(&side, with_suffix(&target, suffix));
+            fs::rename(&side, with_suffix(&target, suffix))?;
         }
     }
     Ok(Some(target))
 }
 
+/// Referencias de la base que se va a instalar, leídas del respaldo en solo lectura. Un respaldo
+/// sin tabla `evidence` (esquema viejo) no referencia imágenes.
+fn references_of(source: &Path) -> AppResult<(HashSet<String>, HashSet<String>)> {
+    let conn = Connection::open_with_flags(source, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let has_evidence: bool = conn.query_row(
+        "SELECT EXISTS (SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'evidence')",
+        [],
+        |r| r.get(0),
+    )?;
+    if has_evidence {
+        return evidence::references(&conn);
+    }
+    let mut stmt = conn.prepare("SELECT id FROM project")?;
+    let projects = stmt
+        .query_map([], |r| r.get::<_, String>(0))?
+        .collect::<Result<HashSet<_>, _>>()?;
+    Ok((HashSet::new(), projects))
+}
+
 /// Sale del modo recuperación con una base nueva en `path`: la copia de `backup` o, sin él,
 /// una vacía. El respaldo se valida antes de mover nada. Las capturas que la base nueva no
-/// conoce se apartan en `evidence-sin-uso/` (la limpieza del arranque las borraría).
+/// conoce se apartan en `evidence-sin-uso/` ANTES de tocar `path`: si eso falla, la base
+/// dañada sigue en su sitio, el próximo arranque vuelve al modo recuperación y nada se barre.
 #[allow(dead_code)] // Lo usa recover_database (Task 8).
 pub fn recover(
     path: &Path,
@@ -85,18 +114,20 @@ pub fn recover(
         }
         None => None,
     };
-    set_aside_corrupt(path, now)?;
-    if let Some(source) = &source {
-        fs::copy(source, path)?;
-    }
-    let conn = db::open(path)?;
-    let (referenced, projects) = evidence::references(&conn)?;
+    let (referenced, projects) = match &source {
+        Some(source) => references_of(source)?,
+        None => (HashSet::new(), HashSet::new()),
+    };
     files.set_aside(
         &referenced,
         &projects,
         &now.format("%Y%m%d-%H%M%S").to_string(),
     )?;
-    Ok(conn)
+    set_aside_corrupt(path, now)?;
+    if let Some(source) = &source {
+        fs::copy(source, path)?;
+    }
+    db::open(path)
 }
 
 #[cfg(test)]
@@ -274,5 +305,122 @@ mod tests {
                 .join("qapture-danada-20261016-100000.db")
                 .exists()
         );
+    }
+
+    #[test]
+    fn set_aside_corrupt_moves_the_wal_and_shm_beside_the_file() {
+        let tmp = TempDir::new();
+        let path = db_path(&tmp);
+        fs::write(&path, b"db").unwrap();
+        fs::write(with_suffix(&path, "-wal"), b"wal").unwrap();
+        fs::write(with_suffix(&path, "-shm"), b"shm").unwrap();
+        let target = set_aside_corrupt(&path, now()).unwrap().unwrap();
+        assert!(!path.exists() && !with_suffix(&path, "-wal").exists());
+        assert_eq!(fs::read(&target).unwrap(), b"db");
+        assert_eq!(fs::read(with_suffix(&target, "-wal")).unwrap(), b"wal");
+        assert_eq!(fs::read(with_suffix(&target, "-shm")).unwrap(), b"shm");
+    }
+
+    #[test]
+    fn a_second_set_aside_in_the_same_second_does_not_overwrite_the_first() {
+        let tmp = TempDir::new();
+        let path = db_path(&tmp);
+        fs::write(&path, b"uno").unwrap();
+        let first = set_aside_corrupt(&path, now()).unwrap().unwrap();
+        fs::write(&path, b"dos").unwrap();
+        let second = set_aside_corrupt(&path, now()).unwrap().unwrap();
+        assert_ne!(first, second);
+        assert_eq!(fs::read(first).unwrap(), b"uno");
+        assert_eq!(fs::read(second).unwrap(), b"dos");
+    }
+
+    #[test]
+    fn recover_with_a_backup_keeps_referenced_images_and_sets_the_rest_aside() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let backups = Backups::new(tmp.path());
+        let project = {
+            let conn = db::open(&db_path(&tmp)).unwrap();
+            let project = test_support::project(&conn);
+            let case = test_support::case(&conn, &project);
+            conn.execute(
+                "INSERT INTO evidence (id, case_id, position, description, original_path, rendered_path,
+                                       annotations, width, height, captured_at, updated_at)
+                 VALUES ('e1', ?1, 0, 'x', ?2, ?3, '{}', 1, 1, '', '')",
+                [
+                    case.id.clone(),
+                    EvidenceFiles::original_rel(&project.id, "e1"),
+                    EvidenceFiles::render_rel(&project.id, "e1"),
+                ],
+            )
+            .unwrap();
+            project
+        };
+        let saved = {
+            let conn = db::open(&db_path(&tmp)).unwrap();
+            backups.create_manual(&conn, now()).unwrap()
+        };
+        for rel in [
+            EvidenceFiles::original_rel(&project.id, "e1"),
+            EvidenceFiles::render_rel(&project.id, "e1"),
+            EvidenceFiles::original_rel(&project.id, "extra"),
+        ] {
+            let file = files.absolute(&rel);
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(file, b"png").unwrap();
+        }
+        fs::write(db_path(&tmp), GARBAGE.repeat(200)).unwrap();
+
+        recover(
+            &db_path(&tmp),
+            &backups,
+            &files,
+            Some(&saved.file_name),
+            now(),
+        )
+        .unwrap();
+        assert!(
+            files
+                .absolute(&EvidenceFiles::original_rel(&project.id, "e1"))
+                .is_file()
+        );
+        assert!(
+            files
+                .absolute(&EvidenceFiles::render_rel(&project.id, "e1"))
+                .is_file()
+        );
+        assert!(
+            !files
+                .absolute(&EvidenceFiles::original_rel(&project.id, "extra"))
+                .exists()
+        );
+        let aside = tmp
+            .path()
+            .join(UNUSED_DIR)
+            .join("20261016-100000")
+            .join(&project.id);
+        assert_eq!(fs::read(aside.join("extra.orig.png")).unwrap(), b"png");
+    }
+
+    #[test]
+    fn if_setting_images_aside_fails_the_damaged_db_stays_in_place() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let image = files.absolute(&EvidenceFiles::original_rel("p1", "e1"));
+        fs::create_dir_all(image.parent().unwrap()).unwrap();
+        fs::write(&image, b"png").unwrap();
+        // Un archivo donde debería ir la carpeta destino hace fallar el movimiento.
+        fs::write(tmp.path().join(UNUSED_DIR), b"bloqueo").unwrap();
+        fs::write(db_path(&tmp), GARBAGE.repeat(200)).unwrap();
+        let result = recover(
+            &db_path(&tmp),
+            &Backups::new(tmp.path()),
+            &files,
+            None,
+            now(),
+        );
+        assert!(result.is_err());
+        assert_eq!(fs::read(db_path(&tmp)).unwrap(), GARBAGE.repeat(200));
+        assert_eq!(fs::read(image).unwrap(), b"png");
     }
 }
