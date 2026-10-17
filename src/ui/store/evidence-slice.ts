@@ -40,6 +40,8 @@ type Get = StoreApi<WorkspaceState>["getState"];
 export interface SliceHelpers {
   report(error: unknown): void;
   refreshCases(): Promise<void>;
+  /** Recarga plantillas y proyectos y abre `projectId` (o el actual, o el primero). */
+  reload(projectId?: string | null): Promise<void>;
   form<T>(run: () => Promise<useCases.Outcome<T>>, onOk: (value: T) => Promise<void> | void): Promise<FormResult>;
 }
 

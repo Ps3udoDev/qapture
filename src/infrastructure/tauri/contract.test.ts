@@ -6,7 +6,7 @@ import { toSelection } from "../../domain/capture";
 import type { EvidenceUpdateInput, NewEvidenceInput } from "../../domain/evidence";
 import type { FieldInput, NewProjectInput } from "../../domain/project";
 import fixture from "./__fixtures__/contracts.json";
-import { appErrorSchema, capturedEventSchema, caseSchema, docVersionSchema, evidenceSchema, exportProgressSchema, exportResultSchema, fieldSchema, projectSchema, projectSummarySchema, stagedImageSchema, templateSchema } from "./dto";
+import { appErrorSchema, backupSchema, capturedEventSchema, caseSchema, docVersionSchema, evidenceSchema, exportProgressSchema, exportResultSchema, fieldSchema, importSummarySchema, packageExportResultSchema, projectSchema, projectSummarySchema, restoreResultSchema, stagedImageSchema, startupStatusSchema, templateSchema } from "./dto";
 
 describe("contrato Rust → TS", () => {
   it.each([
@@ -25,6 +25,12 @@ describe("contrato Rust → TS", () => {
     ["exportProgress", exportProgressSchema],
     ["lockedError", appErrorSchema],
     ["exportError", appErrorSchema],
+    ["importSummary", importSummarySchema],
+    ["packageExportResult", packageExportResultSchema],
+    ["backup", backupSchema],
+    ["restoreResult", restoreResultSchema],
+    ["startupStatus", startupStatusSchema],
+    ["corruptError", appErrorSchema],
   ] as const)("%s cumple el esquema estricto", (key, schema) => {
     expect(() => schema.parse(fixture[key])).not.toThrow();
   });

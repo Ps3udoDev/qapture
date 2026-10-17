@@ -1,10 +1,11 @@
 import { formatCode, normalizeCaseInput, validateCaseInput, type CaseInput, type CaseRecord } from "../../domain/cases";
 import { activeFields, type FieldDef } from "../../domain/fields";
-import { normalizeFieldInput, validateFieldInputs, validateProjectMeta, type Project, type ProjectMeta, type Template } from "../../domain/project";
+import { emptyMeta, normalizeFieldInput, validateFieldInputs, validateProjectMeta, type Project, type ProjectMeta, type Template } from "../../domain/project";
 import { DEFAULT_STATUS } from "../../domain/status";
 import { AppError } from "../../ports/errors";
 import type { Repositories } from "../../ports/repositories";
 import { createMemoryCapture, type MemoryCapture } from "./capture";
+import { createMemoryData, type MemoryData } from "./data";
 import { createMemoryEvidence, type MemoryEvidence } from "./evidence";
 import { createMemoryDocVersions, createMemoryExporter, type MemoryDocVersions, type MemoryExporter } from "./export";
 import { builtinTemplates } from "./fixtures";
@@ -14,6 +15,7 @@ export interface MemoryRepositories extends Repositories {
   capture: MemoryCapture;
   docVersions: MemoryDocVersions;
   exporter: MemoryExporter;
+  data: MemoryData;
 }
 
 /** Implementación en memoria para tests de la aplicación y de la UI. Replica las reglas principales de Rust. */
@@ -77,7 +79,7 @@ export function createMemoryRepositories(): MemoryRepositories {
   };
   const projectCases = (projectId: string) => [...cases.values()].filter((c) => c.projectId === projectId);
 
-  return {
+  const repos: MemoryRepositories = {
     templates: {
       async list() {
         return copy([...templates].sort((a, b) => Number(b.builtin) - Number(a.builtin) || a.name.localeCompare(b.name)));
@@ -234,5 +236,14 @@ export function createMemoryRepositories(): MemoryRepositories {
       const list = projectCases(projectId);
       return { cases: list.length, evidence: list.reduce((n, c) => n + evidence.countFor(c.id), 0) };
     }),
+    // `repos` se usa dentro de funciones que corren después de inicializarse.
+    data: createMemoryData({
+      importProject: async (name) => {
+        const project = await repos.projects.create({ meta: { ...emptyMeta(), name }, templateId: "tpl-funcional" });
+        return { id: project.id, name: project.name };
+      },
+      remember: (path) => repos.exporter.remember(path),
+    }),
   };
+  return repos;
 }

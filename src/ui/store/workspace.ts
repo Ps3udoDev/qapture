@@ -6,6 +6,7 @@ import type { Status } from "../../domain/status";
 import { AppError } from "../../ports/errors";
 import type { Repositories } from "../../ports/repositories";
 import { createEvidenceSlice, type EvidenceSlice } from "./evidence-slice";
+import { createDataSlice, type DataSlice } from "./data-slice";
 import { createExportSlice, type ExportSlice } from "./export-slice";
 import { browserPreferences, type Preferences } from "./preferences";
 
@@ -21,7 +22,7 @@ export interface Toast {
   actions?: ToastAction[];
 }
 
-export interface WorkspaceState extends EvidenceSlice, ExportSlice {
+export interface WorkspaceState extends EvidenceSlice, ExportSlice, DataSlice {
   templates: Template[];
   projects: ProjectSummary[];
   project: Project | null;
@@ -95,6 +96,16 @@ export function createWorkspaceStore(repos: Repositories, prefs: Preferences = b
       const current = get().project;
       if (current) set({ cases: await repos.cases.list(current.id) });
     };
+    const reload = async (projectId: string | null = null) => {
+      await refreshLists();
+      const { projects, project } = get();
+      const exists = (id: string | null | undefined): id is string => !!id && projects.some((p) => p.id === id);
+      const currentId = project?.id;
+      const target = exists(projectId) ? projectId : exists(currentId) ? currentId : (projects[0]?.id ?? null);
+      await loadProject(target);
+      await get().loadEvidence();
+    };
+    const helpers = { report, refreshCases, form, reload };
 
     return {
       templates: [],
@@ -109,6 +120,13 @@ export function createWorkspaceStore(repos: Repositories, prefs: Preferences = b
 
       async init() {
         try {
+          const status = await repos.data.startupStatus();
+          if (status.recovery) {
+            // Base dañada: no se cargan proyectos; la pantalla de recuperación ofrece los respaldos.
+            set({ recovery: status });
+            await get().loadBackups();
+            return;
+          }
           await refreshLists();
           const { projects } = get();
           const last = prefs.getLastProject();
@@ -256,8 +274,9 @@ export function createWorkspaceStore(repos: Repositories, prefs: Preferences = b
       setStatusFilter: (statusFilter) => set({ statusFilter }),
       pushToast: (kind, message, actions) => set((s) => ({ toasts: [...s.toasts, { id: ++toastSeq, kind, message, actions }] })),
       dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
-      ...createEvidenceSlice(repos, set, get, { report, refreshCases, form }),
-      ...createExportSlice(repos, prefs, set, get, { report, refreshCases, form }),
+      ...createEvidenceSlice(repos, set, get, helpers),
+      ...createExportSlice(repos, prefs, set, get, helpers),
+      ...createDataSlice(repos, set, get, helpers),
     };
   });
 
