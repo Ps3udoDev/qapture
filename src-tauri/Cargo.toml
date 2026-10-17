@@ -1,6 +1,6 @@
 [package]
 name = "qapture"
-version = "0.5.0"
+version = "0.6.0"
 description = "Qapture — evidencias y matrices de prueba QA (Teams4Soft)"
 authors = ["Teams4Soft"]
 edition = "2024"

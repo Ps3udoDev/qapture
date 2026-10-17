@@ -33,21 +33,21 @@ Qapture vive en la bandeja del sistema y se invoca con atajos globales configura
 - Evento `shortcut:new-case`: sin payload, hacia la ventana `main`; lo emite el atajo «Nuevo caso».
 
 ## Tasks
-| ID | Task |
-|---|---|
-| F6-T1 | ✅ adelantada en PR #1 · `single-instance`: abrir el exe otra vez enfoca la ventana existente |
-| F6-T2 | ✅ adelantada en PR #1 · `system/tray.rs`: ícono, tooltip, menú (Abrir Qapture, Ocultar, separador, Salir), clic izquierdo alterna mostrar/ocultar; cerrar ventana = ocultar. Pendientes en F6: Capturar, Pegar evidencia, Nuevo caso y Buscar actualizaciones |
-| F6-T3 | Settings persistidos (tabla `setting` clave/valor, migración `0004`) + puerto `SettingsStore` |
-| F6-T4 | `system/shortcuts.rs`: registro dinámico, detección de conflicto (conserva el anterior y reporta), re-registro al guardar |
-| F6-T5 | Atajo "Pegar evidencia" global: lee la imagen del portapapeles → editor de F2, o notificación si no hay imagen |
-| F6-T6 | Atajo "Nuevo caso": muestra la ventana con el formulario abierto en el proyecto activo |
-| F6-T7 | Pantalla Settings con grabador de combinaciones de teclas |
-| F6-T8 | Autostart y opción "iniciar oculto" |
-| F6-T9 | El nombre del tester precarga "Responsable" y el diálogo de exportación (reemplaza la preferencia local de F4) |
+| ID | Task | Estado |
+|---|---|---|
+| F6-T1 | ✅ adelantada en PR #1 · `single-instance`: abrir el exe otra vez enfoca la ventana existente | ✅ |
+| F6-T2 | ✅ adelantada en PR #1 · `system/tray.rs`: ícono, tooltip, menú (Abrir Qapture, Ocultar, separador, Salir), clic izquierdo alterna mostrar/ocultar; cerrar ventana = ocultar. Pendientes en F6: Capturar, Pegar evidencia, Nuevo caso y Buscar actualizaciones | ✅ |
+| F6-T3 | Settings persistidos (tabla `setting` clave/valor, migración `0004`) + puerto `SettingsStore` | ✅ |
+| F6-T4 | `system/shortcuts.rs`: registro dinámico, detección de conflicto (conserva el anterior y reporta), re-registro al guardar | ✅ |
+| F6-T5 | Atajo "Pegar evidencia" global: lee la imagen del portapapeles → editor de F2, o notificación si no hay imagen | ✅ |
+| F6-T6 | Atajo "Nuevo caso": muestra la ventana con el formulario abierto en el proyecto activo | ✅ |
+| F6-T7 | Pantalla Settings con grabador de combinaciones de teclas | ✅ |
+| F6-T8 | Autostart y opción "iniciar oculto" | ✅ |
+| F6-T9 | El nombre del tester precarga "Responsable" y el diálogo de exportación (reemplaza la preferencia local de F4) | ✅ |
 
 ## Criterios de aceptación
-- [ ] Test de la lógica de validación y conflicto de atajos (sin registrar en el SO).
-- [ ] Settings sobreviven a reinicios y migraciones.
+- [x] Test de la lógica de validación y conflicto de atajos (sin registrar en el SO): `system::shortcuts::tests::*` y `commands::settings::tests::a_refused_shortcut_saves_nothing`.
+- [x] Settings sobreviven a reinicios y migraciones: `repo::settings::tests::saved_settings_survive_reopening_the_file_db` y `repo::settings::tests::settings_survive_the_0004_migration`.
 
 ## Checklist de pruebas locales
 | # | Prueba | Esperado | OK |
