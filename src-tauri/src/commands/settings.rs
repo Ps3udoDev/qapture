@@ -85,7 +85,8 @@ pub(crate) fn save(state: &AppState, input: Settings, app_version: &str) -> AppR
         &current.shortcuts,
         &wanted.shortcuts,
     )?;
-    if let Err(error) = repo::settings::save(&state.db(), &wanted) {
+    let saved = repo::settings::save(&state.db(), &wanted);
+    if let Err(error) = saved {
         // Mejor esfuerzo: dejar el SO como estaba, igual que lo guardado.
         let _ = shortcuts::apply(
             &mut **state.registrar(),
@@ -308,6 +309,25 @@ mod tests {
         assert_eq!(dto.shortcut_failures[0].accelerator, "Ctrl+Alt+S");
     }
 
+    #[test]
+    fn link_target_and_action_wire_names() {
+        for (raw, ok) in [
+            ("releases", true),
+            ("docs", true),
+            ("other", false),
+            ("Docs", false),
+        ] {
+            assert_eq!(
+                serde_json::from_value::<LinkTarget>(serde_json::json!(raw)).is_ok(),
+                ok,
+                "{raw}"
+            );
+        }
+        assert_eq!(
+            serde_json::to_value(shortcuts::ShortcutAction::NewCase).unwrap(),
+            serde_json::json!("newCase")
+        );
+    }
     #[test]
     fn loaded_settings_are_clamped_into_range() {
         let loaded = with(|s| {
