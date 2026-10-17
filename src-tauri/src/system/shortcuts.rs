@@ -147,20 +147,26 @@ pub trait ShortcutRegistrar {
     fn unregister(&mut self, accel: &str);
 }
 
-/// Cambia solo las combinaciones distintas. Si el SO rechaza alguna, deja el
-/// registrador exactamente como estaba.
+/// Cambia solo las combinaciones distintas y vuelve a intentar las de `unregistered` (las que el
+/// SO rechazó al arrancar, que no están registradas aunque no cambien). Si el SO rechaza alguna,
+/// deja el registrador exactamente como estaba.
 pub fn apply(
     reg: &mut (impl ShortcutRegistrar + ?Sized),
     current: &Shortcuts,
     wanted: &Shortcuts,
+    unregistered: &[ShortcutAction],
 ) -> AppResult<()> {
-    let changed: Vec<(ShortcutAction, &str, &str)> = ShortcutAction::ALL
+    // (acción, combinación anterior si estaba registrada, combinación nueva)
+    let changed: Vec<(ShortcutAction, Option<&str>, &str)> = ShortcutAction::ALL
         .into_iter()
-        .map(|a| (a, a.accel(current), a.accel(wanted)))
-        .filter(|(_, old, new)| old != new)
+        .map(|a| {
+            let old = (!unregistered.contains(&a)).then(|| a.accel(current));
+            (a, old, a.accel(wanted))
+        })
+        .filter(|(_, old, new)| *old != Some(*new))
         .collect();
 
-    for (_, old, _) in &changed {
+    for old in changed.iter().filter_map(|(_, old, _)| *old) {
         reg.unregister(old);
     }
     let mut added: Vec<&str> = Vec::new();
@@ -172,7 +178,7 @@ pub fn apply(
         for accel in added {
             reg.unregister(accel);
         }
-        for (_, old, _) in &changed {
+        for old in changed.iter().filter_map(|(_, old, _)| *old) {
             // Mejor esfuerzo: la combinación anterior estaba libre hace un instante.
             let _ = reg.register(old);
         }
@@ -333,7 +339,7 @@ mod tests {
             ..current.clone()
         };
 
-        apply(&mut reg, &current, &wanted).unwrap();
+        apply(&mut reg, &current, &wanted, &[]).unwrap();
 
         assert_eq!(
             reg.log,
@@ -354,7 +360,7 @@ mod tests {
             ..current.clone()
         };
 
-        let err = apply(&mut reg, &current, &wanted).unwrap_err();
+        let err = apply(&mut reg, &current, &wanted, &[]).unwrap_err();
 
         assert_eq!(
             err.user_message(),
@@ -365,6 +371,21 @@ mod tests {
             .map(String::from)
             .collect();
         assert_eq!(reg.registered, expected);
+    }
+
+    #[test]
+    fn an_unregistered_action_is_retried_even_if_unchanged() {
+        let mut reg = FakeRegistrar::default();
+        reg.refuse.insert("Ctrl+Alt+V".into());
+        register_all(&mut reg, &Shortcuts::default());
+        reg.refuse.clear();
+        reg.log.clear();
+        let same = Shortcuts::default();
+
+        apply(&mut reg, &same, &same, &[ShortcutAction::Paste]).unwrap();
+
+        assert_eq!(reg.log, ["register Ctrl+Alt+V"]);
+        assert_eq!(reg.registered.len(), 4);
     }
 
     #[test]

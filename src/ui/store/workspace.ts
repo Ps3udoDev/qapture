@@ -114,7 +114,7 @@ export function createWorkspaceStore(repos: Repositories, prefs: Preferences = b
       // Silencioso; `persistSettings` ya avisa los errores que no son de validación.
       await get().persistSettings({ ...snapshot.settings, profile: { ...snapshot.settings.profile, tester: legacy } });
     };
-    const helpers = { report, refreshCases, form, reload };
+    const helpers = { report, refreshCases, form, reload, migrateTester };
 
     return {
       templates: [],

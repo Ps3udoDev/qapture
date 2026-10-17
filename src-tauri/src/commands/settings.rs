@@ -6,7 +6,7 @@ use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
 use crate::{
-    dto::{SettingsDto, ShortcutFailureDto},
+    dto::SettingsDto,
     error::{AppError, AppResult, validation},
     repo,
     settings::{self, Settings},
@@ -82,29 +82,34 @@ pub(crate) fn save(state: &AppState, input: Settings, app_version: &str) -> AppR
     wanted.shortcuts = shortcuts::validate(&wanted.shortcuts)?;
 
     let current = state.settings();
+    // Los atajos que el SO rechazó al arrancar no están registrados: se vuelven a intentar
+    // aunque su combinación no cambie (si no, guardar la misma no serviría para reintentar).
+    let unregistered: Vec<_> = state
+        .shortcut_failures()
+        .into_iter()
+        .filter(|f| f.action.accel(&current.shortcuts) == f.accelerator)
+        .map(|f| f.action)
+        .collect();
     shortcuts::apply(
         &mut **state.registrar(),
         &current.shortcuts,
         &wanted.shortcuts,
+        &unregistered,
     )?;
     let saved = repo::settings::save(&state.db(), &wanted);
     if let Err(error) = saved {
-        // Mejor esfuerzo: dejar el SO como estaba, igual que lo guardado.
-        let _ = shortcuts::apply(
-            &mut **state.registrar(),
-            &wanted.shortcuts,
-            &current.shortcuts,
-        );
+        // Mejor esfuerzo: dejar el SO como estaba, igual que lo guardado (los reintentados
+        // vuelven a quedar sin registrar, como dicen los fallos que se conservan).
+        let mut registrar = state.registrar();
+        let _ = shortcuts::apply(&mut **registrar, &wanted.shortcuts, &current.shortcuts, &[]);
+        for action in &unregistered {
+            registrar.unregister(action.accel(&current.shortcuts));
+        }
         return Err(error);
     }
     state.set_settings(wanted.clone());
-    // Un fallo de arranque solo sigue vigente si su combinación no cambió.
-    let still_failing: Vec<ShortcutFailureDto> = state
-        .shortcut_failures()
-        .into_iter()
-        .filter(|f| f.action.accel(&wanted.shortcuts) == f.accelerator)
-        .collect();
-    state.set_shortcut_failures(still_failing);
+    // `apply` registró todo lo que cambió o se reintentó: no queda ningún fallo vigente.
+    state.set_shortcut_failures(Vec::new());
     state.notify_saved(&wanted);
     Ok(dto(state, wanted, app_version))
 }
@@ -168,7 +173,9 @@ mod tests {
     };
 
     use super::*;
-    use crate::{db, media::storage::TempDir, system::shortcuts::ShortcutRegistrar};
+    use crate::{
+        db, dto::ShortcutFailureDto, media::storage::TempDir, system::shortcuts::ShortcutRegistrar,
+    };
 
     #[derive(Clone, Default)]
     struct FakeRegistrar {
@@ -283,7 +290,7 @@ mod tests {
     }
 
     #[test]
-    fn saving_notifies_the_hook_and_drops_stale_failures() {
+    fn saving_notifies_the_hook_and_clears_failures_it_registered() {
         let (_tmp, state, _fake) = state_with(None);
         state.set_shortcut_failures(vec![
             ShortcutFailureDto {
@@ -307,8 +314,64 @@ mod tests {
         )
         .unwrap();
         assert_eq!(seen.lock().unwrap().as_deref(), Some("Ctrl+Alt+P"));
-        assert_eq!(dto.shortcut_failures.len(), 1);
-        assert_eq!(dto.shortcut_failures[0].accelerator, "Ctrl+Alt+S");
+        // Pegar cambió y Capturar se reintentó con su misma combinación: ambos registrados.
+        assert!(dto.shortcut_failures.is_empty());
+    }
+
+    /// Arranque con `Ctrl+Alt+V` ocupada: queda como fallo, igual que en `reload_settings`.
+    fn state_with_paste_failing() -> (TempDir, AppState, FakeRegistrar) {
+        let (tmp, state, fake) = state_with(None);
+        fake.registered.lock().unwrap().remove("Ctrl+Alt+V");
+        fake.refuse.lock().unwrap().insert("Ctrl+Alt+V".into());
+        state.set_shortcut_failures(vec![ShortcutFailureDto {
+            action: shortcuts::ShortcutAction::Paste,
+            accelerator: "Ctrl+Alt+V".into(),
+        }]);
+        (tmp, state, fake)
+    }
+
+    #[test]
+    fn saving_the_same_combination_retries_a_shortcut_that_failed_at_startup() {
+        let (_tmp, state, fake) = state_with_paste_failing();
+        fake.refuse.lock().unwrap().clear();
+        let dto = save(&state, Settings::default(), "0.5.0").unwrap();
+        assert!(dto.shortcut_failures.is_empty());
+        assert!(state.shortcut_failures().is_empty());
+        assert_eq!(
+            fake.registered.lock().unwrap().len(),
+            4,
+            "los cuatro registrados"
+        );
+    }
+
+    #[test]
+    fn a_retried_shortcut_still_refused_saves_nothing_and_stays_failing() {
+        let (_tmp, state, fake) = state_with_paste_failing();
+        let error = save(
+            &state,
+            with(|s| {
+                s.profile.tester = "Ana".into();
+                s.shortcuts.toggle = "Ctrl+Shift+F12".into();
+            }),
+            "0.5.0",
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.user_message(),
+            "No se pudo registrar Ctrl+Alt+V para «Pegar evidencia»: otra aplicación ya la usa. Se conservan los atajos anteriores."
+        );
+        assert_eq!(
+            repos_settings(&state),
+            Settings::default(),
+            "no se guardó nada"
+        );
+        assert_eq!(state.shortcut_failures().len(), 1);
+        let registered: Vec<String> = fake.registered.lock().unwrap().iter().cloned().collect();
+        assert_eq!(registered, ["Ctrl+Alt+N", "Ctrl+Alt+Q", "Ctrl+Alt+S"]);
+    }
+
+    fn repos_settings(state: &AppState) -> Settings {
+        repo::settings::load(&state.db()).unwrap()
     }
 
     #[test]

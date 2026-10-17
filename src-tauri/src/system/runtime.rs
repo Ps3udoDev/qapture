@@ -15,6 +15,7 @@ use crate::{
     },
     commands,
     dto::{CapturedEventDto, ShortcutFailureDto},
+    error::AppResult,
     repo,
     settings::{Settings, SystemPrefs},
     state::AppState,
@@ -50,15 +51,14 @@ pub fn close_action(prefs: &SystemPrefs) -> CloseAction {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct StartupPlan {
-    pub sync_autostart: bool,
     pub show: bool,
 }
 
-/// En modo recuperación los ajustes son los por defecto de una base vacía: no se toca el inicio
-/// con Windows real y la ventana siempre se muestra (la pantalla de recuperación debe verse).
+/// El arranque nunca toca el inicio con Windows: si la persona lo quitó desde el Administrador de
+/// tareas o Configuración, eso se respeta; solo se sincroniza al guardar Ajustes o al cambiar la
+/// base. En modo recuperación la ventana siempre se muestra (la pantalla de recuperación debe verse).
 pub fn startup_plan(recovery: bool, args: &[String], prefs: &SystemPrefs) -> StartupPlan {
     StartupPlan {
-        sync_autostart: !recovery,
         show: recovery || !should_start_hidden(args, prefs),
     }
 }
@@ -181,6 +181,15 @@ pub fn sync_autostart(app: &AppHandle, enabled: bool) {
     }
 }
 
+/// Base vacía recién creada: su «Iniciar con Windows» por defecto no dice nada de la persona, así
+/// que se guarda lo que el SO tiene ahora en vez de desactivarlo. Se llama sin el candado de la base.
+pub fn seed_autostart(state: &AppState, os_enabled: bool) -> AppResult<()> {
+    let db = state.db();
+    let mut stored = repo::settings::load(&db)?;
+    stored.system.autostart = os_enabled;
+    repo::settings::save(&db, &stored)
+}
+
 pub fn notify(app: &AppHandle, body: &str) {
     if let Err(error) = app
         .notification()
@@ -271,24 +280,42 @@ mod tests {
     }
 
     #[test]
-    fn recovery_mode_always_shows_the_window_and_leaves_autostart_alone() {
+    fn recovery_mode_always_shows_the_window() {
         let hidden = args(&["qapture.exe", "--hidden"]);
         let on = prefs(true, true);
-        assert_eq!(
-            startup_plan(true, &hidden, &on),
-            StartupPlan {
-                sync_autostart: false,
-                show: true
-            }
-        );
+        assert_eq!(startup_plan(true, &hidden, &on), StartupPlan { show: true });
         assert_eq!(
             startup_plan(false, &hidden, &on),
-            StartupPlan {
-                sync_autostart: true,
-                show: false
-            }
+            StartupPlan { show: false }
         );
         assert!(startup_plan(false, &args(&["qapture.exe"]), &on).show);
+    }
+
+    #[test]
+    fn an_empty_base_takes_autostart_from_the_os() {
+        use crate::{db, media::storage::TempDir};
+        let tmp = TempDir::new();
+        let state = AppState::new(
+            db::open(&tmp.path().join(db::DB_FILE)).unwrap(),
+            tmp.files(),
+            tmp.path(),
+            None,
+        );
+        state.install_registrar(Box::new(FakeRegistrar::default()));
+        assert!(!Settings::default().system.autostart);
+        seed_autostart(&state, true).unwrap();
+        let loaded = reload_settings(&state);
+        assert!(loaded.system.autostart);
+        assert_eq!(
+            Settings {
+                system: SystemPrefs::default(),
+                ..loaded
+            },
+            Settings::default(),
+            "solo cambia el inicio con Windows"
+        );
+        seed_autostart(&state, false).unwrap();
+        assert!(!reload_settings(&state).system.autostart);
     }
 
     #[derive(Clone, Default)]

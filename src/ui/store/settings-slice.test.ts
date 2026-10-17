@@ -41,6 +41,31 @@ describe("slice de ajustes", () => {
     expect(repos.settings.saves).toBe(0);
   });
 
+  it("restaurar un respaldo recarga los ajustes de la base restaurada", async () => {
+    const { repos, s } = setup();
+    await s().init();
+    // Rust restaura la base: los ajustes que devuelve `get_settings` ya son los del respaldo.
+    repos.settings.snapshot.settings.profile.tester = "Marta";
+    repos.settings.snapshot.settings.system.escHides = true;
+    expect(await s().restoreBackup("qapture-diario-20261015.db")).toBe(true);
+    expect(s().settings?.settings.profile.tester).toBe("Marta");
+    expect(s().settings?.settings.system.escHides).toBe(true);
+    expect(s().testerName()).toBe("Marta");
+  });
+
+  it("salir de recuperación recarga los ajustes y entonces migra el tester", async () => {
+    const { repos, s } = setup("Luis");
+    repos.data.status = { recovery: true, detail: "dañada" };
+    await s().init();
+    expect(repos.settings.saves).toBe(0);
+    repos.settings.snapshot.settings.export.imageMaxWidth = 800;
+    await s().recover(null);
+    expect(s().recovery).toBeNull();
+    expect(s().settings?.settings.export.imageMaxWidth).toBe(800);
+    expect(s().settings?.settings.profile.tester).toBe("Luis");
+    expect(repos.settings.saves).toBe(1);
+  });
+
   it("guarda con toast y valida antes de llamar a Rust", async () => {
     const { repos, s } = setup();
     await s().init();

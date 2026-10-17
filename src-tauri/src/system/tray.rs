@@ -41,12 +41,43 @@ fn hide_main(app: &tauri::AppHandle) {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToggleDecision {
+    Show,
+    Hide,
+}
+
+/// `is_visible` también es cierto minimizada o tapada por otras ventanas: solo se oculta la
+/// ventana que la persona tiene delante; en cualquier otro caso se trae al frente.
+pub fn toggle_decision(visible: bool, focused: bool, minimized: bool) -> ToggleDecision {
+    if visible && focused && !minimized {
+        ToggleDecision::Hide
+    } else {
+        ToggleDecision::Show
+    }
+}
+
+/// Atajo «Mostrar/ocultar».
 pub fn toggle_main(app: &tauri::AppHandle) {
+    toggle(app, false);
+}
+
+/// Clic en el icono: el propio clic le quita el foco a la ventana (pasa a la barra de tareas),
+/// así que ahí el foco no cuenta y se trata como si lo tuviera.
+fn toggle_from_tray(app: &tauri::AppHandle) {
+    toggle(app, true);
+}
+
+fn toggle(app: &tauri::AppHandle, ignore_focus: bool) {
     if let Some(window) = app.get_webview_window("main") {
-        if window.is_visible().unwrap_or(false) {
-            hide_main(app);
-        } else {
-            show_main(app);
+        let decision = toggle_decision(
+            window.is_visible().unwrap_or(false),
+            ignore_focus || window.is_focused().unwrap_or(false),
+            window.is_minimized().unwrap_or(false),
+        );
+        match decision {
+            ToggleDecision::Hide => hide_main(app),
+            ToggleDecision::Show => show_main(app),
         }
     }
 }
@@ -102,7 +133,7 @@ pub fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
                 ..
             } = event
             {
-                toggle_main(tray.app_handle());
+                toggle_from_tray(tray.app_handle());
             }
         })
         .build(app)?;
@@ -112,7 +143,25 @@ pub fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{TrayAction, action_for};
+    use super::{ToggleDecision, TrayAction, action_for, toggle_decision};
+
+    #[test]
+    fn toggle_hides_only_the_window_in_front_of_the_user() {
+        assert_eq!(toggle_decision(true, true, false), ToggleDecision::Hide);
+        for (visible, focused, minimized) in [
+            (false, false, false),
+            (true, false, false),
+            (true, true, true),
+            (true, false, true),
+            (false, true, false),
+        ] {
+            assert_eq!(
+                toggle_decision(visible, focused, minimized),
+                ToggleDecision::Show,
+                "visible={visible} focused={focused} minimized={minimized}"
+            );
+        }
+    }
 
     #[test]
     fn menu_ids_map_to_the_expected_actions() {

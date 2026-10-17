@@ -70,7 +70,7 @@ export function AppShell() {
     if (!escHides) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      if (document.querySelector('[role="dialog"]') || store.getState().editor) return;
+      if (document.querySelector('[role="dialog"], [role="menu"]') || store.getState().editor) return;
       const target = e.target;
       if (target instanceof HTMLElement && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
       void hideWindow();

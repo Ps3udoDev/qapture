@@ -129,6 +129,19 @@ describe("ajustes de la aplicación", () => {
     expect(repos.settings.hidden).toBe(1);
   });
 
+  it("con el menú Datos abierto, Esc solo cierra el menú", async () => {
+    const { repos, user, store } = await renderApp({ setup: async (repos) => void (await seedProject(repos)) });
+    await act(async () => {
+      repos.settings.snapshot.settings.system.escHides = true;
+      await store.getState().loadSettings();
+    });
+    await user.click(screen.getByRole("button", { name: /Datos/ }));
+    expect(screen.getByRole("menu", { name: "Datos" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(repos.settings.hidden).toBe(0);
+  });
+
   it("Nuevo caso con una evidencia en el editor no la descarta", async () => {
     const { repos, store } = await renderApp({ setup: async (repos) => void (await seedCases(repos)) });
     const caseId = store.getState().cases[0].id;

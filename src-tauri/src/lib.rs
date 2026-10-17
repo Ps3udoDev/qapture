@@ -79,10 +79,8 @@ pub fn run() {
             let args: Vec<String> = std::env::args().collect();
             let plan =
                 system::runtime::startup_plan(state.recovery().is_some(), &args, &loaded.system);
-            // Inicio con Windows, al arrancar (salvo en recuperación) y cada vez que se guarda.
-            if plan.sync_autostart {
-                system::runtime::sync_autostart(&handle, loaded.system.autostart);
-            }
+            // Inicio con Windows: nunca al arrancar (se respeta si la persona lo quitó desde
+            // Windows); solo al guardar Ajustes y al restaurar o recuperar la base.
             let hook_app = handle.clone();
             state.set_on_saved(Box::new(move |saved| {
                 system::runtime::sync_autostart(&hook_app, saved.system.autostart);

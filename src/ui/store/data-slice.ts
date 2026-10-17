@@ -111,6 +111,8 @@ export function createDataSlice(repos: Repositories, set: Set, get: Get, h: Slic
           const result = await repos.data.restoreBackup(fileName);
           restored = true;
           await h.reload(null);
+          // Los ajustes también vienen del respaldo: la copia vieja pisaría los restaurados.
+          await get().loadSettings();
           await get().loadBackups();
           get().pushToast("success", restoreMessage(result));
         } catch (error) {
@@ -126,6 +128,9 @@ export function createDataSlice(repos: Repositories, set: Set, get: Get, h: Slic
           await repos.data.recover(fileName);
           set({ recovery: null });
           await h.reload(null);
+          // Ajustes de la base nueva; la migración del tester esperaba a una base sana (como en init).
+          await get().loadSettings();
+          await h.migrateTester();
           get().pushToast("success", fileName ? "Base recuperada desde el respaldo." : "Qapture empezó con una base vacía.");
         } catch (error) {
           h.report(error);

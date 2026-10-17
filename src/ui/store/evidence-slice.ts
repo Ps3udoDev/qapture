@@ -42,6 +42,8 @@ export interface SliceHelpers {
   refreshCases(): Promise<void>;
   /** Recarga plantillas y proyectos y abre `projectId` (o el actual, o el primero). */
   reload(projectId?: string | null): Promise<void>;
+  /** Una sola vez y con una base sana: el tester que F4 guardaba en el equipo pasa al perfil vacío. */
+  migrateTester(): Promise<void>;
   form<T>(run: () => Promise<useCases.Outcome<T>>, onOk: (value: T) => Promise<void> | void): Promise<FormResult>;
 }
 

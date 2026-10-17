@@ -2,6 +2,7 @@ use std::{fs, path::PathBuf};
 
 use chrono::{Local, NaiveDateTime};
 use tauri::{AppHandle, State, WebviewWindow};
+use tauri_plugin_autostart::ManagerExt as _;
 use tauri_plugin_dialog::DialogExt;
 
 use crate::{
@@ -158,11 +159,24 @@ pub fn restore_backup(
     Ok(result)
 }
 
-/// La base cambió por debajo (restaurar o salir de recuperación): ajustes, atajos e inicio con
-/// Windows pasan a reflejar la base nueva. Se llama sin el candado de la base.
+/// La base cambió por debajo (restaurar o salir de recuperación con un respaldo): ajustes, atajos
+/// e inicio con Windows pasan a reflejar la base nueva. Se llama sin el candado de la base.
 fn settings_changed_underneath(app: &AppHandle, state: &AppState) {
     let loaded = runtime::reload_settings(state);
     runtime::sync_autostart(app, loaded.system.autostart);
+}
+
+/// Base vacía: el inicio con Windows no se toca; la base nueva guarda lo que el SO tiene ahora.
+fn started_empty(app: &AppHandle, state: &AppState) {
+    match app.autolaunch().is_enabled() {
+        Ok(enabled) => {
+            if let Err(error) = runtime::seed_autostart(state, enabled) {
+                eprintln!("No se pudo guardar el inicio con Windows en la base nueva: {error}");
+            }
+        }
+        Err(error) => eprintln!("No se pudo leer el inicio con Windows: {error}"),
+    }
+    runtime::reload_settings(state);
 }
 
 /// Sale del modo recuperación: `fileName` restaura ese respaldo; `null` empieza con una base vacía.
@@ -183,6 +197,10 @@ pub fn recover_database(
         now(),
     )?;
     state.finish_recovery(conn);
-    settings_changed_underneath(&app, &state);
+    if file_name.is_some() {
+        settings_changed_underneath(&app, &state);
+    } else {
+        started_empty(&app, &state);
+    }
     Ok(())
 }
