@@ -80,7 +80,7 @@ describe("exportar a Excel", () => {
     expect(repos.exporter.calls[0]).toMatchObject({ kind: "template", options: { docVersionId: null } });
   });
 
-  it("exige el tester y lo recuerda para la próxima vez", async () => {
+  it("exige el tester y no lo recuerda: el perfil de Ajustes es la fuente", async () => {
     const { user, repos, dialog } = await openExport({ tester: "" });
     await user.click(within(dialog).getByRole("button", { name: "Exportar Excel" }));
     expect(within(dialog).getByText("«Tester» es obligatorio.")).toBeInTheDocument();
@@ -89,7 +89,20 @@ describe("exportar a Excel", () => {
     await user.click(within(dialog).getByRole("button", { name: "Exportar Excel" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Exportar Excel" })).not.toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: /Exportar/ }));
-    expect(within(screen.getByRole("dialog", { name: "Exportar Excel" })).getByLabelText(/Tester/)).toHaveValue("Luis Gómez");
+    expect(within(screen.getByRole("dialog", { name: "Exportar Excel" })).getByLabelText(/Tester/)).toHaveValue("");
+  });
+
+  it("toma el ancho de imagen y el resumen de los ajustes", async () => {
+    const { user, repos, dialog } = await openExport({
+      setup: async (r) => {
+        await seedCases(r);
+        (r as MemoryRepositories).settings.snapshot.settings.export = { defaultFolder: "", imageMaxWidth: 1200, includeSummary: false };
+      },
+    });
+    expect(within(dialog).getByLabelText("Incluir hoja Resumen")).not.toBeChecked();
+    await user.click(within(dialog).getByRole("button", { name: "Exportar Excel" }));
+    await waitFor(() => expect(repos.exporter.calls).toHaveLength(1));
+    expect(repos.exporter.calls[0]).toMatchObject({ options: { imageMaxWidth: 1200, includeSummary: false } });
   });
 
   it("avisa si alguna imagen no se pudo incluir", async () => {

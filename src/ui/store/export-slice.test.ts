@@ -56,11 +56,13 @@ describe("slice de exportación", () => {
   });
 
   it("si se cancela «Guardar como» la versión nueva queda registrada una sola vez", async () => {
-    const { store, repos, prefs } = await setup();
+    const { store, repos } = await setup();
     repos.exporter.mode = "cancel";
     expect(await store.getState().exportExcel({ kind: "project", options: { ...options, tester: " Luis " }, newVersion })).toEqual({ ok: false, errors: {} });
     expect(store.getState().docVersions).toHaveLength(1);
-    expect(prefs.getTester()).toBe("Luis");
+    // El tester del export ya no se recuerda: el perfil de Ajustes es la única fuente.
+    expect(store.getState().testerName()).toBe("Ana Pérez");
+    expect(repos.settings.saves).toBe(1);
     const [saved] = store.getState().docVersions;
     repos.exporter.mode = "save";
     expect(await store.getState().exportExcel({ kind: "project", options: { ...options, docVersionId: saved.id } })).toEqual({ ok: true });

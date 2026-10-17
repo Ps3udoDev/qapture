@@ -4,7 +4,6 @@ import type { DocVersion, DocVersionInput } from "../../domain/doc-versions";
 import type { ExportProgress } from "../../domain/export";
 import type { Repositories } from "../../ports/repositories";
 import type { SliceHelpers } from "./evidence-slice";
-import type { Preferences } from "./preferences";
 import type { FormResult, WorkspaceState } from "./workspace";
 
 export interface ExportSlice {
@@ -14,7 +13,6 @@ export interface ExportSlice {
   loadDocVersions(): Promise<void>;
   saveDocVersion(input: DocVersionInput, id?: string): Promise<FormResult>;
   deleteDocVersion(id: string): Promise<void>;
-  rememberedTester(): string;
   exportExcel(request: useCases.ExportRequest): Promise<FormResult>;
 }
 
@@ -29,7 +27,7 @@ const missingMessage = (n: number) =>
     ? "1 imagen no se pudo incluir: en la hoja Evidencias aparece un aviso en su lugar."
     : `${n} imágenes no se pudieron incluir: en la hoja Evidencias aparece un aviso en su lugar.`;
 
-export function createExportSlice(repos: Repositories, prefs: Preferences, set: Set, get: Get, h: SliceHelpers): ExportSlice {
+export function createExportSlice(repos: Repositories, set: Set, get: Get, h: SliceHelpers): ExportSlice {
   return {
     docVersions: [],
     exporting: null,
@@ -71,8 +69,6 @@ export function createExportSlice(repos: Repositories, prefs: Preferences, set: 
       }
     },
 
-    rememberedTester: () => prefs.getTester(),
-
     async exportExcel(request) {
       const current = get().project;
       if (!current) return NO_PROJECT;
@@ -81,7 +77,6 @@ export function createExportSlice(repos: Repositories, prefs: Preferences, set: 
       try {
         const outcome = await useCases.exportWorkbook(repos, current.id, request, (exporting) => set({ exporting }));
         if (!outcome.ok) return outcome;
-        prefs.setTester(request.options.tester.trim());
         const result = outcome.value;
         if (!result) return { ok: false, errors: {} };
         const open = (run: (path: string) => Promise<void>) => () => void run(result.path).catch(h.report);

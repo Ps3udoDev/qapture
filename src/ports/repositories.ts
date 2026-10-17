@@ -5,6 +5,7 @@ import type { FieldInput, NewProjectInput, Project, ProjectMeta, ProjectSummary,
 import type { ScreenCapture } from "./capture";
 import type { DataTransfer } from "./data";
 import type { DocVersionRepository, Exporter } from "./export";
+import type { SettingsStore } from "./settings";
 
 export interface TemplateRepository {
   list(): Promise<Template[]>;
@@ -52,4 +53,5 @@ export interface Repositories {
   docVersions: DocVersionRepository;
   exporter: Exporter;
   data: DataTransfer;
+  settings: SettingsStore;
 }

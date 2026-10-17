@@ -15,7 +15,8 @@ export async function seedProject(repos: Repositories, name = "Recibos") {
 export async function renderApp(options: { setup?: (repos: MemoryRepositories) => Promise<void>; lastProject?: string | null; tester?: string } = {}) {
   const repos = createMemoryRepositories();
   await options.setup?.(repos);
-  const store = createWorkspaceStore(repos, memoryPreferences(options.lastProject ?? null, options.tester ?? ""));
+  if (options.tester) repos.settings.snapshot.settings.profile.tester = options.tester;
+  const store = createWorkspaceStore(repos, memoryPreferences(options.lastProject ?? null));
   const user = userEvent.setup();
   render(
     <WorkspaceProvider store={store}>

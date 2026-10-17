@@ -8,6 +8,7 @@ import type { Repositories } from "../../ports/repositories";
 import { createEvidenceSlice, type EvidenceSlice } from "./evidence-slice";
 import { createDataSlice, type DataSlice } from "./data-slice";
 import { createExportSlice, type ExportSlice } from "./export-slice";
+import { createSettingsSlice, type SettingsSlice } from "./settings-slice";
 import { browserPreferences, type Preferences } from "./preferences";
 
 export type FormResult = { ok: true } | { ok: false; errors: FormErrors };
@@ -22,7 +23,7 @@ export interface Toast {
   actions?: ToastAction[];
 }
 
-export interface WorkspaceState extends EvidenceSlice, ExportSlice, DataSlice {
+export interface WorkspaceState extends EvidenceSlice, ExportSlice, DataSlice, SettingsSlice {
   templates: Template[];
   projects: ProjectSummary[];
   project: Project | null;
@@ -105,6 +106,13 @@ export function createWorkspaceStore(repos: Repositories, prefs: Preferences = b
       await loadProject(target);
       await get().loadEvidence();
     };
+    /** Una sola vez: el tester que F4 guardaba en el equipo pasa al perfil si este está vacío. */
+    const migrateTester = async () => {
+      const snapshot = get().settings;
+      const legacy = prefs.getTester().trim();
+      if (!snapshot || snapshot.settings.profile.tester || !legacy) return;
+      await get().saveSettings({ ...snapshot.settings, profile: { ...snapshot.settings.profile, tester: legacy } });
+    };
     const helpers = { report, refreshCases, form, reload };
 
     return {
@@ -124,9 +132,13 @@ export function createWorkspaceStore(repos: Repositories, prefs: Preferences = b
           if (status.recovery) {
             // Base dañada: no se cargan proyectos; la pantalla de recuperación ofrece los respaldos.
             set({ recovery: status });
+            // El comando de ajustes funciona en recuperación; la migración del tester espera a una base sana.
+            await get().loadSettings();
             await get().loadBackups();
             return;
           }
+          await get().loadSettings();
+          await migrateTester();
           await refreshLists();
           const { projects } = get();
           const last = prefs.getLastProject();
@@ -275,8 +287,9 @@ export function createWorkspaceStore(repos: Repositories, prefs: Preferences = b
       pushToast: (kind, message, actions) => set((s) => ({ toasts: [...s.toasts, { id: ++toastSeq, kind, message, actions }] })),
       dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
       ...createEvidenceSlice(repos, set, get, helpers),
-      ...createExportSlice(repos, prefs, set, get, helpers),
+      ...createExportSlice(repos, set, get, helpers),
       ...createDataSlice(repos, set, get, helpers),
+      ...createSettingsSlice(repos, set, get, helpers),
     };
   });
 
