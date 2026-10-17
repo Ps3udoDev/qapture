@@ -58,6 +58,14 @@ fn is_valid_key(key: &str) -> bool {
     }
 }
 
+/// Letras en mayúscula; teclas de función sin ceros a la izquierda (`f01` -> `F1`).
+fn canonical_key(key: &str) -> String {
+    match key[1..].parse::<u8>() {
+        Ok(n) if key.len() > 1 => format!("F{n}"),
+        _ => key.to_ascii_uppercase(),
+    }
+}
+
 /// Devuelve la forma canónica (`Ctrl`, `Alt`, `Shift`, `Win` y la tecla) o `None`.
 pub fn normalize(raw: &str) -> Option<String> {
     let (mut ctrl, mut alt, mut shift, mut win) = (false, false, false, false);
@@ -73,7 +81,7 @@ pub fn normalize(raw: &str) -> Option<String> {
         match flag {
             Some(flag) if *flag => return None,
             Some(flag) => *flag = true,
-            None if key.is_none() && is_valid_key(part) => key = Some(part.to_ascii_uppercase()),
+            None if key.is_none() && is_valid_key(part) => key = Some(canonical_key(part)),
             None => return None,
         }
     }
@@ -96,10 +104,11 @@ pub fn validate(shortcuts: &Shortcuts) -> AppResult<Shortcuts> {
         let label = action.label();
         let accel = normalize(action.accel(shortcuts))
             .ok_or_else(|| validation(format!("«{label}»: combinación no válida.")))?;
-        let has_main_modifier = accel.starts_with("Ctrl+")
-            || accel.contains("+Alt+")
-            || accel.starts_with("Alt+")
-            || accel.contains("+Win+");
+        let has_main_modifier = accel
+            .split('+')
+            .rev()
+            .skip(1)
+            .any(|m| matches!(m, "Ctrl" | "Alt" | "Win"));
         if !has_main_modifier {
             return Err(validation(format!(
                 "«{label}»: usa al menos Ctrl, Alt o Win."
@@ -243,6 +252,8 @@ mod tests {
             Some("Ctrl+Shift+F12")
         );
         assert_eq!(normalize("Super+Alt+1").as_deref(), Some("Alt+Win+1"));
+        assert_eq!(normalize("Ctrl+Alt+f01").as_deref(), Some("Ctrl+Alt+F1"));
+        assert_eq!(normalize("Ctrl+Alt+F024").as_deref(), Some("Ctrl+Alt+F24"));
         assert_eq!(normalize("Ctrl+Alt"), None);
         assert_eq!(normalize("Ctrl+Ctrl+Q"), None);
         assert_eq!(normalize("Ctrl+Alt+Ñ"), None);
@@ -289,6 +300,21 @@ mod tests {
             "«Nuevo caso»: combinación no válida."
         );
 
+        let s = Shortcuts {
+            toggle: "Win+L".into(),
+            ..base.clone()
+        };
+        assert_eq!(
+            message(validate(&s)),
+            "«Mostrar/ocultar»: Windows reserva Win+L."
+        );
+        for ok in ["Win+Q", "Alt+Win+1"] {
+            let s = Shortcuts {
+                toggle: ok.into(),
+                ..base.clone()
+            };
+            assert_eq!(validate(&s).unwrap().toggle, ok);
+        }
         assert_eq!(validate(&base).unwrap(), base);
         let s = Shortcuts {
             toggle: "alt+ctrl+q".into(),
