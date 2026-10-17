@@ -169,6 +169,30 @@
       "startDate": "2026-10-01",
       "testType": "Funcional"
     },
+    "saveSettings": {
+      "export": {
+        "defaultFolder": "",
+        "imageMaxWidth": 940,
+        "includeSummary": true
+      },
+      "profile": {
+        "email": "",
+        "role": "",
+        "tester": ""
+      },
+      "shortcuts": {
+        "capture": "Ctrl+Alt+S",
+        "newCase": "Ctrl+Alt+N",
+        "paste": "Ctrl+Alt+V",
+        "toggle": "Ctrl+Alt+Q"
+      },
+      "system": {
+        "autostart": false,
+        "closeToTray": true,
+        "escHides": false,
+        "startHidden": true
+      }
+    },
     "selection": {
       "height": 200.0,
       "viewportHeight": 864.0,
@@ -237,6 +261,40 @@
     },
     "safetyCopy": "qapture-antes-de-restaurar-20261016-100000.db",
     "setAsideFiles": 2
+  },
+  "settings": {
+    "appVersion": "0.5.0",
+    "dataDir": "C:\\Users\\ana\\AppData\\Roaming\\com.teams4soft.qapture",
+    "settings": {
+      "export": {
+        "defaultFolder": "",
+        "imageMaxWidth": 940,
+        "includeSummary": true
+      },
+      "profile": {
+        "email": "",
+        "role": "",
+        "tester": ""
+      },
+      "shortcuts": {
+        "capture": "Ctrl+Alt+S",
+        "newCase": "Ctrl+Alt+N",
+        "paste": "Ctrl+Alt+V",
+        "toggle": "Ctrl+Alt+Q"
+      },
+      "system": {
+        "autostart": false,
+        "closeToTray": true,
+        "escHides": false,
+        "startHidden": true
+      }
+    },
+    "shortcutFailures": [
+      {
+        "accelerator": "Ctrl+Alt+S",
+        "action": "capture"
+      }
+    ]
   },
   "stagedImage": {
     "height": 1080,

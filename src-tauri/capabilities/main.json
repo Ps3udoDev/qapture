@@ -45,6 +45,12 @@
     "allow-list-backups",
     "allow-create-backup",
     "allow-restore-backup",
-    "allow-recover-database"
+    "allow-recover-database",
+    "allow-get-settings",
+    "allow-save-settings",
+    "allow-pick-export-folder",
+    "allow-open-data-folder",
+    "allow-hide-main-window",
+    "allow-open-link"
   ]
 }

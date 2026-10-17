@@ -3,7 +3,6 @@ pub mod doc_versions;
 pub mod evidence;
 pub mod fields;
 pub mod projects;
-#[allow(dead_code)] // TODO(F6-T4): lo usan los comandos de ajustes.
 pub mod settings;
 pub mod templates;
 

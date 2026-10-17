@@ -17,7 +17,8 @@ const RESERVED: [&str; 9] = [
     "Win+Tab",
 ];
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum ShortcutAction {
     Toggle,
     Capture,
@@ -37,7 +38,7 @@ impl ShortcutAction {
         }
     }
 
-    fn accel(self, shortcuts: &Shortcuts) -> &str {
+    pub fn accel(self, shortcuts: &Shortcuts) -> &str {
         match self {
             Self::Toggle => &shortcuts.toggle,
             Self::Capture => &shortcuts.capture,
@@ -149,7 +150,7 @@ pub trait ShortcutRegistrar {
 /// Cambia solo las combinaciones distintas. Si el SO rechaza alguna, deja el
 /// registrador exactamente como estaba.
 pub fn apply(
-    reg: &mut impl ShortcutRegistrar,
+    reg: &mut (impl ShortcutRegistrar + ?Sized),
     current: &Shortcuts,
     wanted: &Shortcuts,
 ) -> AppResult<()> {

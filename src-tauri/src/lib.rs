@@ -8,8 +8,6 @@ mod error;
 mod excel;
 mod media;
 mod repo;
-// TODO(F6-T4): quitar el allow cuando los comandos usen los ajustes.
-#[allow(dead_code)]
 mod settings;
 mod state;
 mod system;
@@ -115,6 +113,12 @@ pub fn run() {
             commands::data::create_backup,
             commands::data::restore_backup,
             commands::data::recover_database,
+            commands::settings::get_settings,
+            commands::settings::save_settings,
+            commands::settings::pick_export_folder,
+            commands::settings::open_data_folder,
+            commands::settings::hide_main_window,
+            commands::settings::open_link,
         ])
         .run(tauri::generate_context!())
         .expect("no se pudo iniciar Qapture");
