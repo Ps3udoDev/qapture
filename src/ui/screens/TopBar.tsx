@@ -1,10 +1,10 @@
-import { FileSpreadsheet, Plus, Settings } from "lucide-react";
+import { FileSpreadsheet, Plus, Settings, SlidersHorizontal } from "lucide-react";
 import mark from "../../assets/brand/qapture-mark.svg";
 import { btn, inputCls } from "../components/styles";
 import { useWorkspace } from "../store/context";
 import { DataMenu } from "./DataMenu";
 
-export function TopBar({ onNewProject, onSettings, onExport, onBackups }: { onNewProject: () => void; onSettings?: () => void; onExport?: () => void; onBackups?: () => void }) {
+export function TopBar({ onNewProject, onSettings, onAppSettings, onExport, onBackups }: { onNewProject: () => void; onSettings?: () => void; onAppSettings?: () => void; onExport?: () => void; onBackups?: () => void }) {
   const projects = useWorkspace((s) => s.projects);
   const project = useWorkspace((s) => s.project);
   const selectProject = useWorkspace((s) => s.selectProject);
@@ -40,6 +40,11 @@ export function TopBar({ onNewProject, onSettings, onExport, onBackups }: { onNe
         {onSettings && project && (
           <button type="button" className={btn.secondary} onClick={onSettings}>
             <Settings size={16} /> Configurar
+          </button>
+        )}
+        {onAppSettings && (
+          <button type="button" className={btn.secondary} aria-label="Ajustes" title="Ajustes" onClick={onAppSettings}>
+            <SlidersHorizontal size={16} />
           </button>
         )}
         <button type="button" className={btn.primary} onClick={onNewProject}>

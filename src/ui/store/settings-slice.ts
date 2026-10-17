@@ -1,5 +1,5 @@
 import type { StoreApi } from "zustand/vanilla";
-import { failureMessage, validateSettings, type Settings, type SettingsSnapshot } from "../../domain/settings";
+import { failureMessage, validateSettings, type LinkTarget, type Settings, type SettingsSnapshot } from "../../domain/settings";
 import { isValidationError } from "../../ports/errors";
 import type { Repositories } from "../../ports/repositories";
 import type { SliceHelpers } from "./evidence-slice";
@@ -18,6 +18,11 @@ export interface SettingsSlice {
   openCaseForm(caseId?: string | null): void;
   closeCaseForm(): void;
   listenNewCase(): Promise<() => void>;
+  /** Selector nativo de carpeta; `null` si se cierra sin elegir. */
+  pickExportFolder(): Promise<string | null>;
+  openDataFolder(): Promise<void>;
+  hideWindow(): Promise<void>;
+  openLink(target: LinkTarget): Promise<void>;
 }
 
 type Set = StoreApi<WorkspaceState>["setState"];
@@ -62,6 +67,39 @@ export function createSettingsSlice(repos: Repositories, set: Set, get: Get, h: 
 
     openCaseForm: (caseId = null) => set({ caseFormRequest: { caseId } }),
     closeCaseForm: () => set({ caseFormRequest: null }),
+
+    async pickExportFolder() {
+      try {
+        return await repos.settings.pickExportFolder();
+      } catch (error) {
+        h.report(error);
+        return null;
+      }
+    },
+
+    async openDataFolder() {
+      try {
+        await repos.settings.openDataFolder();
+      } catch (error) {
+        h.report(error);
+      }
+    },
+
+    async hideWindow() {
+      try {
+        await repos.settings.hideWindow();
+      } catch (error) {
+        h.report(error);
+      }
+    },
+
+    async openLink(target) {
+      try {
+        await repos.settings.openLink(target);
+      } catch (error) {
+        h.report(error);
+      }
+    },
 
     listenNewCase: () =>
       repos.settings.onNewCase(() => {
