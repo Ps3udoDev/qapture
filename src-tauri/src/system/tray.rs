@@ -5,10 +5,13 @@ use tauri::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-enum TrayAction {
+pub enum TrayAction {
     Show,
     Hide,
     Quit,
+    Capture,
+    Paste,
+    NewCase,
 }
 
 fn action_for(id: &str) -> Option<TrayAction> {
@@ -16,6 +19,9 @@ fn action_for(id: &str) -> Option<TrayAction> {
         "open" => Some(TrayAction::Show),
         "hide" => Some(TrayAction::Hide),
         "quit" => Some(TrayAction::Quit),
+        "capture" => Some(TrayAction::Capture),
+        "paste" => Some(TrayAction::Paste),
+        "new-case" => Some(TrayAction::NewCase),
         _ => None,
     }
 }
@@ -44,22 +50,48 @@ fn toggle_main(app: &tauri::AppHandle) {
     }
 }
 
+/// Punto único de despacho del menú; la Task 5 conecta captura, pegar y nuevo caso.
+pub fn on_action(app: &tauri::AppHandle, action: TrayAction) {
+    match action {
+        TrayAction::Show => show_main(app),
+        TrayAction::Hide => hide_main(app),
+        TrayAction::Quit => app.exit(0),
+        // TODO(F6-T5): conectar con captura, portapapeles y nuevo caso.
+        TrayAction::Capture | TrayAction::Paste | TrayAction::NewCase => show_main(app),
+    }
+}
+
 pub fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "Abrir Qapture", true, None::<&str>)?;
     let hide = MenuItem::with_id(app, "hide", "Ocultar", true, None::<&str>)?;
-    let separator = PredefinedMenuItem::separator(app)?;
+    let first_separator = PredefinedMenuItem::separator(app)?;
+    let capture = MenuItem::with_id(app, "capture", "Capturar pantalla", true, None::<&str>)?;
+    let paste = MenuItem::with_id(app, "paste", "Pegar evidencia", true, None::<&str>)?;
+    let new_case = MenuItem::with_id(app, "new-case", "Nuevo caso", true, None::<&str>)?;
+    let second_separator = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "Salir", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &hide, &separator, &quit])?;
+    let menu = Menu::with_items(
+        app,
+        &[
+            &open,
+            &hide,
+            &first_separator,
+            &capture,
+            &paste,
+            &new_case,
+            &second_separator,
+            &quit,
+        ],
+    )?;
     let tray = TrayIconBuilder::with_id("main-tray")
         .icon(app.default_window_icon().unwrap().clone())
         .tooltip("Qapture · Teams4Soft")
         .menu(&menu)
         .show_menu_on_left_click(false)
-        .on_menu_event(|app, event| match action_for(event.id.as_ref()) {
-            Some(TrayAction::Show) => show_main(app),
-            Some(TrayAction::Hide) => hide_main(app),
-            Some(TrayAction::Quit) => app.exit(0),
-            None => {}
+        .on_menu_event(|app, event| {
+            if let Some(action) = action_for(event.id.as_ref()) {
+                on_action(app, action);
+            }
         })
         .on_tray_icon_event(|tray, event| {
             if let TrayIconEvent::Click {
@@ -85,6 +117,9 @@ mod tests {
         assert_eq!(action_for("open"), Some(TrayAction::Show));
         assert_eq!(action_for("hide"), Some(TrayAction::Hide));
         assert_eq!(action_for("quit"), Some(TrayAction::Quit));
+        assert_eq!(action_for("capture"), Some(TrayAction::Capture));
+        assert_eq!(action_for("paste"), Some(TrayAction::Paste));
+        assert_eq!(action_for("new-case"), Some(TrayAction::NewCase));
     }
 
     #[test]
