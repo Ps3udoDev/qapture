@@ -54,7 +54,7 @@ const MODIFIER_NAMES: Record<string, "Ctrl" | "Alt" | "Shift" | "Win"> = {
   meta: "Win",
 };
 
-const isValidKey = (key: string) => /^[A-Za-z0-9]$/.test(key) || /^[Ff]([1-9]|1\d|2[0-4])$/.test(key);
+const isValidKey = (key: string) => /^[A-Za-z0-9]$/.test(key) || /^[Ff]0*([1-9]|1\d|2[0-4])$/.test(key);
 
 /** Forma canónica (`Ctrl`, `Alt`, `Shift`, `Win` y la tecla) o `null`. Igual que `shortcuts::normalize`. */
 export function normalizeAccelerator(raw: string): string | null {

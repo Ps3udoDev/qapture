@@ -111,7 +111,8 @@ export function createWorkspaceStore(repos: Repositories, prefs: Preferences = b
       const snapshot = get().settings;
       const legacy = prefs.getTester().trim();
       if (!snapshot || snapshot.settings.profile.tester || !legacy) return;
-      await get().saveSettings({ ...snapshot.settings, profile: { ...snapshot.settings.profile, tester: legacy } });
+      // Silencioso; `persistSettings` ya avisa los errores que no son de validación.
+      await get().persistSettings({ ...snapshot.settings, profile: { ...snapshot.settings.profile, tester: legacy } });
     };
     const helpers = { report, refreshCases, form, reload };
 

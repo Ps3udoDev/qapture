@@ -11,6 +11,8 @@ export interface SettingsSlice {
   caseFormRequest: { caseId: string | null } | null;
   loadSettings(): Promise<void>;
   saveSettings(settings: Settings): Promise<FormResult>;
+  /** Guarda sin toast de éxito (migraciones internas); mismo resultado que `saveSettings`. */
+  persistSettings(settings: Settings): Promise<FormResult>;
   /** Nombre del tester del perfil; reemplaza al que F4 recordaba en el equipo. */
   testerName(): string;
   openCaseForm(caseId?: string | null): void;
@@ -37,12 +39,17 @@ export function createSettingsSlice(repos: Repositories, set: Set, get: Get, h: 
     },
 
     async saveSettings(input) {
+      const result = await get().persistSettings(input);
+      if (result.ok) get().pushToast("success", "Ajustes guardados.");
+      return result;
+    },
+
+    async persistSettings(input) {
       const errors = validateSettings(input);
       if (Object.keys(errors).length > 0) return { ok: false, errors };
       try {
         const settings = await repos.settings.save(input);
         set({ settings });
-        get().pushToast("success", "Ajustes guardados.");
         return { ok: true };
       } catch (error) {
         if (isValidationError(error)) return { ok: false, errors: { _form: error.message } };

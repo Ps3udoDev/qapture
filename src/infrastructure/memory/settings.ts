@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, SHORTCUT_ACTIONS, refusalMessage, validateSettings, type LinkTarget, type Settings, type SettingsSnapshot, type ShortcutFailure } from "../../domain/settings";
+import { DEFAULT_SETTINGS, SHORTCUT_ACTIONS, normalizeAccelerator, refusalMessage, validateSettings, type LinkTarget, type Settings, type SettingsSnapshot, type ShortcutFailure } from "../../domain/settings";
 import { AppError } from "../../ports/errors";
 import type { SettingsStore } from "../../ports/settings";
 
@@ -52,8 +52,10 @@ export function createMemorySettings(): MemorySettings {
       const next = trimmed(input);
       const current = m.snapshot.settings;
       for (const action of SHORTCUT_ACTIONS) {
-        const accel = next.shortcuts[action];
-        if (accel !== current.shortcuts[action] && m.refuse.has(accel)) throw new AppError("validation", refusalMessage(accel, action));
+        // Como Rust: se guarda y compara la forma canónica (validateSettings ya garantizó que existe).
+        const accel = normalizeAccelerator(next.shortcuts[action]) ?? next.shortcuts[action];
+        next.shortcuts[action] = accel;
+        if (accel !== normalizeAccelerator(current.shortcuts[action]) && m.refuse.has(accel)) throw new AppError("validation", refusalMessage(accel, action));
       }
       m.saves += 1;
       m.snapshot = { ...m.snapshot, settings: next };

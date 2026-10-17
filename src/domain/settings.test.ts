@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SETTINGS, formatAccelerator, validateSettings, type Settings } from "./settings";
+import { DEFAULT_SETTINGS, formatAccelerator, normalizeAccelerator, validateSettings, type Settings } from "./settings";
 
 const key = (code: string, mods: Partial<Record<"ctrlKey" | "altKey" | "shiftKey" | "metaKey", boolean>> = {}) => ({
   ctrlKey: false,
@@ -23,6 +23,13 @@ describe("ajustes", () => {
     expect(formatAccelerator(key("Digit1", { altKey: true, metaKey: true }))).toBe("Alt+Win+1");
     expect(formatAccelerator(key("ControlLeft", { ctrlKey: true }))).toBeNull();
     expect(formatAccelerator(key("BracketLeft", { ctrlKey: true }))).toBeNull();
+  });
+
+  it("normalizeAccelerator acepta ceros a la izquierda como Rust", () => {
+    expect(normalizeAccelerator("Ctrl+Alt+f01")).toBe("Ctrl+Alt+F1");
+    expect(normalizeAccelerator("Ctrl+Alt+F024")).toBe("Ctrl+Alt+F24");
+    expect(normalizeAccelerator("Ctrl+Alt+F25")).toBeNull();
+    expect(normalizeAccelerator("Ctrl+Alt+F0")).toBeNull();
   });
 
   it("validateSettings replica las reglas de Rust", () => {

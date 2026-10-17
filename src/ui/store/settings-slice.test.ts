@@ -28,6 +28,7 @@ describe("slice de ajustes", () => {
     expect(s().settings?.settings.profile.tester).toBe("Luis");
     expect(s().testerName()).toBe("Luis");
     expect(repos.settings.saves).toBe(1);
+    expect(s().toasts.map((t) => t.message)).not.toContain("Ajustes guardados.");
     await store.getState().init();
     expect(repos.settings.saves).toBe(1);
   });
