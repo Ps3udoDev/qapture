@@ -50,34 +50,46 @@ fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
     PathBuf::from(raw)
 }
 
-/// Renombra la base (y sus `-wal`/`-shm`) a `qapture-danada-<fecha>.db` en la misma carpeta, con
-/// `-2`, `-3`… si ya existe uno. Un error al mover los auxiliares aborta: el `-wal` dañado no
-/// debe quedar junto a la base nueva.
+const SIDE_FILES: [&str; 2] = ["-wal", "-shm"];
+
+/// Renombra la base y sus `-wal`/`-shm` a `qapture-danada-<fecha>.db` en la misma carpeta, con
+/// `-2`, `-3`… si ya existe uno. Los auxiliares van primero y también se apartan si la base ya
+/// no está (un intento anterior que se cayó a medias): el `-wal` dañado nunca debe quedar junto
+/// a la base nueva. Cualquier error aborta.
 pub fn set_aside_corrupt(path: &Path, now: NaiveDateTime) -> AppResult<Option<PathBuf>> {
-    if !path.exists() {
+    let sides: Vec<&str> = SIDE_FILES
+        .into_iter()
+        .filter(|suffix| with_suffix(path, suffix).exists())
+        .collect();
+    if !path.exists() && sides.is_empty() {
         return Ok(None);
     }
     let dir = path.parent().unwrap_or_else(|| Path::new("."));
     let base = format!("qapture-danada-{}", now.format("%Y%m%d-%H%M%S"));
+    let taken = |target: &Path| {
+        target.exists()
+            || SIDE_FILES
+                .iter()
+                .any(|suffix| with_suffix(target, suffix).exists())
+    };
     let mut target = dir.join(format!("{base}.db"));
     let mut n = 2;
-    while target.exists() {
+    while taken(&target) {
         target = dir.join(format!("{base}-{n}.db"));
         n += 1;
     }
-    fs::rename(path, &target)?;
-    for suffix in ["-wal", "-shm"] {
-        let side = with_suffix(path, suffix);
-        if side.exists() {
-            fs::rename(&side, with_suffix(&target, suffix))?;
-        }
+    for suffix in sides {
+        fs::rename(with_suffix(path, suffix), with_suffix(&target, suffix))?;
+    }
+    if path.exists() {
+        fs::rename(path, &target)?;
     }
     Ok(Some(target))
 }
 
 /// Referencias de la base que se va a instalar, leídas del respaldo en solo lectura. Un respaldo
 /// sin tabla `evidence` (esquema viejo) no referencia imágenes.
-fn references_of(source: &Path) -> AppResult<(HashSet<String>, HashSet<String>)> {
+pub(crate) fn references_of(source: &Path) -> AppResult<(HashSet<String>, HashSet<String>)> {
     let conn = Connection::open_with_flags(source, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     let has_evidence: bool = conn.query_row(
         "SELECT EXISTS (SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'evidence')",
@@ -98,6 +110,7 @@ fn references_of(source: &Path) -> AppResult<(HashSet<String>, HashSet<String>)>
 /// una vacía. El respaldo se valida antes de mover nada. Las capturas que la base nueva no
 /// conoce se apartan en `evidence-sin-uso/` ANTES de tocar `path`: si eso falla, la base
 /// dañada sigue en su sitio, el próximo arranque vuelve al modo recuperación y nada se barre.
+/// Si tras apartar la base dañada sigue un `-wal`/`-shm` suyo junto a `path`, no se instala nada.
 pub fn recover(
     path: &Path,
     backups: &Backups,
@@ -117,12 +130,32 @@ pub fn recover(
         Some(source) => references_of(source)?,
         None => (HashSet::new(), HashSet::new()),
     };
-    files.set_aside(
+    let aside = files.set_aside(
         &referenced,
         &projects,
         &now.format("%Y%m%d-%H%M%S").to_string(),
     )?;
-    set_aside_corrupt(path, now)?;
+    let cleared = set_aside_corrupt(path, now).and_then(|_| {
+        match SIDE_FILES
+            .iter()
+            .map(|suffix| with_suffix(path, suffix))
+            .find(|side| side.exists())
+        {
+            Some(side) => Err(AppError::Io(std::io::Error::other(format!(
+                "no se instala la base nueva: sigue {} de la base dañada",
+                side.display()
+            )))),
+            None => Ok(()),
+        }
+    });
+    if let Err(error) = cleared {
+        // Con la base dañada aún en su sitio el próximo arranque vuelve al modo recuperación y no
+        // barre nada: las capturas pueden volver a evidence/. Sin ella, se quedan apartadas.
+        if path.exists() {
+            aside.undo();
+        }
+        return Err(error);
+    }
     if let Some(source) = &source {
         fs::copy(source, path)?;
     }
@@ -318,6 +351,47 @@ mod tests {
         assert_eq!(fs::read(&target).unwrap(), b"db");
         assert_eq!(fs::read(with_suffix(&target, "-wal")).unwrap(), b"wal");
         assert_eq!(fs::read(with_suffix(&target, "-shm")).unwrap(), b"shm");
+    }
+
+    #[test]
+    fn a_stray_wal_without_its_db_is_set_aside_and_not_replayed_onto_the_backup() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let backups = Backups::new(tmp.path());
+        let path = db_path(&tmp);
+        let (saved, wal) = {
+            let conn = db::open(&path).unwrap();
+            test_support::project(&conn); // «Recibos»
+            let saved = backups.create_manual(&conn, now()).unwrap();
+            conn.pragma_update(None, "wal_autocheckpoint", 0).unwrap();
+            test_support::other_project(&conn); // «Pólizas», solo en el -wal
+            (saved, fs::read(with_suffix(&path, "-wal")).unwrap())
+        };
+        // Un intento anterior movió la base pero no su -wal.
+        fs::remove_file(&path).unwrap();
+        let _ = fs::remove_file(with_suffix(&path, "-shm"));
+        fs::write(with_suffix(&path, "-wal"), &wal).unwrap();
+
+        let conn = recover(&path, &backups, &files, Some(&saved.file_name), now()).unwrap();
+        let names: Vec<String> = projects::list(&conn)
+            .unwrap()
+            .into_iter()
+            .map(|p| p.name)
+            .collect();
+        assert_eq!(names, ["Recibos"], "el -wal ajeno no se aplicó al respaldo");
+        let aside = tmp.path().join("qapture-danada-20261016-100000.db-wal");
+        assert_eq!(fs::read(aside).unwrap(), wal, "el -wal dañado se conserva");
+    }
+
+    #[test]
+    fn set_aside_corrupt_moves_a_stray_wal_even_when_the_db_is_gone() {
+        let tmp = TempDir::new();
+        let path = db_path(&tmp);
+        fs::write(with_suffix(&path, "-wal"), b"wal").unwrap();
+        let target = set_aside_corrupt(&path, now()).unwrap().unwrap();
+        assert!(!with_suffix(&path, "-wal").exists());
+        assert_eq!(fs::read(with_suffix(&target, "-wal")).unwrap(), b"wal");
+        assert!(set_aside_corrupt(&path, now()).unwrap().is_none());
     }
 
     #[test]

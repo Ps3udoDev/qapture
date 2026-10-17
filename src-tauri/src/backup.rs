@@ -12,7 +12,7 @@ use chrono::{DateTime, Local, NaiveDate, NaiveDateTime};
 use rusqlite::{Connection, MAIN_DB, OpenFlags, backup::Progress};
 
 use crate::{
-    db::{self, new_id},
+    db::{self, new_id, recovery},
     dto::{BackupDto, BackupKind, RestoreResultDto},
     error::{AppError, AppResult, validation},
     media::storage::EvidenceFiles,
@@ -161,13 +161,23 @@ impl Backups {
         self.describe(&path)
     }
 
-    /// Del más reciente al más antiguo.
+    /// Del más reciente al más antiguo. Lo que no es un archivo o no se puede leer se omite (con
+    /// un aviso en el registro): un solo archivo raro no debe dejar sin respaldos a la pantalla
+    /// de recuperación.
     pub fn list(&self) -> AppResult<Vec<BackupDto>> {
-        let mut list = self
+        let mut list: Vec<BackupDto> = self
             .names()?
             .into_iter()
-            .map(|name| self.describe(&self.dir.join(name)))
-            .collect::<AppResult<Vec<_>>>()?;
+            .map(|name| self.dir.join(name))
+            .filter(|path| path.is_file())
+            .filter_map(|path| {
+                self.describe(&path)
+                    .inspect_err(|error| {
+                        eprintln!("Se omite el respaldo {}: {error}", path.display())
+                    })
+                    .ok()
+            })
+            .collect();
         list.sort_by(|a, b| {
             b.created_at
                 .cmp(&a.created_at)
@@ -217,7 +227,8 @@ impl Backups {
     }
 
     /// Vuelve al estado del respaldo sobre la conexión viva. Antes guarda una copia del estado
-    /// actual y, al final, aparta las capturas que el respaldo no conoce.
+    /// actual y aparta las capturas que el respaldo no conoce (leído en solo lectura). Si algo
+    /// falla, todo queda como estaba: la base vuelve a la copia previa y las capturas a `evidence/`.
     pub fn restore(
         &self,
         conn: &mut Connection,
@@ -228,18 +239,40 @@ impl Backups {
         let source = self.resolve(file_name)?;
         Self::check(&source)?;
         let restored = self.describe(&source)?;
+        let (referenced, projects) = recovery::references_of(&source)?;
         let safety = self.write(conn, &self.stamped(BEFORE_RESTORE, now))?;
-        conn.restore(MAIN_DB, &source, None::<fn(Progress)>)?;
-        db::prepare(conn)?;
-        let (referenced, projects) = evidence::references(conn)?;
+        let safety_copy = self.describe(&safety)?.file_name;
+        // Las capturas se apartan ANTES de cambiar la base: si se cae a medias, la base viva
+        // sigue siendo la que las referencia y el barrido del arranque no las borra.
         let stamp = now.format("%Y%m%d-%H%M%S").to_string();
-        let set_aside_files = files.set_aside(&referenced, &projects, &stamp)? as i64;
-        Ok(RestoreResultDto {
-            restored,
-            safety_copy: self.describe(&safety)?.file_name,
-            missing_images: evidence::missing_images(conn, files)?,
-            set_aside_files,
-        })
+        let aside = files.set_aside(&referenced, &projects, &stamp)?;
+        let installed = conn
+            .restore(MAIN_DB, &source, None::<fn(Progress)>)
+            .map_err(AppError::from)
+            .and_then(|()| db::prepare(conn))
+            .and_then(|()| evidence::missing_images(conn, files));
+        match installed {
+            Ok(missing_images) => Ok(RestoreResultDto {
+                restored,
+                safety_copy,
+                missing_images,
+                set_aside_files: aside.count() as i64,
+            }),
+            Err(error) => {
+                let rollback = conn
+                    .restore(MAIN_DB, &safety, None::<fn(Progress)>)
+                    .map_err(AppError::from)
+                    .and_then(|()| db::prepare(conn));
+                match rollback {
+                    Ok(()) => aside.undo(),
+                    // Sin saber qué base quedó viva, las capturas se quedan en evidence-sin-uso/.
+                    Err(rollback_error) => {
+                        eprintln!("No se pudo volver a {}: {rollback_error}", safety.display())
+                    }
+                }
+                Err(error)
+            }
+        }
     }
 }
 
@@ -461,6 +494,120 @@ mod tests {
             &conn,
             &projects::get(&conn, &projects::list(&conn).unwrap()[0].id).unwrap(),
         );
+    }
+
+    #[test]
+    fn a_failed_restore_leaves_the_db_and_the_images_as_they_were() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let mut conn = open(&tmp);
+        test_support::project(&conn); // «Recibos»
+        let backups = Backups::new(tmp.path());
+        let saved = backups.create_manual(&conn, at(9, 0, 0)).unwrap();
+
+        let polizas = test_support::other_project(&conn);
+        let case = test_support::case(&conn, &polizas);
+        let staged = evidence::stage(&files, &sample_png(80, 60)).unwrap();
+        let meta = NewEvidenceMeta {
+            case_id: case.id.clone(),
+            staged_path: staged.path,
+            description: "Póliza emitida".into(),
+            annotations: EMPTY_ANNOTATIONS.into(),
+        };
+        let ev = evidence::add(&conn, &files, &meta, &sample_png(80, 60)).unwrap();
+        // Un archivo donde debería ir la carpeta destino hace fallar el movimiento de capturas.
+        fs::write(tmp.path().join(UNUSED_DIR), b"bloqueo").unwrap();
+
+        assert!(
+            backups
+                .restore(&mut conn, &files, &saved.file_name, at(10, 0, 0))
+                .is_err()
+        );
+        let names: Vec<String> = projects::list(&conn)
+            .unwrap()
+            .into_iter()
+            .map(|p| p.name)
+            .collect();
+        assert_eq!(names, ["Pólizas", "Recibos"], "la base viva no cambió");
+        let (original, render) = conn
+            .query_row(
+                "SELECT original_path, rendered_path FROM evidence WHERE id = ?1",
+                [&ev.id],
+                |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)),
+            )
+            .unwrap();
+        for rel in [&original, &render] {
+            assert!(files.absolute(rel).is_file(), "{rel} sigue en evidence/");
+        }
+        assert_eq!(evidence::sweep_orphans(&conn, &files).unwrap(), 0);
+        for rel in [&original, &render] {
+            assert!(files.absolute(rel).is_file(), "el barrido no borra {rel}");
+        }
+    }
+
+    #[test]
+    fn a_restore_that_fails_after_swapping_the_db_rolls_everything_back() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let mut conn = open(&tmp);
+        test_support::project(&conn); // «Recibos»
+        let backups = Backups::new(tmp.path());
+        let saved = backups.create_manual(&conn, at(9, 0, 0)).unwrap();
+        // Respaldo íntegro, pero su migración 0003 falla al restaurarlo (db::prepare).
+        Connection::open(backups.dir().join(&saved.file_name))
+            .unwrap()
+            .execute_batch(
+                "DROP TABLE doc_version; CREATE TABLE doc_version (x); PRAGMA user_version = 2;",
+            )
+            .unwrap();
+
+        let polizas = test_support::other_project(&conn);
+        let case = test_support::case(&conn, &polizas);
+        let staged = evidence::stage(&files, &sample_png(80, 60)).unwrap();
+        let meta = NewEvidenceMeta {
+            case_id: case.id.clone(),
+            staged_path: staged.path,
+            description: "Póliza emitida".into(),
+            annotations: EMPTY_ANNOTATIONS.into(),
+        };
+        evidence::add(&conn, &files, &meta, &sample_png(80, 60)).unwrap();
+
+        assert!(
+            backups
+                .restore(&mut conn, &files, &saved.file_name, at(10, 0, 0))
+                .is_err()
+        );
+        let names: Vec<String> = projects::list(&conn)
+            .unwrap()
+            .into_iter()
+            .map(|p| p.name)
+            .collect();
+        assert_eq!(names, ["Pólizas", "Recibos"], "volvió a la copia previa");
+        assert_eq!(db::schema_version(&conn).unwrap(), db::latest_version());
+        assert_eq!(
+            fs::read_dir(files.project_dir(&polizas.id))
+                .unwrap()
+                .count(),
+            2,
+            "las capturas volvieron a evidence/"
+        );
+        assert!(!tmp.path().join(UNUSED_DIR).join("20261016-100000").exists());
+        assert_eq!(evidence::sweep_orphans(&conn, &files).unwrap(), 0);
+    }
+
+    #[test]
+    fn list_skips_entries_that_are_not_backup_files() {
+        let tmp = TempDir::new();
+        let backups = Backups::new(tmp.path());
+        fs::create_dir_all(backups.dir().join("qapture-manual-20261016-090000.db")).unwrap();
+        fs::write(backups.dir().join("qapture-diario-20261016.db"), b"x").unwrap();
+        let names: Vec<String> = backups
+            .list()
+            .unwrap()
+            .into_iter()
+            .map(|b| b.file_name)
+            .collect();
+        assert_eq!(names, ["qapture-diario-20261016.db"]);
     }
 
     #[test]
