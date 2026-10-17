@@ -9,6 +9,20 @@ use crate::error::AppResult;
 
 pub mod seed;
 
+pub const DB_FILE: &str = "qapture.db";
+
+/// Versión de esquema que deja esta app (`PRAGMA user_version` tras migrar).
+pub fn latest_version() -> i64 {
+    MIGRATIONS.len() as i64
+}
+
+/// Claves foráneas, migraciones y plantillas incluidas. También se usa tras restaurar un respaldo.
+pub fn prepare(conn: &Connection) -> AppResult<()> {
+    conn.pragma_update(None, "foreign_keys", "ON")?;
+    migrate(conn)?;
+    seed::ensure_builtin_templates(conn)
+}
+
 const MIGRATIONS: &[&str] = &[
     include_str!("migrations/0001_init.sql"),
     include_str!("migrations/0002_evidence.sql"),
@@ -29,7 +43,7 @@ pub fn open(path: &Path) -> AppResult<Connection> {
 /// Spec §8: antes de migrar una base que ya tiene datos, deja una copia en `backups/`.
 fn backup_before_migrate(conn: &Connection, path: &Path) -> AppResult<Option<PathBuf>> {
     let current = schema_version(conn)?;
-    if current == 0 || current >= MIGRATIONS.len() as i64 {
+    if current == 0 || current >= latest_version() {
         return Ok(None);
     }
     let dir = path
@@ -48,9 +62,7 @@ pub fn open_in_memory() -> AppResult<Connection> {
 }
 
 fn init(conn: Connection) -> AppResult<Connection> {
-    conn.pragma_update(None, "foreign_keys", "ON")?;
-    migrate(&conn)?;
-    seed::ensure_builtin_templates(&conn)?;
+    prepare(&conn)?;
     Ok(conn)
 }
 

@@ -11,6 +11,7 @@ use crate::{
 
 pub const EVIDENCE_DIR: &str = "evidence";
 pub const STAGING_DIR: &str = "_staging";
+pub const UNUSED_DIR: &str = "evidence-sin-uso";
 
 /// `<datos>/evidence/<proyecto>/<id>.orig.png` y `.render.png`, más `evidence/_staging/`
 /// para las imágenes que todavía están abiertas en el editor.
@@ -153,6 +154,49 @@ impl EvidenceFiles {
         }
         Ok(removed)
     }
+
+    /// Como `sweep`, pero mueve lo no referenciado a `evidence-sin-uso/<stamp>/<proyecto>/` en vez
+    /// de borrarlo: restaurar un respaldo o recuperar la base nunca debe perder capturas.
+    pub fn set_aside(
+        &self,
+        referenced: &HashSet<String>,
+        projects: &HashSet<String>,
+        stamp: &str,
+    ) -> AppResult<usize> {
+        let root = self.root();
+        if !root.exists() {
+            return Ok(0);
+        }
+        let target = self.data_dir.join(UNUSED_DIR).join(stamp);
+        let mut moved = 0;
+        for entry in fs::read_dir(&root)? {
+            let entry = entry?;
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let path = entry.path();
+            if name == STAGING_DIR || !path.is_dir() {
+                continue;
+            }
+            let known_project = projects.contains(&name);
+            for file in fs::read_dir(&path)? {
+                let file = file?;
+                let rel = format!(
+                    "{EVIDENCE_DIR}/{name}/{}",
+                    file.file_name().to_string_lossy()
+                );
+                if known_project && referenced.contains(&rel) {
+                    continue;
+                }
+                let dest = target.join(&name);
+                fs::create_dir_all(&dest)?;
+                fs::rename(file.path(), dest.join(file.file_name()))?;
+                moved += 1;
+            }
+            if !known_project {
+                let _ = fs::remove_dir(&path);
+            }
+        }
+        Ok(moved)
+    }
 }
 
 /// Escribe en un temporal del mismo directorio y renombra: nunca deja un PNG a medias.
@@ -254,6 +298,40 @@ mod tests {
         write_atomic(&path, b"dos").unwrap();
         assert_eq!(fs::read(&path).unwrap(), b"dos");
         assert_eq!(fs::read_dir(tmp.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn set_aside_moves_unreferenced_files_instead_of_deleting_them() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        files.stage(b"x").unwrap();
+        let keep = EvidenceFiles::original_rel("p1", "e1");
+        let extra = EvidenceFiles::render_rel("p1", "e2");
+        let gone = EvidenceFiles::original_rel("p2", "e3");
+        for rel in [&keep, &extra, &gone] {
+            put(&files, rel);
+        }
+        let moved = files
+            .set_aside(
+                &HashSet::from([keep.clone()]),
+                &HashSet::from(["p1".to_string()]),
+                "20261016-100000",
+            )
+            .unwrap();
+        assert_eq!(moved, 2);
+        assert!(files.absolute(&keep).exists());
+        let target = tmp.path().join(UNUSED_DIR).join("20261016-100000");
+        assert!(target.join("p1").join("e2.render.png").exists());
+        assert!(target.join("p2").join("e3.orig.png").exists());
+        assert!(!files.project_dir("p2").exists());
+        assert!(files.staging_dir().exists(), "_staging no se toca");
+        assert_eq!(
+            files
+                .set_aside(&HashSet::new(), &HashSet::new(), "otra")
+                .unwrap(),
+            1,
+            "solo queda e1"
+        );
     }
 
     #[test]

@@ -239,6 +239,37 @@ pub struct ImportSummaryDto {
     pub evidence: i64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BackupKind {
+    Daily,
+    Manual,
+    BeforeRestore,
+    BeforeMigration,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupDto {
+    pub file_name: String,
+    pub kind: BackupKind,
+    /// Hora local de la copia (`AAAA-MM-DDTHH:MM:SS`).
+    pub created_at: String,
+    pub size_bytes: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RestoreResultDto {
+    pub restored: BackupDto,
+    /// Copia del estado anterior, por si hay que deshacer.
+    pub safety_copy: String,
+    /// Capturas del respaldo cuyo archivo ya no existe.
+    pub missing_images: i64,
+    /// Capturas que el respaldo no conoce, movidas a `evidence-sin-uso/`.
+    pub set_aside_files: i64,
+}
+
 #[cfg(test)]
 mod contract {
     use std::{collections::BTreeMap, path::PathBuf};

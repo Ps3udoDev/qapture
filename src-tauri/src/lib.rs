@@ -1,3 +1,5 @@
+#[allow(dead_code)] // Lo usan los comandos de la Task 8, que retira este allow.
+mod backup;
 mod capture;
 mod commands;
 mod db;
@@ -23,7 +25,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
-            let conn = db::open(&data_dir.join("qapture.db"))?;
+            let conn = db::open(&data_dir.join(db::DB_FILE))?;
             let files = media::storage::EvidenceFiles::new(&data_dir);
             // Restos de sesiones anteriores: capturas sin guardar y archivos sin fila en la db.
             if let Err(error) = files.clear_staging() {
