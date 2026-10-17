@@ -17,7 +17,7 @@ use crate::{
     system::shortcuts::ShortcutRegistrar,
 };
 
-/// Se invoca tras guardar los ajustes (la Task 5 aplica el inicio con Windows).
+/// Se invoca tras guardar los ajustes (el arranque sincroniza el inicio con Windows).
 pub type SavedHook = Box<dyn Fn(&Settings) + Send + Sync>;
 
 /// Registrador de atajos que acepta todo, hasta que se instale el real.
@@ -140,8 +140,7 @@ impl AppState {
             .unwrap_or_else(|poisoned| poisoned.into_inner()) = failures;
     }
 
-    /// Reemplaza el registrador nulo por el real (lo instala la Task 5 al arrancar).
-    #[allow(dead_code)] // TODO(F6-T5): lo instala el arranque
+    /// Reemplaza el registrador nulo por el real (lo instala el arranque).
     pub fn install_registrar(&self, registrar: Box<dyn ShortcutRegistrar + Send>) {
         *self
             .registrar
@@ -155,7 +154,6 @@ impl AppState {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
-    #[allow(dead_code)] // TODO(F6-T5): lo conecta el arranque (autostart)
     pub fn set_on_saved(&self, hook: SavedHook) {
         *self
             .on_saved

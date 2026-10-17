@@ -1,3 +1,4 @@
+use super::{runtime, shortcuts::ShortcutAction};
 use tauri::{
     Manager,
     menu::{Menu, MenuItem, PredefinedMenuItem},
@@ -40,7 +41,7 @@ fn hide_main(app: &tauri::AppHandle) {
     }
 }
 
-fn toggle_main(app: &tauri::AppHandle) {
+pub fn toggle_main(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         if window.is_visible().unwrap_or(false) {
             hide_main(app);
@@ -50,14 +51,15 @@ fn toggle_main(app: &tauri::AppHandle) {
     }
 }
 
-/// Punto único de despacho del menú; la Task 5 conecta captura, pegar y nuevo caso.
+/// Punto único de despacho del menú; captura, pegar y nuevo caso usan el despacho de los atajos.
 pub fn on_action(app: &tauri::AppHandle, action: TrayAction) {
     match action {
         TrayAction::Show => show_main(app),
         TrayAction::Hide => hide_main(app),
         TrayAction::Quit => app.exit(0),
-        // TODO(F6-T5): conectar con captura, portapapeles y nuevo caso.
-        TrayAction::Capture | TrayAction::Paste | TrayAction::NewCase => show_main(app),
+        TrayAction::Capture => runtime::dispatch(app, ShortcutAction::Capture),
+        TrayAction::Paste => runtime::dispatch(app, ShortcutAction::Paste),
+        TrayAction::NewCase => runtime::dispatch(app, ShortcutAction::NewCase),
     }
 }
 

@@ -14,6 +14,8 @@ mod system;
 mod transfer;
 
 use tauri::Manager;
+use tauri_plugin_autostart::MacosLauncher;
+use tauri_plugin_global_shortcut::ShortcutState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -23,6 +25,27 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, shortcut, event| {
+                    if event.state != ShortcutState::Pressed {
+                        return;
+                    }
+                    // Solo la copia en memoria de los ajustes: ni la base ni el registrador.
+                    let current = app.state::<state::AppState>().settings().shortcuts;
+                    let pressed = system::runtime::canonical_of(shortcut);
+                    if let Some(action) = system::shortcuts::action_for(&pressed, &current) {
+                        system::runtime::dispatch(app, action);
+                    }
+                })
+                .build(),
+        )
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            Some(vec![system::runtime::HIDDEN_ARG]),
+        ))
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
             let files = media::storage::EvidenceFiles::new(&data_dir);
@@ -44,8 +67,43 @@ pub fn run() {
                 }
             };
             app.manage(state);
-            system::daily_backup::spawn(app.handle().clone());
+            let handle = app.handle().clone();
+            let state = app.state::<state::AppState>();
+            // 1. Ajustes a la copia en memoria antes de registrar nada (en recuperación, los
+            //    valores por defecto de la base en memoria).
+            let loaded = repo::settings::load(&state.db()).unwrap_or_else(|error| {
+                eprintln!(
+                    "No se pudieron leer los ajustes, se usan los valores por defecto: {error}"
+                );
+                settings::Settings::default()
+            });
+            state.set_settings(loaded.clone());
+            // 2-3. Registrador real y atajos; lo que el SO rechace queda para el aviso del front.
+            state.install_registrar(Box::new(system::runtime::TauriRegistrar {
+                app: handle.clone(),
+            }));
+            let failures =
+                system::shortcuts::register_all(&mut **state.registrar(), &loaded.shortcuts)
+                    .into_iter()
+                    .map(|(action, accelerator)| dto::ShortcutFailureDto {
+                        action,
+                        accelerator,
+                    })
+                    .collect();
+            state.set_shortcut_failures(failures);
+            // 4. Inicio con Windows, al arrancar y cada vez que se guardan los ajustes.
+            system::runtime::sync_autostart(&handle, loaded.system.autostart);
+            let hook_app = handle.clone();
+            state.set_on_saved(Box::new(move |saved| {
+                system::runtime::sync_autostart(&hook_app, saved.system.autostart);
+            }));
+            system::daily_backup::spawn(handle.clone());
             system::tray::setup_tray(app)?;
+            // 5. La ventana arranca oculta (tauri.conf.json); se muestra salvo inicio oculto.
+            let args: Vec<String> = std::env::args().collect();
+            if !system::runtime::should_start_hidden(&args, &loaded.system) {
+                system::tray::show_main(&handle);
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -63,8 +121,15 @@ pub fn run() {
                 return;
             }
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let app = window.app_handle();
+                let prefs = app.state::<state::AppState>().settings().system;
                 api.prevent_close();
-                let _ = window.hide();
+                match system::runtime::close_action(&prefs) {
+                    system::runtime::CloseAction::Hide => {
+                        let _ = window.hide();
+                    }
+                    system::runtime::CloseAction::Exit => app.exit(0),
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![

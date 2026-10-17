@@ -186,7 +186,7 @@ pub fn apply(
 
 /// Registra al arrancar todo lo que se pueda; devuelve lo que el SO rechazó.
 pub fn register_all(
-    reg: &mut impl ShortcutRegistrar,
+    reg: &mut (impl ShortcutRegistrar + ?Sized),
     shortcuts: &Shortcuts,
 ) -> Vec<(ShortcutAction, String)> {
     ShortcutAction::ALL
