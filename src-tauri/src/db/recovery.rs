@@ -135,6 +135,11 @@ pub fn recover(
         &projects,
         &now.format("%Y%m%d-%H%M%S").to_string(),
     )?;
+    let sides_before: Vec<PathBuf> = SIDE_FILES
+        .iter()
+        .map(|suffix| with_suffix(path, suffix))
+        .filter(|side| side.exists())
+        .collect();
     let cleared = set_aside_corrupt(path, now).and_then(|_| {
         match SIDE_FILES
             .iter()
@@ -149,9 +154,12 @@ pub fn recover(
         }
     });
     if let Err(error) = cleared {
-        // Con la base dañada aún en su sitio el próximo arranque vuelve al modo recuperación y no
-        // barre nada: las capturas pueden volver a evidence/. Sin ella, se quedan apartadas.
-        if path.exists() {
+        // Solo si la base dañada quedó intacta (ella y sus -wal/-shm en su sitio) el próximo
+        // arranque vuelve al modo recuperación y no barre nada: las capturas pueden volver a
+        // evidence/. Si algo se movió (p. ej. el -wal sí y la base no), la base podría abrir sin su
+        // WAL como sana y barrer: las capturas se quedan en evidence-sin-uso.
+        let untouched = path.exists() && sides_before.iter().all(|side| side.exists());
+        if untouched {
             aside.undo();
         }
         return Err(error);
@@ -495,5 +503,45 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(fs::read(db_path(&tmp)).unwrap(), GARBAGE.repeat(200));
         assert_eq!(fs::read(image).unwrap(), b"png");
+    }
+
+    /// Doble fallo: el `-wal` dañado se apartó pero la base principal quedó bloqueada (antivirus).
+    /// La base queda sin su WAL y el próximo arranque podría abrirla como sana y barrer
+    /// evidence/: las capturas deben quedarse en evidence-sin-uso.
+    #[cfg(windows)]
+    #[test]
+    fn if_the_wal_was_moved_but_the_db_is_locked_the_images_stay_aside() {
+        use std::os::windows::fs::OpenOptionsExt;
+
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let path = db_path(&tmp);
+        let image = files.absolute(&EvidenceFiles::original_rel("p1", "e1"));
+        fs::create_dir_all(image.parent().unwrap()).unwrap();
+        fs::write(&image, b"png").unwrap();
+        fs::write(&path, GARBAGE.repeat(200)).unwrap();
+        fs::write(with_suffix(&path, "-wal"), b"wal").unwrap();
+        // Sin compartir: Windows no deja renombrar la base mientras este handle siga abierto.
+        let lock = fs::OpenOptions::new()
+            .read(true)
+            .share_mode(0)
+            .open(&path)
+            .unwrap();
+
+        let result = recover(&path, &Backups::new(tmp.path()), &files, None, now());
+        drop(lock);
+        assert!(result.is_err());
+        assert!(!with_suffix(&path, "-wal").exists(), "el -wal sí se apartó");
+        assert!(
+            !image.exists(),
+            "no vuelve a evidence/ junto a una base sin su WAL"
+        );
+        let aside = tmp
+            .path()
+            .join(UNUSED_DIR)
+            .join("20261016-100000")
+            .join("p1")
+            .join("e1.orig.png");
+        assert_eq!(fs::read(aside).unwrap(), b"png");
     }
 }
