@@ -3,8 +3,7 @@ import { describe, expect, it } from "vitest";
 import { emptyDocVersion } from "../../domain/doc-versions";
 import type { MemoryRepositories } from "../../infrastructure/memory/repositories";
 import type { Repositories } from "../../ports/repositories";
-import { renderApp } from "../test-utils";
-import { seedCases } from "./Evidence.test";
+import { renderApp, seedCases } from "../test-utils";
 
 const FILE = "T4S_ACME_Recibos_Evidencias_20261016_v1.0.xlsx";
 

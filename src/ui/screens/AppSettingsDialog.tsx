@@ -41,7 +41,16 @@ export function AppSettingsDialog({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const [backups, setBackups] = useState(false);
 
-  const patch = <K extends keyof Settings>(section: K, change: Partial<Settings[K]>) => setDraft((d) => ({ ...d, [section]: { ...d[section], ...change } }));
+  const patch = <K extends keyof Settings>(section: K, change: Partial<Settings[K]>) => {
+    setDraft((d) => ({ ...d, [section]: { ...d[section], ...change } }));
+    // Al editar un campo se limpia su error (y el general, que ya no describe el estado actual).
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next._form;
+      for (const key of Object.keys(change)) delete next[`${section}.${key}`];
+      return next;
+    });
+  };
   const failed = new Set((snapshot?.shortcutFailures ?? []).map((f) => f.action));
 
   async function save() {

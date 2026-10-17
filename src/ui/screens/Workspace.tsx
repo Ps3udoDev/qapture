@@ -49,7 +49,7 @@ export function Workspace() {
     <main className="flex min-h-0 flex-1">
       <CaseListPane onNewCase={() => openCaseForm()} />
       <CaseDetail onEdit={(caseId) => openCaseForm(caseId)} />
-      {request && !editorOpen && <CaseFormDialog caseId={request.caseId ?? undefined} onClose={closeCaseForm} />}
+      {request && !editorOpen && <CaseFormDialog key={request.caseId ?? "new"} caseId={request.caseId ?? undefined} onClose={closeCaseForm} />}
       <EvidenceEditorHost />
     </main>
   );

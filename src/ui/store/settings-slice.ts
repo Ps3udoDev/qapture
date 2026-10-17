@@ -65,7 +65,8 @@ export function createSettingsSlice(repos: Repositories, set: Set, get: Get, h: 
 
     testerName: () => get().settings?.settings.profile.tester ?? "",
 
-    openCaseForm: (caseId = null) => set({ caseFormRequest: { caseId } }),
+    // Un formulario abierto no se reemplaza: conserva lo que la persona está escribiendo.
+    openCaseForm: (caseId = null) => set((s) => (s.caseFormRequest ? s : { caseFormRequest: { caseId } })),
     closeCaseForm: () => set({ caseFormRequest: null }),
 
     async pickExportFolder() {

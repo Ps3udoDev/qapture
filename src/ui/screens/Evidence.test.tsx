@@ -2,18 +2,7 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { describe, expect, it } from "vitest";
 import { emptyAnnotations, serializeAnnotations } from "../../domain/annotations";
 import type { Repositories } from "../../ports/repositories";
-import { renderApp, seedProject } from "../test-utils";
-
-export const PNG_BYTES = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-export const png = (name = "captura.png") => new File([new Uint8Array(PNG_BYTES)], name, { type: "image/png" });
-
-export async function seedCases(repos: Repositories) {
-  const p = await seedProject(repos);
-  const entorno = p.fields.find((f) => f.key === "entorno")!.id;
-  const a = await repos.cases.create(p.id, { title: "Recibos", status: "No ejecutado", values: { [entorno]: "QA" } });
-  const b = await repos.cases.create(p.id, { title: "Pólizas", status: "No ejecutado", values: { [entorno]: "QA" } });
-  return { p, a, b };
-}
+import { PNG_BYTES, png, renderApp, seedCases } from "../test-utils";
 
 const paste = (files: File[], types = ["Files"]) => fireEvent.paste(window, { clipboardData: { files, items: [], types } });
 const editor = () => screen.findByRole("dialog", { name: "Editor de evidencia" });

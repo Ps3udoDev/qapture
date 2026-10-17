@@ -1,7 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { renderApp, seedProject } from "../test-utils";
-import { PNG_BYTES, seedCases } from "./Evidence.test";
+import { PNG_BYTES, renderApp, seedCases, seedProject } from "../test-utils";
 
 async function openSettings(options: Parameters<typeof renderApp>[0] = {}) {
   const ctx = await renderApp(options);
@@ -146,5 +145,35 @@ describe("ajustes de la aplicación", () => {
     fireEvent.click(within(editor).getByRole("button", { name: "Cancelar" }));
     expect(await screen.findByRole("dialog", { name: "Nuevo caso" })).toBeInTheDocument();
     expect(repos.evidence.stagedCount()).toBe(0);
+  });
+
+it("editar un caso desde el formulario por caseFormRequest lo actualiza sin crear otro", async () => {
+    const { user, store } = await renderApp({ setup: async (repos) => void (await seedCases(repos)) });
+    await user.click(screen.getByRole("button", { name: /Editar/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Editar EJ-001" });
+    const title = within(dialog).getByLabelText(/Caso de prueba/);
+    await user.clear(title);
+    await user.type(title, "Recibos v2");
+    await user.click(within(dialog).getByRole("button", { name: "Guardar caso" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Editar EJ-001" })).not.toBeInTheDocument());
+    const cases = store.getState().cases;
+    expect(cases).toHaveLength(2);
+    expect(cases.find((c) => c.code === "EJ-001")?.title).toBe("Recibos v2");
+  });
+
+  it("Nuevo caso con un formulario de edición abierto conserva la edición en curso", async () => {
+    const { user, repos, store } = await renderApp({ setup: async (repos) => void (await seedCases(repos)) });
+    await user.click(screen.getByRole("button", { name: /Editar/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Editar EJ-001" });
+    const title = within(dialog).getByLabelText(/Caso de prueba/);
+    await user.type(title, " editado");
+
+    act(() => repos.settings.emitNewCase());
+    expect(screen.getByRole("dialog", { name: "Editar EJ-001" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Nuevo caso" })).not.toBeInTheDocument();
+    expect(within(screen.getByRole("dialog", { name: "Editar EJ-001" })).getByLabelText(/Caso de prueba/)).toHaveValue("Recibos editado");
+    await user.click(screen.getByRole("button", { name: "Guardar caso" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(store.getState().cases).toHaveLength(2);
   });
 });
