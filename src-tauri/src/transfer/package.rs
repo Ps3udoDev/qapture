@@ -14,10 +14,14 @@ use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use zip::{CompressionMethod, ZipArchive, ZipWriter, write::SimpleFileOptions};
 
+#[cfg(test)]
+use super::bundle;
 use super::bundle::{
-    self, BundleCase, BundleEvidence, BundleField, BundleVersion, IMPORT_FAILED, ImportFiles,
-    Problems, ProjectBundle, code_number, is_case_code,
+    BundleCase, BundleEvidence, BundleField, BundleVersion, IMPORT_FAILED, ImportFiles, Problems,
+    ProjectBundle, code_number, is_case_code,
 };
+#[cfg(test)]
+use crate::dto::ImportSummaryDto;
 use crate::{
     db::new_id,
     domain::{
@@ -25,7 +29,7 @@ use crate::{
         status::is_status,
         text::required_text,
     },
-    dto::{DocVersionInput, ImportSummaryDto, ProjectMetaInput},
+    dto::{DocVersionInput, ProjectMetaInput},
     error::{AppError, AppResult, validation},
     excel::{data::file_segment, save::ensure_writable},
     media::{raster, storage::EvidenceFiles},
@@ -659,12 +663,11 @@ fn to_bundle<R: Read + Seek>(
     })
 }
 
-/// UC-18: importa el paquete como un proyecto nuevo (nunca sobrescribe). Todo o nada.
-pub fn import(
-    conn: &Connection,
-    files: &EvidenceFiles,
+/// Parte de UC-18 que no necesita la base: lee, valida y escribe las capturas.
+pub fn prepare<'a>(
+    files: &'a EvidenceFiles,
     path: &Path,
-) -> AppResult<ImportSummaryDto> {
+) -> AppResult<(ProjectBundle, ImportFiles<'a>)> {
     let zip = ZipArchive::new(File::open(path)?).map_err(|_| validation(NOT_PACKAGE))?;
     if zip.len() > MAX_ENTRIES {
         return Err(validation(TOO_BIG));
@@ -677,6 +680,17 @@ pub fn import(
     validate(&doc)?;
     let mut out = ImportFiles::new(files);
     let bundle = to_bundle(doc, &mut reader, &mut out)?;
+    Ok((bundle, out))
+}
+
+/// UC-18: importa el paquete como un proyecto nuevo (nunca sobrescribe). Todo o nada.
+#[cfg(test)]
+pub fn import(
+    conn: &Connection,
+    files: &EvidenceFiles,
+    path: &Path,
+) -> AppResult<ImportSummaryDto> {
+    let (bundle, out) = prepare(files, path)?;
     bundle::insert(conn, vec![bundle], out)
 }
 

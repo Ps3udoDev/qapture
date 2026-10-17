@@ -118,6 +118,14 @@ fn has_values(conn: &Connection, field_id: &str) -> AppResult<bool> {
     )?)
 }
 
+fn has_longer_than(conn: &Connection, field_id: &str, max: usize) -> AppResult<bool> {
+    Ok(conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM field_value WHERE field_id = ?1 AND length(value) > ?2)",
+        params![field_id, max as i64],
+        |r| r.get(0),
+    )?)
+}
+
 fn values_in_use(conn: &Connection, field_id: &str) -> AppResult<Vec<String>> {
     let mut stmt =
         conn.prepare("SELECT DISTINCT value FROM field_value WHERE field_id = ?1 ORDER BY value")?;
@@ -233,6 +241,16 @@ pub fn save(
                 {
                     return Err(validation(format!(
                         "No se puede cambiar el tipo de «{label}» porque ya tiene datos. Solo se permite cambiar a Texto o Texto largo."
+                    )));
+                }
+                if with_data
+                    && current.field_type == FieldType::Longtext
+                    && input.field_type == FieldType::Text
+                    && has_longer_than(&tx, id, FieldType::Text.max_len())?
+                {
+                    return Err(validation(format!(
+                        "No se puede cambiar «{label}» a Texto: tiene valores de más de {} caracteres.",
+                        FieldType::Text.max_len()
                     )));
                 }
                 if with_data
@@ -451,6 +469,32 @@ mod tests {
 
         let mut to_text: Vec<FieldInput> = p.fields.iter().map(to_input).collect();
         to_text[idx].field_type = FieldType::Longtext;
+        assert!(save(&conn, &p.id, to_text).is_ok());
+    }
+
+    #[test]
+    fn longtext_with_long_values_cannot_become_text() {
+        let conn = conn();
+        let p = project(&conn);
+        let id = field_id(&p, "datos_entrada");
+        insert_value(&conn, &p.id, &id, &"x".repeat(600));
+        let idx = p
+            .fields
+            .iter()
+            .position(|f| f.key == "datos_entrada")
+            .unwrap();
+        let mut to_text: Vec<FieldInput> = p.fields.iter().map(to_input).collect();
+        to_text[idx].field_type = FieldType::Text;
+        assert_eq!(
+            save(&conn, &p.id, to_text.clone()).unwrap_err().to_string(),
+            "No se puede cambiar «Datos de entrada» a Texto: tiene valores de más de 500 caracteres."
+        );
+
+        conn.execute(
+            "UPDATE field_value SET value = ?1 WHERE field_id = ?2",
+            params!["y".repeat(500), id],
+        )
+        .unwrap();
         assert!(save(&conn, &p.id, to_text).is_ok());
     }
 

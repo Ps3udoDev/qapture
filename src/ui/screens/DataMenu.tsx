@@ -1,5 +1,5 @@
 import { Database } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { btn } from "../components/styles";
 import { useWorkspace } from "../store/context";
 
@@ -21,11 +21,19 @@ function MenuItem({ children, disabled = false, onClick }: { children: ReactNode
 export function DataMenu({ onBackups }: { onBackups: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
   const project = useWorkspace((s) => s.project);
   const busy = useWorkspace((s) => s.dataBusy);
   const importLegacy = useWorkspace((s) => s.importLegacy);
   const importPackage = useWorkspace((s) => s.importPackage);
   const exportPackage = useWorkspace((s) => s.exportPackage);
+
+  const items = () => Array.from(menu.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? []);
+
+  useEffect(() => {
+    if (open) items()[0]?.focus();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -33,7 +41,9 @@ export function DataMenu({ onBackups }: { onBackups: () => void }) {
       if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      trigger.current?.focus();
     };
     document.addEventListener("mousedown", onPointer);
     window.addEventListener("keydown", onKey);
@@ -43,6 +53,20 @@ export function DataMenu({ onBackups }: { onBackups: () => void }) {
     };
   }, [open]);
 
+  const onMenuKey = (e: ReactKeyboardEvent) => {
+    const list = items();
+    if (list.length === 0) return;
+    const at = list.indexOf(document.activeElement as HTMLButtonElement);
+    let next: number;
+    if (e.key === "ArrowDown") next = (at + 1) % list.length;
+    else if (e.key === "ArrowUp") next = (at <= 0 ? list.length : at) - 1;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = list.length - 1;
+    else return;
+    e.preventDefault();
+    list[next].focus();
+  };
+
   const run = (action: () => void) => () => {
     setOpen(false);
     action();
@@ -50,11 +74,11 @@ export function DataMenu({ onBackups }: { onBackups: () => void }) {
 
   return (
     <div ref={ref} className="relative">
-      <button type="button" className={btn.secondary} aria-haspopup="menu" aria-expanded={open} disabled={busy} onClick={() => setOpen((o) => !o)}>
+      <button ref={trigger} type="button" className={btn.secondary} aria-haspopup="menu" aria-expanded={open} disabled={busy} onClick={() => setOpen((o) => !o)}>
         <Database size={16} /> Datos
       </button>
       {open && (
-        <div role="menu" aria-label="Datos" className="absolute right-0 z-30 mt-1 w-64 rounded-lg border border-t4s-line bg-white py-1 shadow-lg">
+        <div ref={menu} role="menu" aria-label="Datos" onKeyDown={onMenuKey} className="absolute right-0 z-30 mt-1 w-64 rounded-lg border border-t4s-line bg-white py-1 shadow-lg">
           <MenuItem onClick={run(() => void importLegacy())}>Importar Bitácora v1…</MenuItem>
           <MenuItem onClick={run(() => void importPackage())}>Importar paquete .qapture…</MenuItem>
           <MenuItem disabled={!project} onClick={run(() => void exportPackage())}>

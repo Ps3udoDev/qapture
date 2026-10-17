@@ -45,6 +45,24 @@ describe("menú Datos", () => {
     await waitFor(() => expect(repos.exporter.revealed).toHaveLength(1));
   });
 
+  it("el menú Datos se maneja con el teclado", async () => {
+    const { user } = await renderApp();
+    const menu = await openMenu(user);
+    const item = (name: string) => within(menu).getByRole("menuitem", { name });
+    expect(item("Importar Bitácora v1…")).toHaveFocus();
+    await user.keyboard("{ArrowDown}");
+    expect(item("Importar paquete .qapture…")).toHaveFocus();
+    await user.keyboard("{ArrowUp}{ArrowUp}");
+    expect(item("Respaldos…")).toHaveFocus(); // circular, salta el ítem deshabilitado
+    await user.keyboard("{Home}");
+    expect(item("Importar Bitácora v1…")).toHaveFocus();
+    await user.keyboard("{End}");
+    expect(item("Respaldos…")).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Datos/ })).toHaveFocus();
+  });
+
   it("Escape y un clic fuera cierran el menú", async () => {
     const { user } = await renderApp();
     await openMenu(user);

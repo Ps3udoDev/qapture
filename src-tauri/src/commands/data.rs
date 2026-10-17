@@ -12,7 +12,7 @@ use crate::{
     error::{AppResult, validation},
     state::AppState,
     system::runtime,
-    transfer::{legacy, package},
+    transfer::{bundle, legacy, package},
 };
 
 fn now() -> NaiveDateTime {
@@ -64,7 +64,9 @@ pub fn import_legacy(
         return Err(validation("El archivo supera 200 MB."));
     }
     let bytes = fs::read(&path)?;
-    legacy::import(&state.db(), state.files(), &bytes).map(Some)
+    let template = legacy::template_fields(&state.db())?;
+    let (bundles, out) = legacy::prepare(&template, state.files(), &bytes)?;
+    bundle::insert(&state.db(), bundles, out).map(Some)
 }
 
 #[tauri::command(async)]
@@ -81,7 +83,8 @@ pub fn import_package(
     ) else {
         return Ok(None);
     };
-    package::import(&state.db(), state.files(), &path).map(Some)
+    let (bundle, out) = package::prepare(state.files(), &path)?;
+    bundle::insert(&state.db(), vec![bundle], out).map(Some)
 }
 
 #[tauri::command(async)]
