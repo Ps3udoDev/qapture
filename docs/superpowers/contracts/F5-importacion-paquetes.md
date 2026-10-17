@@ -14,14 +14,14 @@ Migrar los datos de la Bitácora v1 sin pérdidas, compartir proyectos entre com
 | Modo recuperación si la db no abre | |
 
 ## Tasks
-| ID | Task |
-|---|---|
-| F5-T1 | `legacy.rs`: parser y validación del schema v1 (mismas reglas que `store.mjs`), mapeo a la plantilla Funcional, decodificación de base64 a PNG |
-| F5-T2 | Fixture v1 **anonimizado** (sin datos de GMX) para tests |
-| F5-T3 | Formato `.qapture` versionado (`formatVersion: 1`), exportar e importar como copia ("(importado)" si el nombre existe) |
-| F5-T4 | Respaldos: copia diaria con la API de backup de SQLite, rotación de 7, respaldo manual y restaurar con confirmación |
-| F5-T5 | Modo recuperación al arrancar con db corrupta |
-| F5-T6 | UI: menú Datos (importar v1, importar/exportar paquete, respaldos) con resumen del resultado |
+| ID | Task | Estado |
+|---|---|---|
+| F5-T1 | `legacy.rs`: parser y validación del schema v1 (mismas reglas que `store.mjs`), mapeo a la plantilla Funcional, decodificación de base64 a PNG | ✅ |
+| F5-T2 | Fixture v1 **anonimizado** (sin datos de GMX) para tests | ✅ |
+| F5-T3 | Formato `.qapture` versionado (`formatVersion: 1`), exportar e importar como copia ("(importado)" si el nombre existe) | ✅ |
+| F5-T4 | Respaldos: copia diaria con la API de backup de SQLite, rotación de 7, respaldo manual y restaurar con confirmación | ✅ |
+| F5-T5 | Modo recuperación al arrancar con db corrupta | ✅ |
+| F5-T6 | UI: menú Datos (importar v1, importar/exportar paquete, respaldos) con resumen del resultado | ✅ |
 
 ## Notas de implementación (acordadas en el plan)
 - Las capturas PNG de la v1 se guardan byte a byte (original = render, sin reducir). Las JPEG se convierten a PNG. «Mismo hash» se verifica comparando bytes.
@@ -38,9 +38,9 @@ Migrar los datos de la Bitácora v1 sin pérdidas, compartir proyectos entre com
 - Formato `.qapture` `formatVersion: 1` (ver plan, Task 4). Un cambio incompatible sube `formatVersion`; las versiones viejas de la app rechazan los paquetes nuevos con un mensaje claro.
 
 ## Criterios de aceptación
-- [ ] Importar el fixture v1 conserva los códigos EJ-###, `next_sequence`, los textos con saltos de línea y las imágenes (mismo hash).
-- [ ] La importación es todo o nada; un error deja la db intacta.
-- [ ] Exportar paquete → importar → exportar da el mismo `project.json` (salvo ids).
+- [x] Importar el fixture v1 conserva los códigos EJ-###, `next_sequence`, los textos con saltos de línea y las imágenes (mismo hash). → `transfer::legacy::tests::imports_the_fixture_keeping_codes_sequence_text_and_images`
+- [x] La importación es todo o nada; un error deja la db intacta. → `transfer::legacy::tests::a_truncated_png_in_the_second_project_rolls_back_everything`, `transfer::legacy::tests::a_rejected_file_writes_nothing`, `transfer::package::tests::foreign_newer_or_damaged_packages_import_nothing`, `transfer::bundle::tests::a_failed_insert_leaves_no_rows_and_no_files`
+- [x] Exportar paquete → importar → exportar da el mismo `project.json` (sin ids en el archivo, así que la igualdad es byte a byte). → `transfer::package::tests::export_import_export_gives_the_same_project_json`
 
 ## Checklist de pruebas locales
 | # | Prueba | Esperado | OK |
