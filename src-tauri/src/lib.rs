@@ -93,6 +93,12 @@ pub fn run() {
             if plan.show {
                 system::tray::show_main(&handle);
             }
+            // Con la ventana oculta nadie vería el toast del front: aviso nativo por cada atajo caído.
+            for message in
+                system::runtime::startup_notifications(&state.shortcut_failures(), !plan.show)
+            {
+                system::runtime::notify(&handle, &message);
+            }
             Ok(())
         })
         .on_window_event(|window, event| {

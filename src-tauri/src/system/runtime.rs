@@ -94,6 +94,24 @@ pub fn reload_settings(state: &AppState) -> Settings {
     loaded
 }
 
+/// Avisos nativos de los atajos que no se registraron. Solo con la ventana oculta: si se ve,
+/// basta el toast del front (mismo texto que `shortcutFailureMessage`).
+pub fn startup_notifications(failures: &[ShortcutFailureDto], hidden: bool) -> Vec<String> {
+    if !hidden {
+        return Vec::new();
+    }
+    failures
+        .iter()
+        .map(|f| {
+            format!(
+                "No se pudo registrar {} («{}»): otra aplicación ya la usa. Cámbialo en Ajustes › Atajos.",
+                f.accelerator,
+                f.action.label()
+            )
+        })
+        .collect()
+}
+
 /// Forma canónica (`Ctrl+Alt+Win+Q`) → formato del plugin (`Win` se llama `Super`).
 pub fn to_plugin_accel(canonical: &str) -> String {
     canonical
@@ -163,7 +181,7 @@ pub fn sync_autostart(app: &AppHandle, enabled: bool) {
     }
 }
 
-fn notify(app: &AppHandle, body: &str) {
+pub fn notify(app: &AppHandle, body: &str) {
     if let Err(error) = app
         .notification()
         .builder()
@@ -333,6 +351,22 @@ mod tests {
             ["Ctrl+Alt+N", "Ctrl+Alt+Q", "Ctrl+Alt+S", "Ctrl+Alt+V"]
         );
         assert!(state.shortcut_failures().is_empty());
+    }
+
+    #[test]
+    fn failures_are_notified_only_when_starting_hidden() {
+        let failures = [ShortcutFailureDto {
+            action: ShortcutAction::Paste,
+            accelerator: "Ctrl+Alt+V".into(),
+        }];
+        assert_eq!(
+            startup_notifications(&failures, true),
+            [
+                "No se pudo registrar Ctrl+Alt+V («Pegar evidencia»): otra aplicación ya la usa. Cámbialo en Ajustes › Atajos."
+            ]
+        );
+        assert!(startup_notifications(&failures, false).is_empty());
+        assert!(startup_notifications(&[], true).is_empty());
     }
 
     #[test]
