@@ -40,12 +40,14 @@ fn opener_error(error: tauri_plugin_opener::Error) -> AppError {
 
 /// `repo::settings::load` no comprueba rangos: se ajusta el ancho de imagen al rango válido y,
 /// si algún texto sigue sin validar, el perfil vuelve a sus valores por defecto. Así la interfaz
-/// nunca recibe datos fuera de rango.
-fn sanitized(mut loaded: Settings) -> Settings {
+/// nunca recibe datos fuera de rango. Unos atajos guardados inválidos vuelven a los de por
+/// defecto, así nunca se registran en el SO.
+pub(crate) fn sanitized(mut loaded: Settings) -> Settings {
     loaded.export.image_max_width = loaded
         .export
         .image_max_width
         .clamp(*IMAGE_WIDTH.start(), *IMAGE_WIDTH.end());
+    loaded.shortcuts = shortcuts::validate(&loaded.shortcuts).unwrap_or_default();
     match settings::validate(&loaded) {
         Ok(valid) => valid,
         Err(_) => Settings {
@@ -337,5 +339,20 @@ mod tests {
         let fixed = sanitized(loaded);
         assert_eq!(fixed.export.image_max_width, 1600);
         assert_eq!(fixed.profile.tester, "");
+    }
+
+    #[test]
+    fn an_invalid_stored_shortcut_set_falls_back_to_defaults() {
+        let fixed = sanitized(with(|s| {
+            s.shortcuts.capture = "Ctrl+Alt+Q".into();
+            s.profile.tester = "Ana".into();
+        }));
+        assert_eq!(fixed.shortcuts, settings::Shortcuts::default());
+        assert_eq!(fixed.profile.tester, "Ana");
+        let fixed = sanitized(with(|s| s.shortcuts.toggle = "alt+ctrl+p".into()));
+        assert_eq!(
+            fixed.shortcuts.toggle, "Ctrl+Alt+P",
+            "uno válido solo se normaliza"
+        );
     }
 }

@@ -13,12 +13,14 @@ use crate::{
         screen::XcapScreen,
         windows::{CAPTURED_EVENT, TauriHost},
     },
-    dto::CapturedEventDto,
-    settings::SystemPrefs,
+    commands,
+    dto::{CapturedEventDto, ShortcutFailureDto},
+    repo,
+    settings::{Settings, SystemPrefs},
     state::AppState,
     system::{
         clipboard_paste::{self, NO_IMAGE, PasteOutcome},
-        shortcuts::{ShortcutAction, ShortcutRegistrar},
+        shortcuts::{self, ShortcutAction, ShortcutRegistrar},
         tray,
     },
 };
@@ -44,6 +46,52 @@ pub fn close_action(prefs: &SystemPrefs) -> CloseAction {
     } else {
         CloseAction::Exit
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StartupPlan {
+    pub sync_autostart: bool,
+    pub show: bool,
+}
+
+/// En modo recuperación los ajustes son los por defecto de una base vacía: no se toca el inicio
+/// con Windows real y la ventana siempre se muestra (la pantalla de recuperación debe verse).
+pub fn startup_plan(recovery: bool, args: &[String], prefs: &SystemPrefs) -> StartupPlan {
+    StartupPlan {
+        sync_autostart: !recovery,
+        show: recovery || !should_start_hidden(args, prefs),
+    }
+}
+
+/// Lee los ajustes de la base actual (saneados), los deja en la copia en memoria y cambia los
+/// atajos registrados por los nuevos. Lo usan el arranque y la restauración de la base.
+/// El candado de la base se suelta antes de tocar el registrador.
+pub fn reload_settings(state: &AppState) -> Settings {
+    let loaded = repo::settings::load(&state.db()).unwrap_or_else(|error| {
+        eprintln!("No se pudieron leer los ajustes, se usan los valores por defecto: {error}");
+        Settings::default()
+    });
+    let loaded = commands::settings::sanitized(loaded);
+    let old = state.settings();
+    // Primero la copia en memoria: el handler de atajos ya busca en el juego nuevo.
+    state.set_settings(loaded.clone());
+    let failures = {
+        let mut registrar = state.registrar();
+        for action in ShortcutAction::ALL {
+            registrar.unregister(action.accel(&old.shortcuts));
+        }
+        shortcuts::register_all(&mut **registrar, &loaded.shortcuts)
+    };
+    state.set_shortcut_failures(
+        failures
+            .into_iter()
+            .map(|(action, accelerator)| ShortcutFailureDto {
+                action,
+                accelerator,
+            })
+            .collect(),
+    );
+    loaded
 }
 
 /// Forma canónica (`Ctrl+Alt+Win+Q`) → formato del plugin (`Win` se llama `Super`).
@@ -202,6 +250,89 @@ mod tests {
             &args(&["qapture.exe", "--hidden"]),
             &prefs(false, true)
         ));
+    }
+
+    #[test]
+    fn recovery_mode_always_shows_the_window_and_leaves_autostart_alone() {
+        let hidden = args(&["qapture.exe", "--hidden"]);
+        let on = prefs(true, true);
+        assert_eq!(
+            startup_plan(true, &hidden, &on),
+            StartupPlan {
+                sync_autostart: false,
+                show: true
+            }
+        );
+        assert_eq!(
+            startup_plan(false, &hidden, &on),
+            StartupPlan {
+                sync_autostart: true,
+                show: false
+            }
+        );
+        assert!(startup_plan(false, &args(&["qapture.exe"]), &on).show);
+    }
+
+    #[derive(Clone, Default)]
+    struct FakeRegistrar {
+        registered: std::sync::Arc<std::sync::Mutex<std::collections::BTreeSet<String>>>,
+    }
+
+    impl ShortcutRegistrar for FakeRegistrar {
+        fn register(&mut self, accel: &str) -> Result<(), String> {
+            self.registered.lock().unwrap().insert(accel.to_string());
+            Ok(())
+        }
+        fn unregister(&mut self, accel: &str) {
+            self.registered.lock().unwrap().remove(accel);
+        }
+    }
+
+    fn registered(fake: &FakeRegistrar) -> Vec<String> {
+        fake.registered.lock().unwrap().iter().cloned().collect()
+    }
+
+    #[test]
+    fn reload_swaps_cache_and_registrations_to_the_stored_settings() {
+        use crate::{db, media::storage::TempDir};
+        let tmp = TempDir::new();
+        let state = AppState::new(
+            db::open(&tmp.path().join(db::DB_FILE)).unwrap(),
+            tmp.files(),
+            tmp.path(),
+            None,
+        );
+        let fake = FakeRegistrar::default();
+        state.install_registrar(Box::new(fake.clone()));
+        reload_settings(&state);
+        assert_eq!(
+            registered(&fake),
+            ["Ctrl+Alt+N", "Ctrl+Alt+Q", "Ctrl+Alt+S", "Ctrl+Alt+V"]
+        );
+
+        let mut stored = Settings::default();
+        stored.shortcuts.toggle = "Ctrl+Alt+P".into();
+        stored.system.autostart = true;
+        repo::settings::save(&state.db(), &stored).unwrap();
+        let loaded = reload_settings(&state);
+        assert_eq!(loaded, stored);
+        assert_eq!(state.settings(), stored);
+        assert_eq!(
+            registered(&fake),
+            ["Ctrl+Alt+N", "Ctrl+Alt+P", "Ctrl+Alt+S", "Ctrl+Alt+V"]
+        );
+
+        // Un juego guardado corrupto (duplicado) nunca llega al SO: vuelven los de por defecto.
+        let mut corrupt = stored.clone();
+        corrupt.shortcuts.capture = "Ctrl+Alt+P".into();
+        repo::settings::save(&state.db(), &corrupt).unwrap();
+        let loaded = reload_settings(&state);
+        assert_eq!(loaded.shortcuts, crate::settings::Shortcuts::default());
+        assert_eq!(
+            registered(&fake),
+            ["Ctrl+Alt+N", "Ctrl+Alt+Q", "Ctrl+Alt+S", "Ctrl+Alt+V"]
+        );
+        assert!(state.shortcut_failures().is_empty());
     }
 
     #[test]

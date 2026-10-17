@@ -69,39 +69,28 @@ pub fn run() {
             app.manage(state);
             let handle = app.handle().clone();
             let state = app.state::<state::AppState>();
-            // 1. Ajustes a la copia en memoria antes de registrar nada (en recuperación, los
-            //    valores por defecto de la base en memoria).
-            let loaded = repo::settings::load(&state.db()).unwrap_or_else(|error| {
-                eprintln!(
-                    "No se pudieron leer los ajustes, se usan los valores por defecto: {error}"
-                );
-                settings::Settings::default()
-            });
-            state.set_settings(loaded.clone());
-            // 2-3. Registrador real y atajos; lo que el SO rechace queda para el aviso del front.
+            // Registrador real y ajustes saneados: `reload_settings` deja la copia en memoria
+            // antes de registrar (en recuperación, los valores por defecto de la base en memoria);
+            // lo que el SO rechace queda para el aviso del front.
             state.install_registrar(Box::new(system::runtime::TauriRegistrar {
                 app: handle.clone(),
             }));
-            let failures =
-                system::shortcuts::register_all(&mut **state.registrar(), &loaded.shortcuts)
-                    .into_iter()
-                    .map(|(action, accelerator)| dto::ShortcutFailureDto {
-                        action,
-                        accelerator,
-                    })
-                    .collect();
-            state.set_shortcut_failures(failures);
-            // 4. Inicio con Windows, al arrancar y cada vez que se guardan los ajustes.
-            system::runtime::sync_autostart(&handle, loaded.system.autostart);
+            let loaded = system::runtime::reload_settings(&state);
+            let args: Vec<String> = std::env::args().collect();
+            let plan =
+                system::runtime::startup_plan(state.recovery().is_some(), &args, &loaded.system);
+            // Inicio con Windows, al arrancar (salvo en recuperación) y cada vez que se guarda.
+            if plan.sync_autostart {
+                system::runtime::sync_autostart(&handle, loaded.system.autostart);
+            }
             let hook_app = handle.clone();
             state.set_on_saved(Box::new(move |saved| {
                 system::runtime::sync_autostart(&hook_app, saved.system.autostart);
             }));
             system::daily_backup::spawn(handle.clone());
             system::tray::setup_tray(app)?;
-            // 5. La ventana arranca oculta (tauri.conf.json); se muestra salvo inicio oculto.
-            let args: Vec<String> = std::env::args().collect();
-            if !system::runtime::should_start_hidden(&args, &loaded.system) {
+            // La ventana arranca oculta (tauri.conf.json); se muestra salvo inicio oculto.
+            if plan.show {
                 system::tray::show_main(&handle);
             }
             Ok(())
