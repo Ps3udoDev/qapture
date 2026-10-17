@@ -25,7 +25,6 @@ pub struct AppState {
     recovery: Mutex<Option<String>>,
 }
 
-#[allow(dead_code)] // Los usan los comandos de la Task 8.
 impl AppState {
     pub fn new(
         conn: Connection,

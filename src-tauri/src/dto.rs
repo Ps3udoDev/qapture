@@ -270,6 +270,24 @@ pub struct RestoreResultDto {
     pub set_aside_files: i64,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageExportResultDto {
+    pub path: String,
+    pub file_name: String,
+    pub cases: i64,
+    pub evidence: i64,
+    pub missing_images: i64,
+}
+
+/// Lo primero que pide el front: si la base está dañada, muestra la pantalla de recuperación.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StartupStatusDto {
+    pub recovery: bool,
+    pub detail: String,
+}
+
 #[cfg(test)]
 mod contract {
     use std::{collections::BTreeMap, path::PathBuf};
@@ -336,10 +354,43 @@ mod contract {
         })
     }
 
+    /// F5: en un objeto aparte para no superar el límite de recursión de `json!`.
+    fn data_samples() -> Value {
+        let backup = BackupDto {
+            file_name: "qapture-diario-20261016.db".into(),
+            kind: BackupKind::Daily,
+            created_at: "2026-10-16T09:00:00".into(),
+            size_bytes: 98_304,
+        };
+        json!({
+            "importSummary": ImportSummaryDto {
+                projects: vec![ImportedProjectDto { id: "prj-2".into(), name: "Aplicación de recibos".into() }],
+                cases: 3, evidence: 2,
+            },
+            "packageExportResult": PackageExportResultDto {
+                path: "C:\\Users\\ana\\Documents\\T4S_ACME_Recibos_20261016.qapture".into(),
+                file_name: "T4S_ACME_Recibos_20261016.qapture".into(),
+                cases: 10, evidence: 20, missing_images: 0,
+            },
+            "backup": backup.clone(),
+            "restoreResult": RestoreResultDto {
+                restored: backup,
+                safety_copy: "qapture-antes-de-restaurar-20261016-100000.db".into(),
+                missing_images: 0, set_aside_files: 2,
+            },
+            "startupStatus": StartupStatusDto { recovery: true, detail: "base dañada: database disk image is malformed".into() },
+            "corruptError": AppError::Corrupt("database disk image is malformed".into()),
+        })
+    }
+
     fn sample() -> Value {
         let mut sample = base_sample();
-        if let (Some(target), Value::Object(extra)) = (sample.as_object_mut(), export_samples()) {
-            target.extend(extra);
+        if let Some(target) = sample.as_object_mut() {
+            for extra in [export_samples(), data_samples()] {
+                if let Value::Object(extra) = extra {
+                    target.extend(extra);
+                }
+            }
         }
         sample
     }

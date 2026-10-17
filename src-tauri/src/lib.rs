@@ -1,4 +1,3 @@
-#[allow(dead_code)] // Lo usan los comandos de la Task 8, que retira este allow.
 mod backup;
 mod capture;
 mod commands;
@@ -44,6 +43,7 @@ pub fn run() {
                 }
             };
             app.manage(state);
+            system::daily_backup::spawn(app.handle().clone());
             system::tray::setup_tray(app)?;
             Ok(())
         })
@@ -104,6 +104,14 @@ pub fn run() {
             commands::export::export_template,
             commands::export::open_export,
             commands::export::reveal_export,
+            commands::data::get_startup_status,
+            commands::data::import_legacy,
+            commands::data::import_package,
+            commands::data::export_package,
+            commands::data::list_backups,
+            commands::data::create_backup,
+            commands::data::restore_backup,
+            commands::data::recover_database,
         ])
         .run(tauri::generate_context!())
         .expect("no se pudo iniciar Qapture");

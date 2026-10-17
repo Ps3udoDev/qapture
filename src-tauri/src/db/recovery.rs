@@ -98,7 +98,6 @@ fn references_of(source: &Path) -> AppResult<(HashSet<String>, HashSet<String>)>
 /// una vacía. El respaldo se valida antes de mover nada. Las capturas que la base nueva no
 /// conoce se apartan en `evidence-sin-uso/` ANTES de tocar `path`: si eso falla, la base
 /// dañada sigue en su sitio, el próximo arranque vuelve al modo recuperación y nada se barre.
-#[allow(dead_code)] // Lo usa recover_database (Task 8).
 pub fn recover(
     path: &Path,
     backups: &Backups,

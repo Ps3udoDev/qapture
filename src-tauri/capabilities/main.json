@@ -37,6 +37,14 @@
     "allow-export-project",
     "allow-export-template",
     "allow-open-export",
-    "allow-reveal-export"
+    "allow-reveal-export",
+    "allow-get-startup-status",
+    "allow-import-legacy",
+    "allow-import-package",
+    "allow-export-package",
+    "allow-list-backups",
+    "allow-create-backup",
+    "allow-restore-backup",
+    "allow-recover-database"
   ]
 }
