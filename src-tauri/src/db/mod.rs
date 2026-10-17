@@ -66,6 +66,19 @@ fn init(conn: Connection) -> AppResult<Connection> {
     Ok(conn)
 }
 
+/// Solo para tests: escribe una base en el esquema v1 con un proyecto «Antiguo».
+#[cfg(test)]
+pub(crate) fn write_v1_for_tests(path: &Path) {
+    let old = Connection::open(path).unwrap();
+    old.execute_batch(MIGRATIONS[0]).unwrap();
+    old.pragma_update(None, "user_version", 1).unwrap();
+    old.execute(
+        "INSERT INTO project (id, name, created_at, updated_at) VALUES ('p-old', 'Antiguo', '', '')",
+        [],
+    )
+    .unwrap();
+}
+
 pub fn schema_version(conn: &Connection) -> AppResult<i64> {
     Ok(conn.query_row("PRAGMA user_version", [], |r| r.get(0))?)
 }

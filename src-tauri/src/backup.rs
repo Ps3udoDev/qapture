@@ -523,6 +523,36 @@ mod tests {
     }
 
     #[test]
+    fn a_pre_migration_backup_is_listed_and_restorable() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let path = tmp.path().join(db::DB_FILE);
+        db::write_v1_for_tests(&path);
+        let mut conn = db::open(&path).unwrap();
+        let backups = Backups::new(tmp.path());
+        let list = backups.list().unwrap();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].kind, BackupKind::BeforeMigration);
+        test_support::project(&conn); // «Recibos», solo en la base viva
+        let result = backups
+            .restore(&mut conn, &files, &list[0].file_name, at(10, 0, 0))
+            .unwrap();
+        assert_eq!(result.restored.kind, BackupKind::BeforeMigration);
+        let names: Vec<String> = projects::list(&conn)
+            .unwrap()
+            .into_iter()
+            .map(|p| p.name)
+            .collect();
+        assert_eq!(names, ["Antiguo"]);
+        assert_eq!(db::schema_version(&conn).unwrap(), db::latest_version());
+        let leftovers: Vec<String> = fs::read_dir(backups.dir())
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|n| n.ends_with(".tmp") || n.ends_with("-wal") || n.ends_with("-shm"))
+            .collect();
+        assert!(leftovers.is_empty(), "{leftovers:?}");
+    }
+    #[test]
     fn a_backup_from_a_newer_app_is_refused() {
         let tmp = TempDir::new();
         let conn = open(&tmp);
