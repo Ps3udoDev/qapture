@@ -5,8 +5,9 @@ use std::{
 
 use rusqlite::Connection;
 
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 
+pub mod recovery;
 pub mod seed;
 
 pub const DB_FILE: &str = "qapture.db";
@@ -36,8 +37,22 @@ pub fn open(path: &Path) -> AppResult<Connection> {
     let conn = Connection::open(path)?;
     conn.busy_timeout(Duration::from_secs(5))?;
     conn.query_row("PRAGMA journal_mode = WAL", [], |_| Ok(()))?;
+    check_integrity(&conn)?;
     backup_before_migrate(&conn, path)?;
     init(conn)
+}
+
+/// `PRAGMA quick_check`: una base con páginas dañadas no se migra ni se usa (spec §8).
+pub fn check_integrity(conn: &Connection) -> AppResult<()> {
+    let mut stmt = conn.prepare("PRAGMA quick_check")?;
+    let rows = stmt
+        .query_map([], |r| r.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    if rows.len() == 1 && rows[0] == "ok" {
+        Ok(())
+    } else {
+        Err(AppError::Corrupt(rows.join("; ")))
+    }
 }
 
 /// Spec §8: antes de migrar una base que ya tiene datos, deja una copia en `backups/`.
@@ -56,7 +71,6 @@ fn backup_before_migrate(conn: &Connection, path: &Path) -> AppResult<Option<Pat
     Ok(Some(target))
 }
 
-#[cfg(test)]
 pub fn open_in_memory() -> AppResult<Connection> {
     init(Connection::open_in_memory()?)
 }

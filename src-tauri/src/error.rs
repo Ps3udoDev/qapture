@@ -18,6 +18,8 @@ pub enum AppError {
     FileLocked(String),
     #[error("excel: {0}")]
     Export(String),
+    #[error("base dañada: {0}")]
+    Corrupt(String),
 }
 
 impl From<rust_xlsxwriter::XlsxError> for AppError {
@@ -43,6 +45,7 @@ impl AppError {
             Self::Capture(_) => "capture",
             Self::FileLocked(_) => "file_locked",
             Self::Export(_) => "export",
+            Self::Corrupt(_) => "corrupt",
         }
     }
 
@@ -52,6 +55,7 @@ impl AppError {
             Self::Capture(_) => "No se pudo capturar la pantalla. Inténtalo nuevamente.".into(),
             Self::FileLocked(_) => "Cierra el archivo en Excel y vuelve a intentar.".into(),
             Self::Export(_) => "No se pudo generar el Excel. Inténtalo nuevamente.".into(),
+            Self::Corrupt(_) => "La base de datos de Qapture está dañada.".into(),
             _ => "No se pudo completar la operación. Revisa el espacio disponible e inténtalo nuevamente.".into(),
         }
     }
