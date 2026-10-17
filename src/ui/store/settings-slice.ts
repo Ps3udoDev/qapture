@@ -45,7 +45,10 @@ export function createSettingsSlice(repos: Repositories, set: Set, get: Get, h: 
 
     async saveSettings(input) {
       const result = await get().persistSettings(input);
-      if (result.ok) get().pushToast("success", "Ajustes guardados.");
+      if (!result.ok) return result;
+      get().pushToast("success", "Ajustes guardados.");
+      // Un atajo que sigue ocupado por otra aplicación no impide guardar, pero se sigue avisando.
+      for (const failure of get().settings?.shortcutFailures ?? []) get().pushToast("error", failureMessage(failure));
       return result;
     },
 

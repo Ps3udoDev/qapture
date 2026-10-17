@@ -92,6 +92,31 @@ describe("slice de ajustes", () => {
     expect(s().settings?.settings.shortcuts.capture).toBe("Ctrl+Alt+S");
   });
 
+  it("un atajo que sigue ocupado no impide guardar el resto y se sigue avisando", async () => {
+    const { repos, s } = setup();
+    repos.settings.failuresAtStart = [{ action: "paste", accelerator: "Ctrl+Alt+V" }];
+    repos.settings.refuse.add("Ctrl+Alt+V");
+    await s().init();
+    const next = structuredClone(DEFAULT_SETTINGS);
+    next.profile.tester = "Ana";
+    expect(await s().saveSettings(next)).toEqual({ ok: true });
+    expect(s().settings?.settings.profile.tester).toBe("Ana");
+    expect(s().settings?.shortcutFailures).toEqual([{ action: "paste", accelerator: "Ctrl+Alt+V" }]);
+    expect(s().toasts.slice(-2).map((t) => t.message)).toEqual([
+      "Ajustes guardados.",
+      "No se pudo registrar Ctrl+Alt+V («Pegar evidencia»): otra aplicación ya la usa. Cámbialo en Ajustes › Atajos.",
+    ]);
+  });
+
+  it("guardar reintenta el atajo que falló al arrancar y deja de avisar si ya quedó libre", async () => {
+    const { repos, s } = setup();
+    repos.settings.failuresAtStart = [{ action: "paste", accelerator: "Ctrl+Alt+V" }];
+    await s().init();
+    expect(await s().saveSettings(structuredClone(DEFAULT_SETTINGS))).toEqual({ ok: true });
+    expect(s().settings?.shortcutFailures).toEqual([]);
+    expect(s().toasts.at(-1)?.message).toBe("Ajustes guardados.");
+  });
+
   it("Nuevo caso desde el atajo abre el formulario o avisa sin proyecto", async () => {
     const { repos, s } = setup();
     await s().init();

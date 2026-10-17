@@ -59,6 +59,9 @@ export function createMemorySettings(): MemorySettings {
       }
       m.saves += 1;
       m.snapshot = { ...m.snapshot, settings: next };
+      // Como Rust: un atajo que falló al arrancar se reintenta si conserva su combinación
+      // y solo sigue fallando si continúa ocupada; si cambió, ya se registró la nueva.
+      m.failuresAtStart = m.failuresAtStart.filter((f) => next.shortcuts[f.action] === f.accelerator && m.refuse.has(f.accelerator));
       return view();
     },
     async pickExportFolder() {

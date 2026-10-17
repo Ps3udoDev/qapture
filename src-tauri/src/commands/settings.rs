@@ -6,7 +6,7 @@ use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
 use crate::{
-    dto::SettingsDto,
+    dto::{SettingsDto, ShortcutFailureDto},
     error::{AppError, AppResult, validation},
     repo,
     settings::{self, Settings},
@@ -82,14 +82,16 @@ pub(crate) fn save(state: &AppState, input: Settings, app_version: &str) -> AppR
     wanted.shortcuts = shortcuts::validate(&wanted.shortcuts)?;
 
     let current = state.settings();
-    // Los atajos que el SO rechazó al arrancar no están registrados: se vuelven a intentar
-    // aunque su combinación no cambie (si no, guardar la misma no serviría para reintentar).
-    let unregistered: Vec<_> = state
+    // Los atajos que el SO rechazó al arrancar no están registrados. Si el usuario les dio
+    // otra combinación, esa entra en el cambio todo o nada; si la dejó igual, se reintenta
+    // después de guardar y, si sigue ocupada, solo queda como aviso (no impide guardar el
+    // resto: otra aplicación puede tenerla tomada indefinidamente).
+    let (unregistered, retry): (Vec<_>, Vec<_>) = state
         .shortcut_failures()
         .into_iter()
         .filter(|f| f.action.accel(&current.shortcuts) == f.accelerator)
         .map(|f| f.action)
-        .collect();
+        .partition(|a| a.accel(&wanted.shortcuts) != a.accel(&current.shortcuts));
     shortcuts::apply(
         &mut **state.registrar(),
         &current.shortcuts,
@@ -107,9 +109,21 @@ pub(crate) fn save(state: &AppState, input: Settings, app_version: &str) -> AppR
         }
         return Err(error);
     }
+    let failures = {
+        let mut registrar = state.registrar();
+        retry
+            .into_iter()
+            .filter_map(|action| {
+                let accel = action.accel(&wanted.shortcuts);
+                registrar.register(accel).err().map(|_| ShortcutFailureDto {
+                    action,
+                    accelerator: accel.to_string(),
+                })
+            })
+            .collect()
+    };
     state.set_settings(wanted.clone());
-    // `apply` registró todo lo que cambió o se reintentó: no queda ningún fallo vigente.
-    state.set_shortcut_failures(Vec::new());
+    state.set_shortcut_failures(failures);
     state.notify_saved(&wanted);
     Ok(dto(state, wanted, app_version))
 }
@@ -173,9 +187,7 @@ mod tests {
     };
 
     use super::*;
-    use crate::{
-        db, dto::ShortcutFailureDto, media::storage::TempDir, system::shortcuts::ShortcutRegistrar,
-    };
+    use crate::{db, media::storage::TempDir, system::shortcuts::ShortcutRegistrar};
 
     #[derive(Clone, Default)]
     struct FakeRegistrar {
@@ -345,20 +357,47 @@ mod tests {
     }
 
     #[test]
-    fn a_retried_shortcut_still_refused_saves_nothing_and_stays_failing() {
+    fn a_shortcut_still_taken_does_not_block_saving_the_rest() {
         let (_tmp, state, fake) = state_with_paste_failing();
+        let wanted = with(|s| {
+            s.profile.tester = "Ana".into();
+            s.shortcuts.toggle = "Ctrl+Shift+F12".into();
+        });
+        let dto = save(&state, wanted.clone(), "0.5.0").unwrap();
+        assert_eq!(
+            repos_settings(&state),
+            wanted,
+            "se guardó el nombre y el atajo nuevo"
+        );
+        assert_eq!(
+            dto.shortcut_failures,
+            [ShortcutFailureDto {
+                action: shortcuts::ShortcutAction::Paste,
+                accelerator: "Ctrl+Alt+V".into(),
+            }],
+            "Pegar sigue ocupada y se sigue avisando"
+        );
+        assert_eq!(state.shortcut_failures(), dto.shortcut_failures);
+        let registered: Vec<String> = fake.registered.lock().unwrap().iter().cloned().collect();
+        assert_eq!(registered, ["Ctrl+Alt+N", "Ctrl+Alt+S", "Ctrl+Shift+F12"]);
+    }
+
+    #[test]
+    fn a_new_combination_for_a_failed_shortcut_is_still_all_or_nothing() {
+        let (_tmp, state, fake) = state_with_paste_failing();
+        fake.refuse.lock().unwrap().insert("Ctrl+Alt+P".into());
         let error = save(
             &state,
             with(|s| {
                 s.profile.tester = "Ana".into();
-                s.shortcuts.toggle = "Ctrl+Shift+F12".into();
+                s.shortcuts.paste = "Ctrl+Alt+P".into();
             }),
             "0.5.0",
         )
         .unwrap_err();
         assert_eq!(
             error.user_message(),
-            "No se pudo registrar Ctrl+Alt+V para «Pegar evidencia»: otra aplicación ya la usa. Se conservan los atajos anteriores."
+            "No se pudo registrar Ctrl+Alt+P para «Pegar evidencia»: otra aplicación ya la usa. Se conservan los atajos anteriores."
         );
         assert_eq!(
             repos_settings(&state),
