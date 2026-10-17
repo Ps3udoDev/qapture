@@ -29,7 +29,7 @@ fn from_row(r: &Row) -> rusqlite::Result<DocVersionDto> {
     })
 }
 
-fn validate(input: &DocVersionInput) -> AppResult<DocVersionInput> {
+pub(crate) fn validate(input: &DocVersionInput) -> AppResult<DocVersionInput> {
     let version = required_text("Versión", &input.version, 20)?;
     let date = required_text("Fecha", &input.date, 10)?;
     if !is_iso_date(&date) {

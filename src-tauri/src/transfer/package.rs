@@ -3,24 +3,33 @@
 //! origen: exportar → importar → exportar da el mismo archivo. Importar crea siempre una copia.
 
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     fs::{self, File},
-    io::{self, BufWriter, Write},
+    io::{self, BufWriter, Read, Seek, Write},
     path::{Path, PathBuf},
 };
 
 use chrono::NaiveDate;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
-use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
+use zip::{CompressionMethod, ZipArchive, ZipWriter, write::SimpleFileOptions};
 
+use super::bundle::{
+    self, BundleCase, BundleEvidence, BundleField, BundleVersion, IMPORT_FAILED, ImportFiles,
+    Problems, ProjectBundle, code_number, is_case_code,
+};
 use crate::{
     db::new_id,
-    domain::fields::FieldType,
-    error::{AppError, AppResult},
+    domain::{
+        fields::{FieldRule, FieldType, validate_value},
+        status::is_status,
+        text::required_text,
+    },
+    dto::{DocVersionInput, ImportSummaryDto, ProjectMetaInput},
+    error::{AppError, AppResult, validation},
     excel::{data::file_segment, save::ensure_writable},
-    media::storage::EvidenceFiles,
-    repo::{cases, doc_versions, projects},
+    media::{raster, storage::EvidenceFiles},
+    repo::{cases, doc_versions, evidence, projects},
 };
 
 pub const FORMAT_VERSION: i64 = 1;
@@ -336,6 +345,341 @@ pub fn with_package_extension(path: PathBuf) -> PathBuf {
     PathBuf::from(raw)
 }
 
+pub const NOT_PACKAGE: &str = "El archivo no es un paquete de Qapture válido.";
+pub const NEWER: &str =
+    "El paquete se creó con una versión más nueva de Qapture. Actualiza la app para abrirlo.";
+pub const TOO_BIG: &str = "El paquete supera el tamaño permitido.";
+
+const MAX_ENTRIES: usize = 20_001;
+const MAX_JSON_BYTES: u64 = 64 * 1024 * 1024;
+const MAX_IMAGE_BYTES: u64 = raster::MAX_INPUT_BYTES as u64;
+/// Tope de todo lo descomprimido: protege el disco de un ZIP «bomba».
+const MAX_TOTAL_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+const MAX_FIELDS: usize = 60;
+const MAX_CASES: usize = 10_000;
+const MAX_EVIDENCE_PER_CASE: usize = 500;
+/// La v1 admitía descripciones de 4000 caracteres y se importan completas (Task 3).
+const MAX_DESCRIPTION: usize = 4_000;
+const MAX_ARCHIVED_VALUE: usize = 16_000;
+
+/// Lee entradas por nombre (nunca extrae rutas del ZIP al disco) con topes por entrada y en total.
+struct Reader<R> {
+    zip: ZipArchive<R>,
+    left: u64,
+}
+
+impl<R: Read + Seek> Reader<R> {
+    fn has(&mut self, name: &str) -> bool {
+        self.zip.by_name(name).is_ok()
+    }
+
+    fn read(&mut self, name: &str, max: u64) -> AppResult<Vec<u8>> {
+        let entry = self
+            .zip
+            .by_name(name)
+            .map_err(|_| validation(format!("El paquete está dañado: falta «{name}».")))?;
+        let limit = max.min(self.left);
+        let mut bytes = Vec::new();
+        entry.take(limit + 1).read_to_end(&mut bytes).map_err(|_| {
+            validation(format!("El paquete está dañado: no se pudo leer «{name}»."))
+        })?;
+        if bytes.len() as u64 > limit {
+            return Err(validation(TOO_BIG));
+        }
+        self.left -= bytes.len() as u64;
+        Ok(bytes)
+    }
+}
+
+fn read_doc<R: Read + Seek>(reader: &mut Reader<R>) -> AppResult<PackageDoc> {
+    if !reader.has(PROJECT_JSON) {
+        return Err(validation(NOT_PACKAGE));
+    }
+    let bytes = reader.read(PROJECT_JSON, MAX_JSON_BYTES)?;
+    let value: serde_json::Value =
+        serde_json::from_slice(&bytes).map_err(|_| validation(NOT_PACKAGE))?;
+    match value
+        .get("formatVersion")
+        .and_then(serde_json::Value::as_i64)
+    {
+        Some(FORMAT_VERSION) => {}
+        Some(v) if v > FORMAT_VERSION => return Err(validation(NEWER)),
+        _ => return Err(validation(NOT_PACKAGE)),
+    }
+    serde_json::from_value(value).map_err(|_| validation(NOT_PACKAGE))
+}
+
+fn meta_of(p: &PackageProject) -> ProjectMetaInput {
+    ProjectMetaInput {
+        name: p.name.clone(),
+        client: p.client.clone(),
+        test_type: p.test_type.clone(),
+        release_version: p.release_version.clone(),
+        start_date: p.start_date.clone(),
+        end_date: p.end_date.clone(),
+    }
+}
+
+fn version_input(v: &PackageDocVersion) -> DocVersionInput {
+    DocVersionInput {
+        version: v.version.clone(),
+        date: v.date.clone(),
+        author: v.author.clone(),
+        reviewer: v.reviewer.clone(),
+        approver: v.approver.clone(),
+        changes: v.changes.clone(),
+    }
+}
+
+/// `evidence/<archivo>.png`, sin subcarpetas ni `..`.
+fn is_image_entry(name: &str) -> bool {
+    name.strip_prefix("evidence/").is_some_and(|file| {
+        file.len() > 4
+            && file.ends_with(".png")
+            && !file.starts_with('.')
+            && file
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_'))
+    })
+}
+
+fn is_field_key(key: &str) -> bool {
+    !key.is_empty()
+        && key.len() <= 60
+        && key
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+}
+
+fn validate_fields(fields: &[PackageField], problems: &mut Problems) {
+    if fields.is_empty() || fields.len() > MAX_FIELDS {
+        problems.add("Columnas", "El paquete debe tener entre 1 y 60 columnas.");
+    }
+    let mut keys = HashSet::new();
+    for f in fields {
+        let label = f.label.trim();
+        let at = format!("Columna «{label}»");
+        if !is_field_key(&f.key) || !keys.insert(f.key.as_str()) {
+            problems.add(&at, "Clave de columna inválida o repetida.");
+        }
+        if let Err(e) = required_text("Nombre de la columna", &f.label, 100) {
+            problems.add(&at, &e.to_string());
+        }
+        if !(8..=100).contains(&f.width) {
+            problems.add(
+                &at,
+                &format!("El ancho de «{label}» debe estar entre 8 y 100."),
+            );
+        }
+        if f.field_type == FieldType::List && f.options.is_empty() {
+            problems.add(
+                &at,
+                &format!("La lista «{label}» necesita al menos una opción."),
+            );
+        }
+    }
+}
+
+fn validate_value_of(doc: &PackageDoc, key: &str, value: &str, at: &str, problems: &mut Problems) {
+    let Some(f) = doc.fields.iter().find(|f| f.key == key) else {
+        problems.add(at, &format!("La columna «{key}» no existe en el paquete."));
+        return;
+    };
+    if f.archived {
+        // Una columna archivada puede guardar valores de un tipo anterior: solo se limita el largo.
+        if value.chars().count() > MAX_ARCHIVED_VALUE {
+            problems.add(
+                at,
+                &format!("«{}» supera {MAX_ARCHIVED_VALUE} caracteres.", f.label),
+            );
+        }
+        return;
+    }
+    let rule = FieldRule {
+        label: &f.label,
+        field_type: f.field_type,
+        options: &f.options,
+        required: false,
+    };
+    if let Err(message) = validate_value(&rule, value) {
+        problems.add(at, &message);
+    }
+}
+
+fn validate_cases(doc: &PackageDoc, problems: &mut Problems) {
+    if doc.cases.len() > MAX_CASES {
+        problems.add("Casos", "Demasiados casos.");
+    }
+    let mut codes = HashSet::new();
+    let mut images = HashSet::new();
+    for (index, c) in doc.cases.iter().enumerate() {
+        let valid_code = is_case_code(&c.code);
+        let at = if valid_code {
+            c.code.clone()
+        } else {
+            format!("Caso {}", index + 1)
+        };
+        if !valid_code || !codes.insert(c.code.as_str()) {
+            problems.add(&at, "ID de ejecución repetido o inválido.");
+        } else if code_number(&c.code).is_none_or(|n| n >= doc.project.next_sequence) {
+            problems.add(&at, "La secuencia debe superar los IDs usados.");
+        }
+        if let Err(e) = required_text("Caso de prueba", &c.title, 300) {
+            problems.add(&at, &e.to_string());
+        }
+        if !is_status(&c.status) {
+            problems.add(&at, &format!("Estado inválido: «{}».", c.status));
+        }
+        for (key, value) in &c.values {
+            validate_value_of(doc, key, value, &at, problems);
+        }
+        if c.evidence.len() > MAX_EVIDENCE_PER_CASE {
+            problems.add(&at, "Demasiadas capturas por caso.");
+        }
+        for (i, e) in c.evidence.iter().enumerate() {
+            let at = format!("{at}, captura {}", i + 1);
+            if let Err(err) = required_text("Descripción", &e.description, MAX_DESCRIPTION) {
+                problems.add(&at, &err.to_string());
+            }
+            if let Err(err) = evidence::validate_annotations(&e.annotations) {
+                problems.add(&at, &err.to_string());
+            }
+            for name in [&e.original, &e.rendered] {
+                if !is_image_entry(name) || !images.insert(name.as_str()) {
+                    problems.add(&at, "Ruta de imagen inválida o repetida.");
+                }
+            }
+        }
+    }
+}
+
+fn validate_versions(versions: &[PackageDocVersion], problems: &mut Problems) {
+    let mut seen = HashSet::new();
+    for v in versions {
+        let at = format!("Versión «{}»", v.version.trim());
+        match doc_versions::validate(&version_input(v)) {
+            Err(e) => problems.add(&at, &e.to_string()),
+            Ok(clean) if !seen.insert(clean.version.to_lowercase()) => problems.add(
+                &at,
+                &format!("La versión «{}» ya existe en este proyecto.", clean.version),
+            ),
+            Ok(_) => {}
+        }
+    }
+}
+
+fn validate(doc: &PackageDoc) -> AppResult<()> {
+    let mut problems = Problems::default();
+    if let Err(e) = projects::validate_meta(&meta_of(&doc.project)) {
+        problems.add("Proyecto", &e.to_string());
+    }
+    if doc.project.next_sequence < 1 {
+        problems.add("Proyecto", "Secuencia inválida.");
+    }
+    validate_fields(&doc.fields, &mut problems);
+    validate_cases(doc, &mut problems);
+    validate_versions(&doc.doc_versions, &mut problems);
+    problems.into_result()
+}
+
+fn bad_image(at: &str) -> AppError {
+    validation(format!(
+        "{IMPORT_FAILED}\n• {at}: Contenido de imagen inválido."
+    ))
+}
+
+fn to_bundle<R: Read + Seek>(
+    doc: PackageDoc,
+    reader: &mut Reader<R>,
+    out: &mut ImportFiles,
+) -> AppResult<ProjectBundle> {
+    let id = new_id();
+    let meta = projects::validate_meta(&meta_of(&doc.project))?;
+    let mut bundle_cases = Vec::with_capacity(doc.cases.len());
+    for c in doc.cases {
+        let mut evidence = Vec::with_capacity(c.evidence.len());
+        for (index, e) in c.evidence.into_iter().enumerate() {
+            let at = format!("{}, captura {}", c.code, index + 1);
+            let original = reader.read(&e.original, MAX_IMAGE_BYTES)?;
+            let rendered = reader.read(&e.rendered, MAX_IMAGE_BYTES)?;
+            let (width, height) = raster::verify_png(&original).map_err(|_| bad_image(&at))?;
+            raster::verify_png(&rendered).map_err(|_| bad_image(&at))?;
+            let evidence_id = new_id();
+            out.write(&id, &evidence_id, &original, &rendered)?;
+            evidence.push(BundleEvidence {
+                id: evidence_id,
+                description: e.description.trim().to_string(),
+                annotations: e.annotations,
+                width: width.into(),
+                height: height.into(),
+                captured_at: e.captured_at,
+                updated_at: e.updated_at,
+            });
+        }
+        bundle_cases.push(BundleCase {
+            code: c.code,
+            title: c.title.trim().to_string(),
+            status: c.status,
+            created_at: c.created_at,
+            updated_at: c.updated_at,
+            values: c.values,
+            evidence,
+        });
+    }
+    Ok(ProjectBundle {
+        id,
+        meta,
+        next_sequence: doc.project.next_sequence,
+        source_template_id: None,
+        created_at: doc.project.created_at,
+        updated_at: doc.project.updated_at,
+        fields: doc
+            .fields
+            .into_iter()
+            .map(|f| BundleField {
+                key: f.key,
+                label: f.label.trim().to_string(),
+                field_type: f.field_type,
+                options: f.options,
+                required: f.required,
+                clear_on_duplicate: f.clear_on_duplicate,
+                width: f.width,
+                archived: f.archived,
+            })
+            .collect(),
+        cases: bundle_cases,
+        versions: doc
+            .doc_versions
+            .iter()
+            .map(|v| BundleVersion {
+                input: version_input(v),
+                created_at: v.created_at.clone(),
+            })
+            .collect(),
+    })
+}
+
+/// UC-18: importa el paquete como un proyecto nuevo (nunca sobrescribe). Todo o nada.
+pub fn import(
+    conn: &Connection,
+    files: &EvidenceFiles,
+    path: &Path,
+) -> AppResult<ImportSummaryDto> {
+    let zip = ZipArchive::new(File::open(path)?).map_err(|_| validation(NOT_PACKAGE))?;
+    if zip.len() > MAX_ENTRIES {
+        return Err(validation(TOO_BIG));
+    }
+    let mut reader = Reader {
+        zip,
+        left: MAX_TOTAL_BYTES,
+    };
+    let doc = read_doc(&mut reader)?;
+    validate(&doc)?;
+    let mut out = ImportFiles::new(files);
+    let bundle = to_bundle(doc, &mut reader, &mut out)?;
+    bundle::insert(conn, vec![bundle], out)
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use std::{collections::BTreeMap, io::Read};
@@ -583,6 +927,258 @@ pub(crate) mod tests {
         assert_eq!(
             with_package_extension(PathBuf::from("a.zip")),
             PathBuf::from("a.zip.qapture")
+        );
+    }
+
+    use serde_json::json;
+    use zip::{ZipWriter, write::SimpleFileOptions};
+
+    use crate::transfer::bundle::{IMPORT_FAILED, tests::project_dirs};
+
+    fn exported(conn: &Connection, files: &EvidenceFiles, dir: &Path) -> (ProjectDto, PathBuf) {
+        let p = seeded(conn, files);
+        let path = dir.join("Recibos.qapture");
+        write(&collect(conn, files, &p.id).unwrap(), &path).unwrap();
+        (p, path)
+    }
+
+    /// Copia el ZIP cambiando entradas: `None` la quita, `Some(bytes)` la reemplaza.
+    fn rewrite(src: &Path, dest: &Path, change: impl Fn(&str, Vec<u8>) -> Option<Vec<u8>>) {
+        let mut input = ZipArchive::new(File::open(src).unwrap()).unwrap();
+        let mut output = ZipWriter::new(File::create(dest).unwrap());
+        for index in 0..input.len() {
+            let mut entry = input.by_index(index).unwrap();
+            let name = entry.name().unwrap().into_owned();
+            let mut bytes = Vec::new();
+            entry.read_to_end(&mut bytes).unwrap();
+            drop(entry);
+            if let Some(bytes) = change(&name, bytes) {
+                output
+                    .start_file(name, SimpleFileOptions::default())
+                    .unwrap();
+                output.write_all(&bytes).unwrap();
+            }
+        }
+        output.finish().unwrap();
+    }
+
+    fn with_json(src: &Path, dest: &Path, edit: impl Fn(&mut serde_json::Value)) {
+        rewrite(src, dest, |name, bytes| {
+            if name != PROJECT_JSON {
+                return Some(bytes);
+            }
+            let mut value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            edit(&mut value);
+            Some(serde_json::to_vec(&value).unwrap())
+        });
+    }
+
+    #[test]
+    fn export_import_export_gives_the_same_project_json() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let (p, path) = exported(&conn, &files, tmp.path());
+        let first = collect(&conn, &files, &p.id).unwrap();
+
+        let other = TempDir::new();
+        let other_files = other.files();
+        let other_conn = test_support::conn();
+        let summary = import(&other_conn, &other_files, &path).unwrap();
+        assert_eq!(summary.projects[0].name, "Recibos");
+        assert_eq!((summary.cases, summary.evidence), (2, 2));
+        let imported = projects::get(&other_conn, &summary.projects[0].id).unwrap();
+        assert_ne!(imported.id, p.id, "es una copia con ids nuevos");
+        assert_eq!(imported.source_template_id, None);
+
+        let second = collect(&other_conn, &other_files, &imported.id).unwrap();
+        assert_eq!(
+            project_json(&first.doc).unwrap(),
+            project_json(&second.doc).unwrap()
+        );
+        for ((name_a, file_a), (name_b, file_b)) in first.images.iter().zip(&second.images) {
+            assert_eq!(name_a, name_b);
+            assert_eq!(
+                fs::read(file_a).unwrap(),
+                fs::read(file_b).unwrap(),
+                "{name_a}"
+            );
+        }
+        let again = other.path().join("again.qapture");
+        write(&second, &again).unwrap();
+        let mut zip = ZipArchive::new(File::open(&again).unwrap()).unwrap();
+        let mut json = Vec::new();
+        zip.by_name(PROJECT_JSON)
+            .unwrap()
+            .read_to_end(&mut json)
+            .unwrap();
+        assert_eq!(
+            json,
+            project_json(&first.doc).unwrap(),
+            "el project.json releído es idéntico"
+        );
+    }
+
+    #[test]
+    fn importing_the_same_package_twice_creates_copies() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let (p, path) = exported(&conn, &files, tmp.path());
+        let a = import(&conn, &files, &path).unwrap();
+        let b = import(&conn, &files, &path).unwrap();
+        assert_eq!(a.projects[0].name, "Recibos (importado)");
+        assert_eq!(b.projects[0].name, "Recibos (importado 2)");
+        assert_eq!(projects::list(&conn).unwrap().len(), 3);
+        assert_eq!(
+            cases::list(&conn, &p.id).unwrap().len(),
+            2,
+            "el original no cambia"
+        );
+    }
+
+    #[test]
+    fn foreign_newer_or_damaged_packages_import_nothing() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let (_, good) = exported(&conn, &files, tmp.path());
+        let bad = tmp.path().join("bad.qapture");
+        let not_zip = tmp.path().join("hola.qapture");
+        fs::write(&not_zip, b"hola").unwrap();
+
+        type Prepare = Box<dyn Fn(&Path, &Path)>;
+        let cases: Vec<(Prepare, String)> = vec![
+            (
+                Box::new(|_: &Path, dest: &Path| {
+                    fs::copy(dest.with_file_name("hola.qapture"), dest)
+                        .map(|_| ())
+                        .unwrap()
+                }),
+                NOT_PACKAGE.to_string(),
+            ),
+            (
+                Box::new(|src: &Path, dest: &Path| {
+                    rewrite(src, dest, |name, b| (name != PROJECT_JSON).then_some(b))
+                }),
+                NOT_PACKAGE.to_string(),
+            ),
+            (
+                Box::new(|src: &Path, dest: &Path| {
+                    with_json(src, dest, |v| v["formatVersion"] = json!(2))
+                }),
+                NEWER.to_string(),
+            ),
+            (
+                Box::new(|src: &Path, dest: &Path| {
+                    with_json(src, dest, |v| v["formatVersion"] = json!("1"))
+                }),
+                NOT_PACKAGE.to_string(),
+            ),
+            (
+                Box::new(|src: &Path, dest: &Path| {
+                    with_json(src, dest, |v| v["extra"] = json!(true))
+                }),
+                NOT_PACKAGE.to_string(),
+            ),
+            (
+                Box::new(|src: &Path, dest: &Path| {
+                    rewrite(src, dest, |name, b| {
+                        (name != "evidence/EJ-001-2.orig.png").then_some(b)
+                    })
+                }),
+                "El paquete está dañado: falta «evidence/EJ-001-2.orig.png».".to_string(),
+            ),
+            (
+                Box::new(|src: &Path, dest: &Path| {
+                    rewrite(src, dest, |name, b| {
+                        Some(if name == "evidence/EJ-001-2.render.png" {
+                            b"no es png".to_vec()
+                        } else {
+                            b
+                        })
+                    })
+                }),
+                format!("{IMPORT_FAILED}\n• EJ-001, captura 2: Contenido de imagen inválido."),
+            ),
+            (
+                Box::new(|src: &Path, dest: &Path| {
+                    with_json(src, dest, |v| {
+                        v["cases"][0]["evidence"][0]["original"] = json!("../../qapture.db")
+                    })
+                }),
+                format!(
+                    "{IMPORT_FAILED}\n• EJ-001, captura 1: Ruta de imagen inválida o repetida."
+                ),
+            ),
+            (
+                Box::new(|src: &Path, dest: &Path| {
+                    with_json(src, dest, |v| v["cases"][1]["status"] = json!("Cerrado"))
+                }),
+                format!("{IMPORT_FAILED}\n• EJ-002: Estado inválido: «Cerrado»."),
+            ),
+            (
+                Box::new(|src: &Path, dest: &Path| {
+                    with_json(src, dest, |v| v["cases"][1]["code"] = json!("EJ-001"))
+                }),
+                format!("{IMPORT_FAILED}\n• EJ-001: ID de ejecución repetido o inválido."),
+            ),
+            (
+                Box::new(|src: &Path, dest: &Path| {
+                    with_json(src, dest, |v| {
+                        v["cases"][0]["values"]["severidad"] = json!("Media")
+                    })
+                }),
+                format!(
+                    "{IMPORT_FAILED}\n• EJ-001: «Severidad» debe ser una de las opciones de la lista."
+                ),
+            ),
+            (
+                Box::new(|src: &Path, dest: &Path| {
+                    with_json(src, dest, |v| {
+                        v["cases"][0]["values"]["no_existe"] = json!("x")
+                    })
+                }),
+                format!(
+                    "{IMPORT_FAILED}\n• EJ-001: La columna «no_existe» no existe en el paquete."
+                ),
+            ),
+        ];
+        for (prepare, expected) in cases {
+            prepare(&good, &bad);
+            let other = TempDir::new();
+            let other_files = other.files();
+            let other_conn = test_support::conn();
+            let err = import(&other_conn, &other_files, &bad)
+                .unwrap_err()
+                .to_string();
+            assert_eq!(err, expected);
+            assert!(
+                projects::list(&other_conn).unwrap().is_empty(),
+                "{expected}"
+            );
+            assert_eq!(project_dirs(&other_files), 0, "{expected}");
+        }
+    }
+
+    #[test]
+    fn an_entry_that_inflates_beyond_the_limit_is_rejected() {
+        let tmp = TempDir::new();
+        let path = tmp.path().join("bomba.qapture");
+        let mut zip = ZipWriter::new(File::create(&path).unwrap());
+        let deflated =
+            SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+        zip.start_file(PROJECT_JSON, deflated).unwrap();
+        zip.write_all(&vec![b' '; 65 * 1024 * 1024]).unwrap();
+        zip.finish().unwrap();
+        assert!(
+            fs::metadata(&path).unwrap().len() < 1024 * 1024,
+            "comprimido pesa poco"
+        );
+        let conn = test_support::conn();
+        assert_eq!(
+            import(&conn, &tmp.files(), &path).unwrap_err().to_string(),
+            TOO_BIG
         );
     }
 }

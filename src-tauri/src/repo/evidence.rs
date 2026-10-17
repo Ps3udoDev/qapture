@@ -45,7 +45,7 @@ fn validate_description(raw: &str) -> AppResult<String> {
 }
 
 /// Rust solo exige la envoltura versionada; la forma de cada anotación la valida el dominio TS.
-fn validate_annotations(raw: &str) -> AppResult<String> {
+pub(crate) fn validate_annotations(raw: &str) -> AppResult<String> {
     if raw.len() > MAX_ANNOTATIONS_BYTES {
         return Err(validation("Las anotaciones superan 512 KB."));
     }

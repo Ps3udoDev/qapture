@@ -102,6 +102,19 @@ pub fn to_png(bytes: &[u8]) -> AppResult<NormalizedImage> {
     })
 }
 
+/// Paquetes `.qapture`: el archivo debe ser un PNG completo de hasta 12000 px por lado.
+pub fn verify_png(bytes: &[u8]) -> AppResult<(u32, u32)> {
+    if image::guess_format(bytes).ok() != Some(ImageFormat::Png) {
+        return Err(validation(UNSUPPORTED));
+    }
+    let (width, height) = dimensions(bytes)?;
+    check_side(width, height)?;
+    reader(bytes)?
+        .decode()
+        .map_err(|_| validation("La imagen está dañada o incompleta."))?;
+    Ok((width, height))
+}
+
 pub fn validate_render(bytes: &[u8]) -> AppResult<(u32, u32)> {
     let invalid =
         || validation("El render de la evidencia debe ser un PNG de hasta 2400 px por lado.");
@@ -147,6 +160,18 @@ mod tests {
         let png = sample_png(64, 48);
         assert!(to_png(&png[..png.len() / 2]).is_err());
         assert!(to_png(b"hola").is_err());
+    }
+
+    #[test]
+    fn verify_png_requires_a_complete_png() {
+        assert_eq!(verify_png(&sample_png(64, 48)).unwrap(), (64, 48));
+        let png = sample_png(64, 48);
+        assert!(verify_png(&png[..png.len() - 20]).is_err(), "truncado");
+        assert!(
+            verify_png(&encode(rgb(10, 10), ImageFormat::Jpeg)).is_err(),
+            "no es PNG"
+        );
+        assert!(verify_png(&sample_png(12_001, 1)).is_err());
     }
 
     #[test]
