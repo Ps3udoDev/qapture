@@ -1,0 +1,93 @@
+{
+  "projects": [
+    {
+      "cases": [
+        {
+          "actual": "",
+          "code": "EJ-001",
+          "date": "",
+          "environment": "Máquina Virtual",
+          "evidence": [
+            {
+              "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAA3ElEQVR4Ae3AA6AkWZbG8f937o3IzKdyS2Oubdu2bdu2bdu2bWmMnpZKr54yMyLu+Xa3anqmhztr1a8++n2/k//FCP53I/jfjeB/N4L/3Qj+dyP4343gfzeC/90I/ncj+N+N4H83gv/dCP53I/jfjeB/N4L/3Qj+dyP4343gfzeC/90I/ncj+N+N4H83gv/dCP53I/jfjeB/N4L/3Qj+dyP4343gfzeC/90I/ncj+N+N4H83gv/dCP53I/jfjeB/N4L/3Qj+dyP4343gfzeC/90I/ncj+N+N4H83/hExWQGLmqzw+wAAAABJRU5ErkJggg==",
+              "description": "Pantalla de captura del recibo.",
+              "height": 48,
+              "id": "cap-1",
+              "width": 64
+            },
+            {
+              "dataUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD/wAARCAAYACADAREAAhEBAxEB/9sAQwAIBgYHBgUIBwcHCQkICgwUDQwLCwwZEhMPFB0aHx4dGhwcICQuJyAiLCMcHCg3KSwwMTQ0NB8nOT04MjwuMzQy/9sAQwEJCQkMCwwYDQ0YMiEcITIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDsq/PDUKACgAoAKACgAoAKACgAoAKACgD/2Q==",
+              "description": "Falta un SP.",
+              "height": 24,
+              "id": "cap-2",
+              "width": 32
+            }
+          ],
+          "expected": "El recibo queda aplicado.",
+          "functionality": "Primas por cobrar",
+          "id": "caso-1",
+          "input": "Recibo: 1000001\nSucursal: 1\nImporte: $1,234.56 (Moneda Nacional)",
+          "menu": "Aplicación",
+          "module": "Cobranza",
+          "owner": "Ana Pérez",
+          "status": "Por documentar",
+          "submenu": "Aplicación de recibos",
+          "title": "Aplicación de recibos"
+        },
+        {
+          "actual": "",
+          "code": "EJ-002",
+          "date": "2026-10-14",
+          "environment": "QA",
+          "evidence": [
+            {
+              "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAABQCAIAAABd+SbeAAABnklEQVR4Ae3AA6AkWZbG8f937o3IzKdyS2Oubdu2bdu2bdu2bWmMnpZKr54yMyLu+Xa3anqmhztr1a8++n2/k6v+0xFc9V+B4Kr/CgRX/VcguOq/AsFV/xUIrvqvQHDVfwWCq/4rEFz1X4Hgqv8KBFf9VyC46r8CwVX/FQiu+q9AcNV/BYKr/isQXPVfgeCq/woEV/1XILjqvwLBVf8VCK76r0Bw1X8Fgqv+KxBc9V+B4Kr/CgRX/VcguOq/AsFV/xUIrvqvQHDVfwWCq/4rEFz1X4Hgqv8KBFf9VyC46r8CwVX/FQiu+q9AcNV/BYKr/isQXPVfgeCq/woEV/1XILjqvwLBVf8VCK76r0Bw1X8Fgqv+KxBc9V+B4Kr/CgRX/VcguOq/AsFV/xUIrvqvQHDVfwWCq/4rEFz1X4Hgqv8KBFf9VyC46r8CwVX/FQiu+q9AcNV/BYKr/isQXPVfgeCq/woEV/1XILjqvwLBVf8VCK76r0Bw1X8Fgqv+KxBc9V+B4Kr/CgRX/VcguOq/AsFV/xUIrvqvQHDVfwX+EXvDAcvJtDF7AAAAAElFTkSuQmCC",
+              "description": "Recibo aplicado.",
+              "height": 80,
+              "id": "cap-3",
+              "width": 120
+            }
+          ],
+          "expected": "El recibo queda aplicado.",
+          "functionality": "Primas por cobrar",
+          "id": "caso-2",
+          "input": "",
+          "menu": "Aplicación",
+          "module": "Cobranza",
+          "owner": "Ana Pérez",
+          "status": "Aprobado",
+          "submenu": "Aplicación de recibos",
+          "title": "Aplicación de recibos"
+        },
+        {
+          "actual": "Error 500 al cancelar.\nSe reintentó dos veces.",
+          "code": "EJ-004",
+          "date": "2026-10-15",
+          "environment": "QA",
+          "evidence": [],
+          "expected": "El recibo queda aplicado.",
+          "functionality": "Primas por cobrar",
+          "id": "caso-4",
+          "input": "",
+          "menu": "Aplicación",
+          "module": "Cobranza",
+          "owner": "Ana Pérez",
+          "status": "Fallido",
+          "submenu": "Aplicación de recibos",
+          "title": "Cancelar recibo"
+        }
+      ],
+      "id": "recibos-demo",
+      "name": "Aplicación de recibos",
+      "nextSequence": 6
+    },
+    {
+      "cases": [],
+      "id": "polizas-demo",
+      "name": "Pólizas",
+      "nextSequence": 1
+    }
+  ],
+  "revision": 3,
+  "schema": 1
+}
