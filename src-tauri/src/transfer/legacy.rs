@@ -10,10 +10,22 @@ use base64::{
 };
 use serde_json::Value;
 
-use super::bundle::{Problems, code_number, is_case_code};
+use rusqlite::Connection;
+
+use super::bundle::{
+    self, BundleCase, BundleEvidence, BundleField, EMPTY_ANNOTATIONS, IMPORT_FAILED, ImportFiles,
+    Problems, ProjectBundle, code_number, is_case_code,
+};
 use crate::{
-    domain::{fields::is_iso_date, status::is_status},
+    db::{new_id, now},
+    domain::{
+        fields::{FieldType, is_iso_date, normalize_value},
+        status::is_status,
+    },
+    dto::{ImportSummaryDto, ProjectMetaInput},
     error::{AppResult, validation},
+    media::{raster, storage::EvidenceFiles},
+    repo::templates,
 };
 
 pub const NOT_LEGACY: &str = "El archivo no es un respaldo válido de la Bitácora v1.";
@@ -361,6 +373,142 @@ fn parse_evidence(list: &[Value], case_at: &str, problems: &mut Problems) -> Vec
     out
 }
 
+pub const FUNCIONAL: &str = "tpl-funcional";
+pub const MAX_FILE_BYTES: u64 = 200 * 1024 * 1024;
+
+/// Columnas de la plantilla Funcional tal como están en esta base (spec §5).
+pub fn template_fields(conn: &Connection) -> AppResult<Vec<BundleField>> {
+    Ok(templates::get(conn, FUNCIONAL)?
+        .fields
+        .into_iter()
+        .map(|f| BundleField {
+            key: f.key,
+            label: f.label,
+            field_type: f.field_type,
+            options: f.options,
+            required: f.required,
+            clear_on_duplicate: f.clear_on_duplicate,
+            width: f.width,
+            archived: false,
+        })
+        .collect())
+}
+
+/// La plantilla, con «Texto largo» en las columnas de texto corto cuyo valor v1 no cabe.
+fn columns_for(template: &[BundleField], cases: &[LegacyCase]) -> Vec<BundleField> {
+    template
+        .iter()
+        .cloned()
+        .map(|mut f| {
+            let too_long = cases
+                .iter()
+                .any(|c| c.value(&f.key).chars().count() > FieldType::Text.max_len());
+            if f.field_type == FieldType::Text && too_long {
+                f.field_type = FieldType::Longtext;
+            }
+            f
+        })
+        .collect()
+}
+
+/// PNG: los mismos bytes (mismo hash). JPEG: convertido a PNG sin reducir.
+fn as_png(at: &str, kind: ImageKind, bytes: Vec<u8>) -> AppResult<(Vec<u8>, u32, u32)> {
+    let bad = || validation(format!("{IMPORT_FAILED}\n• {at}: {BAD_IMAGE}"));
+    let decoded = raster::to_png(&bytes).map_err(|_| bad())?;
+    let (width, height) = (decoded.width, decoded.height);
+    let png = match kind {
+        ImageKind::Png => bytes,
+        ImageKind::Jpeg => decoded.png,
+    };
+    Ok((png, width, height))
+}
+
+fn to_bundles(
+    projects: Vec<LegacyProject>,
+    template: &[BundleField],
+    out: &mut ImportFiles,
+) -> AppResult<Vec<ProjectBundle>> {
+    let ts = now();
+    let mut bundles = Vec::with_capacity(projects.len());
+    for p in projects {
+        let id = new_id();
+        let at = format!("Proyecto «{}»", p.name);
+        let fields = columns_for(template, &p.cases);
+        let mut cases = Vec::with_capacity(p.cases.len());
+        for c in p.cases {
+            let mut evidence = Vec::with_capacity(c.evidence.len());
+            for (index, e) in c.evidence.into_iter().enumerate() {
+                let place = format!("{at}, {}, captura {}", c.code, index + 1);
+                let (png, width, height) = as_png(&place, e.kind, e.bytes)?;
+                let evidence_id = new_id();
+                out.write(&id, &evidence_id, &png, &png)?;
+                evidence.push(BundleEvidence {
+                    id: evidence_id,
+                    description: e.description,
+                    annotations: EMPTY_ANNOTATIONS.into(),
+                    width: width.into(),
+                    height: height.into(),
+                    captured_at: ts.clone(),
+                    updated_at: ts.clone(),
+                });
+            }
+            let values = c
+                .values
+                .iter()
+                .map(|(key, raw)| {
+                    let field_type = fields
+                        .iter()
+                        .find(|f| f.key == *key)
+                        .map_or(FieldType::Text, |f| f.field_type);
+                    (key.to_string(), normalize_value(field_type, raw))
+                })
+                .filter(|(_, value)| !value.is_empty())
+                .collect();
+            cases.push(BundleCase {
+                code: c.code,
+                title: c.title,
+                status: c.status,
+                created_at: ts.clone(),
+                updated_at: ts.clone(),
+                values,
+                evidence,
+            });
+        }
+        bundles.push(ProjectBundle {
+            id,
+            meta: ProjectMetaInput {
+                name: p.name,
+                client: String::new(),
+                test_type: "Funcional".into(),
+                release_version: String::new(),
+                start_date: String::new(),
+                end_date: String::new(),
+            },
+            next_sequence: p.next_sequence,
+            source_template_id: Some(FUNCIONAL.into()),
+            created_at: ts.clone(),
+            updated_at: ts.clone(),
+            fields,
+            cases,
+            versions: Vec::new(),
+        });
+    }
+    Ok(bundles)
+}
+
+/// UC-19 completo: valida, escribe las capturas y crea los proyectos en una transacción.
+pub fn import(
+    conn: &Connection,
+    files: &EvidenceFiles,
+    bytes: &[u8],
+) -> AppResult<ImportSummaryDto> {
+    let projects = parse(bytes)?;
+    let template = template_fields(conn)?;
+    let mut out = ImportFiles::new(files);
+    let bundles = to_bundles(projects, &template, &mut out)?;
+    bundle::insert(conn, bundles, out)
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use std::{io::Cursor, path::PathBuf};
@@ -370,6 +518,201 @@ pub(crate) mod tests {
 
     use super::*;
     use crate::{error::AppError, media::raster::sample_png};
+
+    use std::{collections::BTreeMap, fs};
+
+    use crate::{
+        dto::CaseInput,
+        media::storage::TempDir,
+        repo::{cases, evidence, projects, test_support},
+        transfer::bundle::tests::project_dirs,
+    };
+
+    fn decoded(value: &Value) -> Vec<u8> {
+        let url = value["dataUrl"].as_str().unwrap();
+        STANDARD.decode(url.split_once(',').unwrap().1).unwrap()
+    }
+
+    #[test]
+    fn imports_the_fixture_keeping_codes_sequence_text_and_images() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let summary = import(&conn, &files, &fixture_bytes()).unwrap();
+
+        let names: Vec<&str> = summary.projects.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(names, ["Aplicación de recibos", "Pólizas"]);
+        assert_eq!((summary.cases, summary.evidence), (3, 3));
+
+        let recibos = projects::get(&conn, &summary.projects[0].id).unwrap();
+        assert_eq!(recibos.next_sequence, 6);
+        assert_eq!(recibos.test_type, "Funcional");
+        assert_eq!(recibos.source_template_id.as_deref(), Some(FUNCIONAL));
+        assert_eq!(recibos.fields.len(), 11, "plantilla Funcional completa");
+        let list = cases::list(&conn, &recibos.id).unwrap();
+        let codes: Vec<&str> = list.iter().map(|c| c.code.as_str()).collect();
+        assert_eq!(codes, ["EJ-001", "EJ-002", "EJ-004"]);
+        let statuses: Vec<&str> = list.iter().map(|c| c.status.as_str()).collect();
+        assert_eq!(statuses, ["Por documentar", "Aprobado", "Fallido"]);
+        let value = |case: usize, key: &str| {
+            list[case]
+                .values
+                .get(&test_support::field_id(&recibos, key))
+                .cloned()
+                .unwrap_or_default()
+        };
+        assert_eq!(
+            value(0, "datos_entrada"),
+            "Recibo: 1000001\nSucursal: 1\nImporte: $1,234.56 (Moneda Nacional)"
+        );
+        assert_eq!(
+            value(2, "resultado_obtenido"),
+            "Error 500 al cancelar.\nSe reintentó dos veces."
+        );
+        assert_eq!(value(1, "fecha_ejecucion"), "2026-10-14");
+        assert_eq!(value(0, "entorno"), "Máquina Virtual");
+        assert_eq!(
+            value(0, "resultado_obtenido"),
+            "",
+            "los vacíos no se guardan"
+        );
+
+        let fixture = fixture_value();
+        let pictures = &fixture["projects"][0]["cases"][0]["evidence"];
+        let ev = evidence::list(&conn, &files, &list[0].id).unwrap();
+        assert_eq!(ev[0].description, "Pantalla de captura del recibo.");
+        let original = fs::read(&ev[0].original_path).unwrap();
+        assert_eq!(
+            original,
+            decoded(&pictures[0]),
+            "PNG byte a byte (mismo hash)"
+        );
+        assert_eq!(
+            fs::read(&ev[0].rendered_path).unwrap(),
+            original,
+            "render = original"
+        );
+        assert_eq!((ev[0].width, ev[0].height), (64, 48));
+        assert_eq!(
+            ev[0].annotations,
+            crate::transfer::bundle::EMPTY_ANNOTATIONS
+        );
+        let from_jpeg = fs::read(&ev[1].original_path).unwrap();
+        assert_eq!(
+            image::guess_format(&from_jpeg).unwrap(),
+            image::ImageFormat::Png
+        );
+        assert_eq!((ev[1].width, ev[1].height), (32, 24));
+        let second = evidence::list(&conn, &files, &list[1].id).unwrap();
+        let second_picture = &fixture["projects"][0]["cases"][1]["evidence"][0];
+        assert_eq!(
+            fs::read(&second[0].original_path).unwrap(),
+            decoded(second_picture)
+        );
+
+        let next = cases::create(
+            &conn,
+            &recibos.id,
+            &CaseInput {
+                title: "Nuevo caso".into(),
+                status: "No ejecutado".into(),
+                values: BTreeMap::from([(
+                    test_support::field_id(&recibos, "entorno"),
+                    "QA".into(),
+                )]),
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            next.code, "EJ-006",
+            "la secuencia continúa donde la dejó la v1"
+        );
+    }
+
+    #[test]
+    fn a_rejected_file_writes_nothing() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let bytes = mutated(|v| v["projects"][0]["cases"][2]["status"] = json!("Cerrado"));
+        assert!(import(&conn, &files, &bytes).is_err());
+        assert!(projects::list(&conn).unwrap().is_empty());
+        assert_eq!(project_dirs(&files), 0);
+    }
+
+    #[test]
+    fn a_truncated_png_in_the_second_project_rolls_back_everything() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        // Cabecera PNG válida (pasa la regla de store.mjs) pero archivo incompleto.
+        let truncated = &sample_png(64, 48)[..40];
+        let bytes = mutated(|v| {
+            let mut broken = case("p-1", "EJ-001", "Emitir póliza", "Aprobado", vec![]);
+            broken["evidence"] = json!([picture(
+                "x",
+                "Póliza emitida.",
+                data_url("png", truncated),
+                64,
+                48
+            )]);
+            v["projects"][1]["nextSequence"] = json!(2);
+            v["projects"][1]["cases"] = json!([broken]);
+        });
+        let err = import(&conn, &files, &bytes).unwrap_err().to_string();
+        assert_eq!(
+            err,
+            format!(
+                "{}\n• Proyecto «Pólizas», EJ-001, captura 1: Contenido de imagen inválido.",
+                crate::transfer::bundle::IMPORT_FAILED
+            )
+        );
+        assert!(projects::list(&conn).unwrap().is_empty());
+        assert_eq!(
+            project_dirs(&files),
+            0,
+            "las capturas del primer proyecto también se borran"
+        );
+    }
+
+    #[test]
+    fn long_values_turn_the_column_into_long_text() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let long = "m".repeat(600);
+        let bytes = mutated(|v| v["projects"][0]["cases"][0]["menu"] = json!(long));
+        let summary = import(&conn, &files, &bytes).unwrap();
+        let p = projects::get(&conn, &summary.projects[0].id).unwrap();
+        let menu = p.fields.iter().find(|f| f.key == "menu").unwrap();
+        assert_eq!(menu.field_type, FieldType::Longtext);
+        let modulo = p.fields.iter().find(|f| f.key == "modulo").unwrap();
+        assert_eq!(modulo.field_type, FieldType::Text);
+        let list = cases::list(&conn, &p.id).unwrap();
+        assert_eq!(list[0].values[&menu.id].chars().count(), 600);
+        let polizas = projects::get(&conn, &summary.projects[1].id).unwrap();
+        let other_menu = polizas.fields.iter().find(|f| f.key == "menu").unwrap();
+        assert_eq!(
+            other_menu.field_type,
+            FieldType::Text,
+            "solo cambia en el proyecto afectado"
+        );
+    }
+
+    #[test]
+    fn importing_twice_adds_the_importado_suffix() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        import(&conn, &files, &fixture_bytes()).unwrap();
+        let again = import(&conn, &files, &fixture_bytes()).unwrap();
+        let names: Vec<&str> = again.projects.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(
+            names,
+            ["Aplicación de recibos (importado)", "Pólizas (importado)"]
+        );
+        assert_eq!(projects::list(&conn).unwrap().len(), 4);
+    }
 
     const FIXTURE: &str = "fixtures/bitacora-v1.json";
 
