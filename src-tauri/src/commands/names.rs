@@ -40,6 +40,14 @@ pub const APP_COMMANDS: &[&str] = &[
     "export_template",
     "open_export",
     "reveal_export",
+    "get_startup_status",
+    "import_legacy",
+    "import_package",
+    "export_package",
+    "list_backups",
+    "create_backup",
+    "restore_backup",
+    "recover_database",
 ];
 
 /// Lo único que puede invocar una ventana overlay (spec §9). El resto es de la principal.

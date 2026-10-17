@@ -3,6 +3,7 @@ import type { Evidence, EvidenceUpdateInput, NewEvidenceInput, StagedImage } fro
 import type { FieldDef } from "../domain/fields";
 import type { FieldInput, NewProjectInput, Project, ProjectMeta, ProjectSummary, Template } from "../domain/project";
 import type { ScreenCapture } from "./capture";
+import type { DataTransfer } from "./data";
 import type { DocVersionRepository, Exporter } from "./export";
 
 export interface TemplateRepository {
@@ -50,4 +51,5 @@ export interface Repositories {
   capture: ScreenCapture;
   docVersions: DocVersionRepository;
   exporter: Exporter;
+  data: DataTransfer;
 }

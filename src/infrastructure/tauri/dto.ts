@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { FIELD_TYPES } from "../../domain/fields";
+import { BACKUP_KINDS } from "../../domain/data";
 import { EXPORT_STAGES } from "../../domain/export";
 import { STATUSES } from "../../domain/status";
 
@@ -60,7 +61,7 @@ export const caseSchema = z.strictObject({
 });
 
 export const appErrorSchema = z.strictObject({
-  code: z.enum(["validation", "not_found", "db", "io", "capture", "file_locked", "export", "internal"]),
+  code: z.enum(["validation", "not_found", "db", "io", "capture", "file_locked", "export", "corrupt", "internal"]),
   message: z.string(),
   detail: z.string(),
 });
@@ -113,4 +114,37 @@ export const exportProgressSchema = z.strictObject({
   stage: z.enum(EXPORT_STAGES),
   current: z.number().int(),
   total: z.number().int(),
+});
+
+export const importSummarySchema = z.strictObject({
+  projects: z.array(z.strictObject({ id: z.string(), name: z.string() })),
+  cases: z.number().int(),
+  evidence: z.number().int(),
+});
+
+export const packageExportResultSchema = z.strictObject({
+  path: z.string(),
+  fileName: z.string(),
+  cases: z.number().int(),
+  evidence: z.number().int(),
+  missingImages: z.number().int(),
+});
+
+export const backupSchema = z.strictObject({
+  fileName: z.string(),
+  kind: z.enum(BACKUP_KINDS),
+  createdAt: z.string(),
+  sizeBytes: z.number().int(),
+});
+
+export const restoreResultSchema = z.strictObject({
+  restored: backupSchema,
+  safetyCopy: z.string(),
+  missingImages: z.number().int(),
+  setAsideFiles: z.number().int(),
+});
+
+export const startupStatusSchema = z.strictObject({
+  recovery: z.boolean(),
+  detail: z.string(),
 });

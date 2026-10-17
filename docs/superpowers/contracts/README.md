@@ -30,7 +30,7 @@ flowchart LR
 | F2 | [Evidencias + editor de anotaciones](F2-evidencias-anotaciones.md) | [plan](../plans/2026-10-15-f2-evidencias-anotaciones.md) | ✅ Cerrada | `v0.2.0` |
 | F3 | [Captura integrada](F3-captura-integrada.md) | [plan](../plans/2026-10-16-f3-captura-integrada.md) | ✅ Cerrada | `v0.3.0` |
 | F4 | [Excel con carátula](F4-excel-caratula.md) | [plan](../plans/2026-10-16-f4-excel-caratula.md) | 🧪 En pruebas del equipo | `v0.4.0` |
-| F5 | [Importación v1 + paquetes + respaldo](F5-importacion-paquetes.md) | al iniciar | ⏳ | `v0.5.0` |
+| F5 | [Importación v1 + paquetes + respaldo](F5-importacion-paquetes.md) | [plan](../plans/2026-10-16-f5-importacion-paquetes.md) | 🧪 En pruebas del equipo | `v0.5.0` |
 | F6 | [Bandeja, atajos y settings](F6-bandeja-atajos-settings.md) | al iniciar | ⏳ | `v0.6.0` |
 | F7 | [CI/CD, updater, release y docs](F7-cicd-release.md) | al iniciar | ⏳ | `v1.0.0` |
 

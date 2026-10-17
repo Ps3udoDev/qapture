@@ -2,8 +2,9 @@ import { FileSpreadsheet, Plus, Settings } from "lucide-react";
 import mark from "../../assets/brand/qapture-mark.svg";
 import { btn, inputCls } from "../components/styles";
 import { useWorkspace } from "../store/context";
+import { DataMenu } from "./DataMenu";
 
-export function TopBar({ onNewProject, onSettings, onExport }: { onNewProject: () => void; onSettings?: () => void; onExport?: () => void }) {
+export function TopBar({ onNewProject, onSettings, onExport, onBackups }: { onNewProject: () => void; onSettings?: () => void; onExport?: () => void; onBackups?: () => void }) {
   const projects = useWorkspace((s) => s.projects);
   const project = useWorkspace((s) => s.project);
   const selectProject = useWorkspace((s) => s.selectProject);
@@ -30,6 +31,7 @@ export function TopBar({ onNewProject, onSettings, onExport }: { onNewProject: (
         </label>
       )}
       <div className="ml-auto flex gap-2">
+        {onBackups && <DataMenu onBackups={onBackups} />}
         {onExport && project && (
           <button type="button" className={btn.secondary} onClick={onExport}>
             <FileSpreadsheet size={16} /> Exportar

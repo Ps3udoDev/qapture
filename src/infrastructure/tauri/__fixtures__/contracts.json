@@ -1,4 +1,10 @@
 {
+  "backup": {
+    "createdAt": "2026-10-16T09:00:00",
+    "fileName": "qapture-diario-20261016.db",
+    "kind": "daily",
+    "sizeBytes": 98304
+  },
   "captureError": {
     "code": "capture",
     "detail": "captura: xcap: monitor desconectado",
@@ -19,6 +25,11 @@
     "values": {
       "fld-1": "QA"
     }
+  },
+  "corruptError": {
+    "code": "corrupt",
+    "detail": "base dañada: database disk image is malformed",
+    "message": "La base de datos de Qapture está dañada."
   },
   "docVersion": {
     "approver": "",
@@ -80,6 +91,16 @@
     "required": true,
     "type": "list",
     "width": 21
+  },
+  "importSummary": {
+    "cases": 3,
+    "evidence": 2,
+    "projects": [
+      {
+        "id": "prj-2",
+        "name": "Aplicación de recibos"
+      }
+    ]
   },
   "inputs": {
     "caseInput": {
@@ -162,6 +183,13 @@
     "detail": "archivo en uso: C:\\Users\\ana\\Documents\\matriz.xlsx",
     "message": "Cierra el archivo en Excel y vuelve a intentar."
   },
+  "packageExportResult": {
+    "cases": 10,
+    "evidence": 20,
+    "fileName": "T4S_ACME_Recibos_20261016.qapture",
+    "missingImages": 0,
+    "path": "C:\\Users\\ana\\Documents\\T4S_ACME_Recibos_20261016.qapture"
+  },
   "project": {
     "client": "ACME",
     "createdAt": "2026-10-15T12:00:00.000Z",
@@ -199,10 +227,25 @@
     "name": "Recibos",
     "updatedAt": "2026-10-15T12:00:00.000Z"
   },
+  "restoreResult": {
+    "missingImages": 0,
+    "restored": {
+      "createdAt": "2026-10-16T09:00:00",
+      "fileName": "qapture-diario-20261016.db",
+      "kind": "daily",
+      "sizeBytes": 98304
+    },
+    "safetyCopy": "qapture-antes-de-restaurar-20261016-100000.db",
+    "setAsideFiles": 2
+  },
   "stagedImage": {
     "height": 1080,
     "path": "C:\\datos\\evidence\\_staging\\stg-1.png",
     "width": 1920
+  },
+  "startupStatus": {
+    "detail": "base dañada: database disk image is malformed",
+    "recovery": true
   },
   "template": {
     "builtin": true,

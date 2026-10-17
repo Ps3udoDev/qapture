@@ -45,7 +45,7 @@ fn validate_description(raw: &str) -> AppResult<String> {
 }
 
 /// Rust solo exige la envoltura versionada; la forma de cada anotación la valida el dominio TS.
-fn validate_annotations(raw: &str) -> AppResult<String> {
+pub(crate) fn validate_annotations(raw: &str) -> AppResult<String> {
     if raw.len() > MAX_ANNOTATIONS_BYTES {
         return Err(validation("Las anotaciones superan 512 KB."));
     }
@@ -343,6 +343,24 @@ pub fn delete_project(conn: &Connection, files: &EvidenceFiles, project_id: &str
 
 /// Al arrancar: borra archivos de `evidence/` que la base no referencia.
 pub fn sweep_orphans(conn: &Connection, files: &EvidenceFiles) -> AppResult<usize> {
+    let (referenced, projects) = references(conn)?;
+    files.sweep(&referenced, &projects)
+}
+
+/// Capturas cuyo original ya no está en disco (p. ej. tras restaurar un respaldo antiguo).
+pub fn missing_images(conn: &Connection, files: &EvidenceFiles) -> AppResult<i64> {
+    let mut stmt = conn.prepare("SELECT original_path FROM evidence")?;
+    let mut missing = 0;
+    for rel in stmt.query_map([], |r| r.get::<_, String>(0))? {
+        if !files.absolute(&rel?).is_file() {
+            missing += 1;
+        }
+    }
+    Ok(missing)
+}
+
+/// Rutas relativas que la base referencia y los ids de proyecto existentes.
+pub fn references(conn: &Connection) -> AppResult<(HashSet<String>, HashSet<String>)> {
     let mut referenced = HashSet::new();
     let mut stmt = conn.prepare("SELECT original_path, rendered_path FROM evidence")?;
     for row in stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))? {
@@ -354,7 +372,7 @@ pub fn sweep_orphans(conn: &Connection, files: &EvidenceFiles) -> AppResult<usiz
     let projects = stmt
         .query_map([], |r| r.get::<_, String>(0))?
         .collect::<Result<HashSet<_>, _>>()?;
-    files.sweep(&referenced, &projects)
+    Ok((referenced, projects))
 }
 
 #[cfg(test)]

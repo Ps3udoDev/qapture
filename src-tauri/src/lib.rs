@@ -1,3 +1,4 @@
+mod backup;
 mod capture;
 mod commands;
 mod db;
@@ -9,6 +10,7 @@ mod media;
 mod repo;
 mod state;
 mod system;
+mod transfer;
 
 use tauri::Manager;
 
@@ -22,16 +24,26 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
-            let conn = db::open(&data_dir.join("qapture.db"))?;
             let files = media::storage::EvidenceFiles::new(&data_dir);
-            // Restos de sesiones anteriores: capturas sin guardar y archivos sin fila en la db.
-            if let Err(error) = files.clear_staging() {
-                eprintln!("No se pudo limpiar evidence/_staging: {error}");
-            }
-            if let Err(error) = repo::evidence::sweep_orphans(&conn, &files) {
-                eprintln!("No se pudieron limpiar evidencias huérfanas: {error}");
-            }
-            app.manage(state::AppState::new(conn, files));
+            let state = match db::recovery::open_or_recover(&data_dir.join(db::DB_FILE))? {
+                db::recovery::Startup::Ready(conn) => {
+                    // Restos de sesiones anteriores: capturas sin guardar y archivos sin fila en la db.
+                    if let Err(error) = files.clear_staging() {
+                        eprintln!("No se pudo limpiar evidence/_staging: {error}");
+                    }
+                    if let Err(error) = repo::evidence::sweep_orphans(&conn, &files) {
+                        eprintln!("No se pudieron limpiar evidencias huérfanas: {error}");
+                    }
+                    state::AppState::new(conn, files, &data_dir, None)
+                }
+                db::recovery::Startup::Recovery(detail) => {
+                    // Nada de limpiezas ni respaldos: la base vacía en memoria no refleja los datos reales.
+                    eprintln!("Base de datos dañada, se abre el modo recuperación: {detail}");
+                    state::AppState::new(db::open_in_memory()?, files, &data_dir, Some(detail))
+                }
+            };
+            app.manage(state);
+            system::daily_backup::spawn(app.handle().clone());
             system::tray::setup_tray(app)?;
             Ok(())
         })
@@ -92,6 +104,14 @@ pub fn run() {
             commands::export::export_template,
             commands::export::open_export,
             commands::export::reveal_export,
+            commands::data::get_startup_status,
+            commands::data::import_legacy,
+            commands::data::import_package,
+            commands::data::export_package,
+            commands::data::list_backups,
+            commands::data::create_backup,
+            commands::data::restore_backup,
+            commands::data::recover_database,
         ])
         .run(tauri::generate_context!())
         .expect("no se pudo iniciar Qapture");

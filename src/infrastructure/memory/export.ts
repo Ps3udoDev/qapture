@@ -81,6 +81,8 @@ export interface MemoryExporter extends Exporter {
   /** Imágenes que el próximo export no pudo incluir. */
   missingImages: number;
   emit(progress: ExportProgress): void;
+  /** Un paquete exportado en esta sesión también se puede mostrar en su carpeta. */
+  remember(path: string): void;
 }
 
 export function createMemoryExporter(countFor: (projectId: string) => { cases: number; evidence: number }): MemoryExporter {
@@ -120,6 +122,9 @@ export function createMemoryExporter(countFor: (projectId: string) => { cases: n
     async revealFile(path) {
       known(path);
       exporter.revealed.push(path);
+    },
+    remember(path) {
+      exported.add(path);
     },
     emit(progress) {
       handlers.forEach((handler) => handler(progress));

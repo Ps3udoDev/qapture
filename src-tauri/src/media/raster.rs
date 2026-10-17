@@ -87,6 +87,34 @@ pub fn normalize(bytes: &[u8]) -> AppResult<NormalizedImage> {
     })
 }
 
+/// Importación de la v1: decodifica la imagen completa (un PNG truncado falla aquí) y la
+/// devuelve como PNG del mismo tamaño. A diferencia de `normalize`, no reduce a 2400 px.
+pub fn to_png(bytes: &[u8]) -> AppResult<NormalizedImage> {
+    let (width, height) = dimensions(bytes)?;
+    check_side(width, height)?;
+    let img = reader(bytes)?
+        .decode()
+        .map_err(|_| validation("La imagen está dañada o incompleta."))?;
+    Ok(NormalizedImage {
+        png: encode_png(&img)?,
+        width,
+        height,
+    })
+}
+
+/// Paquetes `.qapture`: el archivo debe ser un PNG completo de hasta 12000 px por lado.
+pub fn verify_png(bytes: &[u8]) -> AppResult<(u32, u32)> {
+    if image::guess_format(bytes).ok() != Some(ImageFormat::Png) {
+        return Err(validation(UNSUPPORTED));
+    }
+    let (width, height) = dimensions(bytes)?;
+    check_side(width, height)?;
+    reader(bytes)?
+        .decode()
+        .map_err(|_| validation("La imagen está dañada o incompleta."))?;
+    Ok((width, height))
+}
+
 pub fn validate_render(bytes: &[u8]) -> AppResult<(u32, u32)> {
     let invalid =
         || validation("El render de la evidencia debe ser un PNG de hasta 2400 px por lado.");
@@ -122,6 +150,28 @@ mod tests {
 
     fn rgb(w: u32, h: u32) -> DynamicImage {
         DynamicImage::ImageRgb8(image::RgbImage::from_pixel(w, h, image::Rgb([200, 30, 30])))
+    }
+
+    #[test]
+    fn to_png_keeps_the_size_and_detects_truncated_files() {
+        let out = to_png(&encode(rgb(3000, 20), ImageFormat::Jpeg)).unwrap();
+        assert_eq!((out.width, out.height), (3000, 20), "no se reduce a 2400");
+        assert_eq!(image::guess_format(&out.png).unwrap(), ImageFormat::Png);
+        let png = sample_png(64, 48);
+        assert!(to_png(&png[..png.len() / 2]).is_err());
+        assert!(to_png(b"hola").is_err());
+    }
+
+    #[test]
+    fn verify_png_requires_a_complete_png() {
+        assert_eq!(verify_png(&sample_png(64, 48)).unwrap(), (64, 48));
+        let png = sample_png(64, 48);
+        assert!(verify_png(&png[..png.len() - 20]).is_err(), "truncado");
+        assert!(
+            verify_png(&encode(rgb(10, 10), ImageFormat::Jpeg)).is_err(),
+            "no es PNG"
+        );
+        assert!(verify_png(&sample_png(12_001, 1)).is_err());
     }
 
     #[test]

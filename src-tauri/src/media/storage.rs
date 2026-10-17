@@ -11,6 +11,7 @@ use crate::{
 
 pub const EVIDENCE_DIR: &str = "evidence";
 pub const STAGING_DIR: &str = "_staging";
+pub const UNUSED_DIR: &str = "evidence-sin-uso";
 
 /// `<datos>/evidence/<proyecto>/<id>.orig.png` y `.render.png`, más `evidence/_staging/`
 /// para las imágenes que todavía están abiertas en el editor.
@@ -153,6 +154,105 @@ impl EvidenceFiles {
         }
         Ok(removed)
     }
+
+    /// Como `sweep`, pero mueve lo no referenciado a `evidence-sin-uso/<stamp>/<proyecto>/` en vez
+    /// de borrarlo: restaurar un respaldo o recuperar la base nunca debe perder capturas. Si un
+    /// movimiento falla, devuelve a su sitio lo ya movido antes de devolver el error.
+    pub fn set_aside(
+        &self,
+        referenced: &HashSet<String>,
+        projects: &HashSet<String>,
+        stamp: &str,
+    ) -> AppResult<SetAside> {
+        let mut aside = SetAside::default();
+        match self.move_unreferenced(referenced, projects, stamp, &mut aside) {
+            Ok(()) => Ok(aside),
+            Err(error) => {
+                aside.undo();
+                Err(error)
+            }
+        }
+    }
+
+    fn move_unreferenced(
+        &self,
+        referenced: &HashSet<String>,
+        projects: &HashSet<String>,
+        stamp: &str,
+        aside: &mut SetAside,
+    ) -> AppResult<()> {
+        let root = self.root();
+        if !root.exists() {
+            return Ok(());
+        }
+        let target = self.data_dir.join(UNUSED_DIR).join(stamp);
+        for entry in fs::read_dir(&root)? {
+            let entry = entry?;
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let path = entry.path();
+            if name == STAGING_DIR || !path.is_dir() {
+                continue;
+            }
+            let known_project = projects.contains(&name);
+            for file in fs::read_dir(&path)? {
+                let file = file?;
+                let rel = format!(
+                    "{EVIDENCE_DIR}/{name}/{}",
+                    file.file_name().to_string_lossy()
+                );
+                if known_project && referenced.contains(&rel) {
+                    continue;
+                }
+                let dest = target.join(&name);
+                fs::create_dir_all(&dest)?;
+                let moved_to = dest.join(file.file_name());
+                fs::rename(file.path(), &moved_to)?;
+                aside.moves.push((file.path(), moved_to));
+            }
+            if !known_project {
+                let _ = fs::remove_dir(&path);
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Capturas que `set_aside` movió a `evidence-sin-uso/`, para poder deshacerlo si la operación
+/// que lo pidió falla después.
+#[derive(Debug, Default)]
+pub struct SetAside {
+    /// (ruta original en `evidence/`, ruta en `evidence-sin-uso/`)
+    moves: Vec<(PathBuf, PathBuf)>,
+}
+
+impl SetAside {
+    pub fn count(&self) -> usize {
+        self.moves.len()
+    }
+
+    /// Devuelve cada archivo a `evidence/`. El que no se pueda devolver se queda en
+    /// `evidence-sin-uso/`: nunca se borra.
+    pub fn undo(self) {
+        for (original, moved_to) in self.moves.into_iter().rev() {
+            let back = original
+                .parent()
+                .map_or(Ok(()), fs::create_dir_all)
+                .and_then(|()| fs::rename(&moved_to, &original));
+            match back {
+                // Quita `<stamp>/<proyecto>/` y `<stamp>/` si quedaron vacías (si no, falla y se quedan).
+                Ok(()) => {
+                    for dir in moved_to.ancestors().skip(1).take(2) {
+                        let _ = fs::remove_dir(dir);
+                    }
+                }
+                Err(error) => eprintln!(
+                    "No se pudo devolver {} a {}: {error}",
+                    moved_to.display(),
+                    original.display()
+                ),
+            }
+        }
+    }
 }
 
 /// Escribe en un temporal del mismo directorio y renombra: nunca deja un PNG a medias.
@@ -254,6 +354,67 @@ mod tests {
         write_atomic(&path, b"dos").unwrap();
         assert_eq!(fs::read(&path).unwrap(), b"dos");
         assert_eq!(fs::read_dir(tmp.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn set_aside_moves_unreferenced_files_instead_of_deleting_them() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        files.stage(b"x").unwrap();
+        let keep = EvidenceFiles::original_rel("p1", "e1");
+        let extra = EvidenceFiles::render_rel("p1", "e2");
+        let gone = EvidenceFiles::original_rel("p2", "e3");
+        for rel in [&keep, &extra, &gone] {
+            put(&files, rel);
+        }
+        let moved = files
+            .set_aside(
+                &HashSet::from([keep.clone()]),
+                &HashSet::from(["p1".to_string()]),
+                "20261016-100000",
+            )
+            .unwrap();
+        assert_eq!(moved.count(), 2);
+        assert!(files.absolute(&keep).exists());
+        let target = tmp.path().join(UNUSED_DIR).join("20261016-100000");
+        assert!(target.join("p1").join("e2.render.png").exists());
+        assert!(target.join("p2").join("e3.orig.png").exists());
+        assert!(!files.project_dir("p2").exists());
+        assert!(files.staging_dir().exists(), "_staging no se toca");
+        assert_eq!(
+            files
+                .set_aside(&HashSet::new(), &HashSet::new(), "otra")
+                .unwrap()
+                .count(),
+            1,
+            "solo queda e1"
+        );
+    }
+
+    #[test]
+    fn a_failed_set_aside_puts_back_what_it_already_moved() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let rels = [
+            EvidenceFiles::original_rel("p1", "e1"),
+            EvidenceFiles::render_rel("p1", "e1"),
+            EvidenceFiles::original_rel("p2", "e3"),
+        ];
+        for rel in &rels {
+            put(&files, rel);
+        }
+        // Una carpeta con el nombre de un archivo destino hace fallar ese movimiento.
+        let target = tmp.path().join(UNUSED_DIR).join("20261016-100000");
+        fs::create_dir_all(target.join("p2").join("e3.orig.png")).unwrap();
+        assert!(
+            files
+                .set_aside(&HashSet::new(), &HashSet::new(), "20261016-100000")
+                .is_err()
+        );
+        for rel in &rels {
+            assert!(files.absolute(rel).is_file(), "{rel} volvió a evidence/");
+        }
+        assert!(!target.join("p1").exists());
     }
 
     #[test]
