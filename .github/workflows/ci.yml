@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   frontend:
-    name: Frontend (Typecheck, Test & Build)
+    name: Frontend (Lint, Typecheck, Test & Build)
     runs-on: windows-latest
     steps:
       - name: Checkout repository
@@ -30,6 +30,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Lint (ESLint)
+        run: pnpm lint
 
       - name: Check types (TypeScript)
         run: pnpm typecheck
@@ -65,3 +68,37 @@ jobs:
 
       - name: Run Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: El fixture de contrato no cambió
+        run: git diff --exit-code -- src/infrastructure/tauri/__fixtures__/contracts.json
+
+  tauri-build:
+    name: Tauri build (sin instaladores)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: tauri-build
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Tauri (debug, sin instaladores)
+        run: pnpm tauri build --no-bundle --debug
