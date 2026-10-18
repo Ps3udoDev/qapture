@@ -61,13 +61,23 @@ pub fn run() {
                     .kind(MessageDialogKind::Error)
                     .title("Qapture")
                     .blocking_show();
-                app.handle().exit(1);
-                return Err(message.into());
+                std::process::exit(1);
             }
             if portable {
                 // El scope de tauri.conf.json solo cubre `$APPDATA`; aquí las imágenes están junto al exe.
-                app.asset_protocol_scope()
-                    .allow_directory(data_dir.join(media::storage::EVIDENCE_DIR), true)?;
+                let evidence = data_dir.join(media::storage::EVIDENCE_DIR);
+                if let Err(error) = std::fs::create_dir_all(&evidence)
+                    .map_err(|e| e.to_string())
+                    .and_then(|_| {
+                        app.asset_protocol_scope()
+                            .allow_directory(&evidence, true)
+                            .map_err(|e| e.to_string())
+                    })
+                {
+                    eprintln!(
+                        "No se pudo permitir la carpeta de evidencias en el asset protocol: {error}"
+                    );
+                }
             }
             let files = media::storage::EvidenceFiles::new(&data_dir);
             let state = match db::recovery::open_or_recover(&data_dir.join(db::DB_FILE))? {

@@ -168,13 +168,16 @@ fn settings_changed_underneath(app: &AppHandle, state: &AppState) {
 
 /// Base vacía: el inicio con Windows no se toca; la base nueva guarda lo que el SO tiene ahora.
 fn started_empty(app: &AppHandle, state: &AppState) {
-    match app.autolaunch().is_enabled() {
-        Ok(enabled) => {
-            if let Err(error) = runtime::seed_autostart(state, enabled) {
-                eprintln!("No se pudo guardar el inicio con Windows en la base nueva: {error}");
+    // En portable el inicio con Windows no existe: no se lee la entrada de la app instalada.
+    if !state.is_portable() {
+        match app.autolaunch().is_enabled() {
+            Ok(enabled) => {
+                if let Err(error) = runtime::seed_autostart(state, enabled) {
+                    eprintln!("No se pudo guardar el inicio con Windows en la base nueva: {error}");
+                }
             }
+            Err(error) => eprintln!("No se pudo leer el inicio con Windows: {error}"),
         }
-        Err(error) => eprintln!("No se pudo leer el inicio con Windows: {error}"),
     }
     runtime::reload_settings(state);
 }
