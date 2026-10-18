@@ -10,6 +10,8 @@ export interface Updater {
   install(): Promise<void>;
   /** Evento `update:available` (revisión periódica o clic en la bandeja); la misma versión puede repetirse. */
   onAvailable(handler: (info: UpdateInfo) => void): Promise<Unlisten>;
+  /** Evento `update:show` (clic en la bandeja): abrir el diálogo aunque la versión se haya pospuesto. */
+  onShow(handler: (info: UpdateInfo) => void): Promise<Unlisten>;
   /** Evento `update:progress` durante la descarga. */
   onProgress(handler: (progress: UpdateProgress) => void): Promise<Unlisten>;
 }

@@ -31,6 +31,20 @@ describe("slice del updater", () => {
     expect(open()).toBe(true);
   });
 
+  it("la bandeja reabre una versión pospuesta", async () => {
+    const { repos, s, open } = await setup();
+    repos.updater.emitAvailable(info("1.0.1"));
+    s().dismissUpdate();
+    expect(open()).toBe(false);
+    // La revisión periódica no la reabre, pero el clic en «Instalar actualización 1.0.1» sí.
+    repos.updater.emitAvailable(info("1.0.1"));
+    expect(open()).toBe(false);
+    repos.updater.emitShow(info("1.0.1"));
+    expect(open()).toBe(true);
+    expect(s().update.dismissed).toBeNull();
+    expect(s().update.available?.version).toBe("1.0.1");
+  });
+
   it("buscar a mano sin novedades avisa que está al día y sin red muestra el error", async () => {
     const { repos, s } = await setup();
     repos.updater.next = null;

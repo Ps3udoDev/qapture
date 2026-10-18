@@ -20,7 +20,7 @@ export interface UpdateSlice {
   checkForUpdates(manual: boolean): Promise<void>;
   installUpdate(): Promise<void>;
   dismissUpdate(): void;
-  /** Suscribe `update:available` y `update:progress`; devuelve la función que cancela ambas. */
+  /** Suscribe `update:available`, `update:show` y `update:progress`; devuelve la función que las cancela. */
   listenUpdates(): Promise<() => void>;
 }
 
@@ -81,20 +81,24 @@ export function createUpdateSlice(repos: Repositories, set: Set, get: Get, h: Sl
     async listenUpdates() {
       // `onAvailable` puede repetir la misma versión (revisión cada 6 h, clic en la bandeja): el diálogo
       // solo se reabre si no está pospuesta; el indicador de Ajustes y «Acerca de» son el camino de vuelta.
-      const offAvailable = await repos.updater.onAvailable((info) => patch({ available: info }));
+      const offs: (() => void)[] = [];
       try {
-        const offProgress = await repos.updater.onProgress((p) => {
-          // Solo cuenta mientras hay una instalación en curso.
-          if (get().update.status === "downloading") patch({ progress: progressPercent(p.downloaded, p.total) });
-        });
-        return () => {
-          offAvailable();
-          offProgress();
-        };
+        offs.push(await repos.updater.onAvailable((info) => patch({ available: info })));
+        // La bandeja es un pedido explícito: abre el diálogo aunque la versión se haya pospuesto.
+        offs.push(await repos.updater.onShow((info) => patch({ available: info, dismissed: null })));
+        offs.push(
+          await repos.updater.onProgress((p) => {
+            // Solo cuenta mientras hay una instalación en curso.
+            if (get().update.status === "downloading") patch({ progress: progressPercent(p.downloaded, p.total) });
+          }),
+        );
       } catch (error) {
-        offAvailable();
+        for (const off of offs) off();
         throw error;
       }
+      return () => {
+        for (const off of offs) off();
+      };
     },
   };
 }

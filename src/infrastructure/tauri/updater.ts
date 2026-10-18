@@ -5,6 +5,7 @@ import { call } from "./client";
 import { updateInfoSchema, updateProgressSchema } from "./dto";
 
 export const UPDATE_AVAILABLE_EVENT = "update:available";
+export const UPDATE_SHOW_EVENT = "update:show";
 export const UPDATE_PROGRESS_EVENT = "update:progress";
 
 export function tauriUpdater(): Updater {
@@ -18,6 +19,12 @@ export function tauriUpdater(): Updater {
         const parsed = updateInfoSchema.safeParse(event.payload);
         if (parsed.success) handler(parsed.data);
         else console.warn(`Evento ${UPDATE_AVAILABLE_EVENT} con formato inesperado.`, parsed.error.message);
+      }),
+    onShow: (handler) =>
+      listen<unknown>(UPDATE_SHOW_EVENT, (event) => {
+        const parsed = updateInfoSchema.safeParse(event.payload);
+        if (parsed.success) handler(parsed.data);
+        else console.warn(`Evento ${UPDATE_SHOW_EVENT} con formato inesperado.`, parsed.error.message);
       }),
     onProgress: (handler) =>
       listen<unknown>(UPDATE_PROGRESS_EVENT, (event) => {

@@ -97,7 +97,8 @@ pub fn on_action(app: &tauri::AppHandle, action: TrayAction) {
     }
 }
 
-/// Ítem «Buscar actualizaciones»: con una versión pendiente pasa a «Instalar actualización <v>».
+/// Ítem «Buscar actualizaciones»: con una versión pendiente pasa a «Instalar actualización <v>»
+/// («Descargar actualización <v>» en portable).
 struct UpdateMenuItem(MenuItem<tauri::Wry>);
 
 pub fn set_update_label(app: &tauri::AppHandle, text: &str) {

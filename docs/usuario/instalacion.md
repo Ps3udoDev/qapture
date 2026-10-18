@@ -22,6 +22,10 @@ Para continuar:
 
 Hazlo solo con archivos que hayas bajado de la página oficial de Releases.
 
+## Instalación con MSI (equipos de TI)
+
+El `.msi` sirve para desplegar Qapture en varias computadoras con las herramientas de TI. Las actualizaciones automáticas de la app usan el instalador NSIS (por usuario), no el MSI: en una instalación MSI, actualiza volviendo a desplegar el `.msi` de la versión nueva desde la herramienta de TI. Para una persona que instala Qapture en su propia computadora, se recomienda el `.exe` (NSIS).
+
 ## Versión portable
 
 1. Extrae el ZIP en una carpeta donde puedas escribir, por ejemplo el Escritorio, Documentos o `D:\Qapture`. **No** lo extraigas en «Archivos de programa»: Qapture necesita guardar sus datos junto al programa y Windows no se lo permite ahí. Si lo intentas, verás el mensaje «No se puede escribir en <carpeta>. Copia Qapture a una carpeta con permisos de escritura (no en Archivos de programa).».
@@ -36,7 +40,7 @@ La versión instalada busca actualizaciones al iniciar y luego cada 6 horas, aun
 
 - Se abre el aviso **Nueva versión disponible**: «Qapture <nueva> está disponible (tienes <actual>).».
 - **Instalar y reiniciar** descarga la actualización, verifica su firma, la instala y reinicia Qapture. Tus datos se conservan.
-- **Después** cierra el aviso. Mientras tanto verás un punto en el botón de Ajustes y, en la bandeja, la opción **Instalar actualización <nueva>**.
+- **Después** cierra el aviso, que no vuelve a abrirse solo para esa versión. Mientras tanto verás un punto en el botón de Ajustes y, en la bandeja, la opción **Instalar actualización <nueva>**, que vuelve a abrir el aviso.
 
 También puedes buscar a mano: **Ajustes › Acerca de › Buscar actualizaciones**, o el menú de la bandeja (ícono de Qapture junto al reloj) › **Buscar actualizaciones**. Si ya tienes la última, verás «Qapture está al día (versión <actual>).».
 
@@ -44,7 +48,7 @@ Notas:
 
 - Si hay una captura abierta sin guardar en el editor, Qapture no actualiza y te pide «Guarda o descarta la captura abierta antes de actualizar.», para no perderla.
 - Sin internet, la revisión automática no muestra nada. La manual dice «No se pudo buscar actualizaciones. Revisa tu conexión a internet.».
-- La versión portable no se instala sola: el aviso te lleva a la página de descargas con el botón **Descargar**.
+- La versión portable no se instala sola: el aviso te lleva a la página de descargas con el botón **Descargar**, y en la bandeja la opción se llama **Descargar actualización <nueva>**.
 - Una versión llega a las apps cuando se **publica** en Releases; los borradores no son visibles para la app.
 
 ## Desinstalar y dónde quedan tus datos

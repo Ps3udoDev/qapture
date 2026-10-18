@@ -14,6 +14,7 @@ export interface MemoryUpdater extends Updater {
   /** Veces que se pidió instalar. */
   installs: number;
   emitAvailable(info: UpdateInfo): void;
+  emitShow(info: UpdateInfo): void;
   emitProgress(progress: UpdateProgress): void;
   release(): void;
   releaseCheck(): void;
@@ -22,6 +23,7 @@ export interface MemoryUpdater extends Updater {
 /** Replica en memoria `check_update` e `install_update` y sus eventos. */
 export function createMemoryUpdater(): MemoryUpdater {
   const available = new Set<(info: UpdateInfo) => void>();
+  const show = new Set<(info: UpdateInfo) => void>();
   const progress = new Set<(p: UpdateProgress) => void>();
   let release: () => void = () => undefined;
   let releaseCheck: () => void = () => undefined;
@@ -45,12 +47,19 @@ export function createMemoryUpdater(): MemoryUpdater {
       available.add(handler);
       return () => void available.delete(handler);
     },
+    async onShow(handler) {
+      show.add(handler);
+      return () => void show.delete(handler);
+    },
     async onProgress(handler) {
       progress.add(handler);
       return () => void progress.delete(handler);
     },
     emitAvailable(info) {
       for (const h of [...available]) h(structuredClone(info));
+    },
+    emitShow(info) {
+      for (const h of [...show]) h(structuredClone(info));
     },
     emitProgress(p) {
       for (const h of [...progress]) h({ ...p });

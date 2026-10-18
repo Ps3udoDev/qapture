@@ -14,6 +14,8 @@ No se cerró: **vive en la bandeja del sistema** (los íconos junto al reloj; pu
 
 Para cerrarla de verdad: clic derecho en el ícono › **Salir**. Si prefieres que la X cierre la app, desactiva **Ajustes › Sistema › Cerrar oculta en la bandeja**. También puedes activar **Iniciar con Windows**.
 
+Si la ventana se oculta al presionar `Esc`, es la opción **Ajustes › Sistema › Esc oculta la ventana**: desactívala si no la quieres. La app sigue en la bandeja igual que al cerrar con la X.
+
 ## Tengo la versión portable y la instalada: ¿pasa algo?
 
 Qapture permite **una sola ejecución a la vez**, y eso incluye a las dos versiones: si una está abierta y abres la otra, verás la ventana de la primera. Sus datos son distintos (la instalada usa `%APPDATA%\com.teams4soft.qapture`; la portable, su carpeta `data`), así que no se mezclan. Cierra una con **Salir** en la bandeja antes de abrir la otra.

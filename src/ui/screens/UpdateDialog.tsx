@@ -1,4 +1,4 @@
-import { availableMessage, PORTABLE_MESSAGE, progressPercentMessage } from "../../domain/update";
+import { availableMessage, plainNotes, PORTABLE_MESSAGE, progressPercentMessage } from "../../domain/update";
 import { Dialog, DialogFooter } from "../components/Dialog";
 import { btn } from "../components/styles";
 import { useWorkspace } from "../store/context";
@@ -12,6 +12,7 @@ export function UpdateDialog() {
   const dismissUpdate = useWorkspace((s) => s.dismissUpdate);
   const openLink = useWorkspace((s) => s.openLink);
   if (!info) return null;
+  const notes = plainNotes(info.notes);
   const downloading = status === "downloading";
   const busy = status !== "idle";
 
@@ -19,7 +20,7 @@ export function UpdateDialog() {
     <Dialog title="Nueva versión disponible" kicker="Qapture" onClose={downloading ? () => undefined : dismissUpdate}>
       <div className="grid gap-3">
         <p className="text-sm">{availableMessage(info)}</p>
-        {info.notes && <p className="whitespace-pre-line text-sm text-t4s-gray">{info.notes}</p>}
+        {notes && <p className="whitespace-pre-line text-sm text-t4s-gray">{notes}</p>}
         {info.portable && <p className="text-sm">{PORTABLE_MESSAGE}</p>}
         {downloading && (
           <div role="status" className="grid gap-1">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { availableMessage, parseVersion, progressMessage, shouldPrompt, upToDateMessage, type UpdateInfo } from "./update";
+import { availableMessage, parseVersion, plainNotes, progressMessage, shouldPrompt, upToDateMessage, type UpdateInfo } from "./update";
 
 const info: UpdateInfo = { version: "1.0.1", currentVersion: "1.0.0", notes: "", date: null, portable: false };
 
@@ -14,6 +14,18 @@ describe("textos del updater", () => {
     expect(progressMessage(500, 200)).toBe("Descargando actualización… 100 %");
     expect(progressMessage(50, null)).toBe("Descargando actualización…");
     expect(progressMessage(0, 0)).toBe("Descargando actualización…");
+  });
+});
+
+describe("notas del release como texto plano", () => {
+  it("quita títulos, negritas y enlaces markdown y conserva los saltos de línea", () => {
+    const md = "## 1.0.1 — 2026-10-20\r\n\r\n### Nuevo\r\n- **Updater** con [firma](https://example.com/x)\r\n- otro";
+    expect(plainNotes(md)).toBe("1.0.1 — 2026-10-20\n\nNuevo\n- Updater con firma\n- otro");
+  });
+
+  it("no interpreta HTML ni toca texto sin markdown", () => {
+    expect(plainNotes("<b>hola</b> #1 a*b")).toBe("<b>hola</b> #1 a*b");
+    expect(plainNotes("")).toBe("");
   });
 });
 

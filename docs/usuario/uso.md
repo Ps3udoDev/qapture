@@ -11,7 +11,7 @@ Un proyecto es una matriz de pruebas, por ejemplo la de un release.
 
 ## 2. Registrar casos
 
-Con el proyecto abierto, en **Casos de prueba** pulsa **Nuevo caso** y llena el formulario. Cada caso recibe un código automático (EJ-001, EJ-002…) y empieza en **No ejecutado**.
+Con el proyecto abierto, en **Casos de prueba** pulsa **Nuevo caso** y llena el formulario. Cada caso recibe un código automático con el formato que usa la app, por ejemplo `EJ-001`, `EJ-002`…, y empieza en **No ejecutado**.
 
 El estado cambia durante la prueba: No ejecutado, En ejecución, Por documentar, Aprobado, Fallido o Bloqueado. Usa el buscador («Buscar código, caso o dato…») y el filtro de estado para encontrar casos.
 
@@ -22,6 +22,8 @@ Abre el caso y, en **Evidencias**, usa uno de estos caminos:
 - **Capturar** (botón), o el atajo **`Ctrl+Alt+S`** desde cualquier programa aunque Qapture esté oculta: la pantalla se congela y arrastras para elegir una región. `Enter` captura el monitor completo y `Esc` cancela.
 - **Recortar con Windows y pegar:** presiona `Win+Shift+S`, recorta como siempre y luego presiona **`Ctrl+Alt+V`**. Qapture abre la imagen en el editor. Si el portapapeles no tiene una imagen, aparece un aviso y no se abre nada.
 - **Elegir imagen** para tomar un archivo, o arrástralo a la zona de evidencias.
+
+Con los atajos (`Ctrl+Alt+S` o `Ctrl+Alt+V`), Qapture muestra su ventana y abre la captura en el editor con el caso seleccionado ya elegido; si no hay ninguno seleccionado, lo eliges en el campo **Caso** del editor antes de guardar. Si el proyecto todavía no tiene casos, aparece el aviso «Crea un caso antes de capturar evidencias.» y la captura se descarta. Si el editor ya está abierto, la captura nueva espera y se abre al guardar o descartar la actual.
 
 ## 4. Anotar
 

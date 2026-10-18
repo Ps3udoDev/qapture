@@ -15,6 +15,8 @@ use crate::{
 
 /// Payload `UpdateInfoDto`: el front abre el diálogo (si la versión no se pospuso).
 pub const AVAILABLE_EVENT: &str = "update:available";
+/// Payload `UpdateInfoDto`: clic en la bandeja; el front abre el diálogo aunque se haya pospuesto.
+pub const SHOW_EVENT: &str = "update:show";
 /// Payload `UpdateProgressDto` mientras se descarga.
 pub const PROGRESS_EVENT: &str = "update:progress";
 
@@ -66,9 +68,19 @@ pub fn check_outcome(result: Result<Option<UpdateInfoDto>, String>) -> CheckOutc
     }
 }
 
+/// Texto del ítem de la bandeja con una versión pendiente (en portable no se instala: se descarga).
+pub fn tray_label(version: &str, portable: bool) -> String {
+    if portable {
+        format!("Descargar actualización {version}")
+    } else {
+        format!("Instalar actualización {version}")
+    }
+}
+
 /// Mensaje de un error al descargar o instalar.
 pub fn error_message(detail: &str) -> String {
-    if detail.to_lowercase().contains("signature") {
+    let detail_lower = detail.to_lowercase();
+    if detail_lower.contains("signature") || detail_lower.contains("minisign") {
         BAD_SIGNATURE.into()
     } else {
         format!(
@@ -120,13 +132,18 @@ async fn check(app: &AppHandle) -> CheckOutcome {
     if let CheckOutcome::Available(info) = &outcome {
         app.state::<AppState>()
             .set_pending_update(Some(info.clone()));
-        tray::set_update_label(app, &format!("Instalar actualización {}", info.version));
+        tray::set_update_label(app, &tray_label(&info.version, info.portable));
     }
     outcome
 }
 
 fn announce(app: &AppHandle, info: UpdateInfoDto) {
     let _ = app.emit_to("main", AVAILABLE_EVENT, info);
+}
+
+/// Pedido explícito (bandeja): el diálogo se abre aunque la versión se haya pospuesto.
+fn show(app: &AppHandle, info: UpdateInfoDto) {
+    let _ = app.emit_to("main", SHOW_EVENT, info);
 }
 
 /// Revisión periódica: 15 s después de arrancar y luego cada 6 h (la app puede quedar días en la
@@ -146,7 +163,8 @@ pub fn spawn(app: AppHandle) {
     });
 }
 
-/// Ítem de la bandeja: con una versión pendiente la muestra; si no, revisa y avisa del resultado.
+/// Ítem de la bandeja: con una versión pendiente abre el diálogo (aunque se haya pospuesto); si no,
+/// revisa y avisa del resultado.
 pub fn check_from_tray(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
@@ -161,7 +179,7 @@ pub fn check_from_tray(app: &AppHandle) {
             },
         };
         tray::show_main(&app);
-        announce(&app, info);
+        show(&app, info);
     });
 }
 
@@ -258,8 +276,19 @@ mod tests {
             "texto real de minisign-verify"
         );
         assert_eq!(
+            error_message("minisign: invalid encoding in public key"),
+            "La actualización descargada no pasó la verificación de firma y no se instaló.",
+            "errores de minisign aunque no digan «signature»"
+        );
+        assert_eq!(
             error_message("disk full"),
             "No se pudo instalar la actualización: disk full."
         );
+    }
+
+    #[test]
+    fn the_tray_label_says_download_in_portable() {
+        assert_eq!(tray_label("1.0.1", false), "Instalar actualización 1.0.1");
+        assert_eq!(tray_label("1.0.1", true), "Descargar actualización 1.0.1");
     }
 }

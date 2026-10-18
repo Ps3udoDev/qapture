@@ -3,7 +3,7 @@
 export interface UpdateInfo {
   version: string;
   currentVersion: string;
-  /** Texto plano (se muestra tal cual, nunca como HTML). */
+  /** Cuerpo del release de GitHub (markdown); se muestra con `plainNotes`, nunca como HTML. */
   notes: string;
   date: string | null;
   /** En la versión portable no se instala: se descarga el ZIP nuevo. */
@@ -35,6 +35,24 @@ export function progressPercentMessage(percent: number | null): string {
 }
 
 export const progressMessage = (downloaded: number, total: number | null): string => progressPercentMessage(progressPercent(downloaded, total));
+
+/**
+ * Notas del release (markdown de GitHub) como texto plano: sin marcas de título `#`, sin `**` y con
+ * `[texto](url)` reducido a `texto`. Conserva los saltos de línea; el resultado se muestra como texto.
+ */
+export function plainNotes(markdown: string): string {
+  return markdown
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) =>
+      line
+        .replace(/^\s{0,3}#{1,6}\s+/, "")
+        .replace(/\*\*/g, "")
+        .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1"),
+    )
+    .join("\n")
+    .trim();
+}
 
 export function parseVersion(version: string): [number, number, number] | null {
   const parts = version.trim().replace(/^v/, "").split(".");
