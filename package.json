@@ -12,7 +12,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . --max-warnings 0"
+    "lint": "eslint . --max-warnings 0",
+    "release": "node scripts/version.mjs",
+    "check-version": "node scripts/check-version.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
