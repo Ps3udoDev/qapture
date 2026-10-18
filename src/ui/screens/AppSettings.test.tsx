@@ -67,6 +67,24 @@ describe("ajustes de la aplicación", () => {
     expect(within(within(dialog).getByRole("group", { name: "Capturar pantalla" })).queryByText("No registrado")).not.toBeInTheDocument();
   });
 
+  it("en la versión portable el inicio con Windows no está disponible", async () => {
+    const { user, dialog } = await openSettings({
+      setup: async (repos) => {
+        repos.settings.snapshot.portable = true;
+      },
+    });
+    await gotoTab(user, "Sistema");
+    expect(within(dialog).getByRole("checkbox", { name: /Iniciar con Windows/ })).toBeDisabled();
+    expect(within(dialog).getByText("No disponible en la versión portable.")).toBeInTheDocument();
+  });
+
+  it("instalada, el inicio con Windows se puede cambiar", async () => {
+    const { user, dialog } = await openSettings();
+    await gotoTab(user, "Sistema");
+    expect(within(dialog).getByRole("checkbox", { name: /Iniciar con Windows/ })).toBeEnabled();
+    expect(within(dialog).queryByText("No disponible en la versión portable.")).not.toBeInTheDocument();
+  });
+
   it("elige la carpeta de exportación y la usa el diálogo de exportar", async () => {
     const { user, repos, dialog } = await openSettings({ tester: "Ana Pérez", setup: async (repos) => void (await seedCases(repos)) });
     repos.settings.pickedFolder = "C:\\Exports";

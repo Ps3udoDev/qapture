@@ -37,6 +37,7 @@ pub struct AppState {
     exports: RecentExports,
     backups: Backups,
     db_path: PathBuf,
+    portable: bool,
     /// `Some(detalle)` mientras la base está dañada y la app usa una base vacía en memoria.
     recovery: Mutex<Option<String>>,
     /// Copia en memoria de los ajustes guardados (la lee el handler de atajos sin tocar la base).
@@ -52,6 +53,7 @@ impl AppState {
         files: EvidenceFiles,
         data_dir: &Path,
         recovery: Option<String>,
+        portable: bool,
     ) -> Self {
         Self {
             db: Mutex::new(conn),
@@ -60,6 +62,7 @@ impl AppState {
             exports: RecentExports::default(),
             backups: Backups::new(data_dir),
             db_path: data_dir.join(DB_FILE),
+            portable,
             recovery: Mutex::new(recovery),
             settings: RwLock::new(Settings::default()),
             shortcut_failures: Mutex::new(Vec::new()),
@@ -93,6 +96,11 @@ impl AppState {
 
     pub fn db_path(&self) -> &Path {
         &self.db_path
+    }
+
+    /// Datos junto al exe (`portable.flag`): sin inicio con Windows ni instalación.
+    pub fn is_portable(&self) -> bool {
+        self.portable
     }
 
     pub fn recovery(&self) -> Option<String> {
@@ -193,6 +201,7 @@ mod tests {
             tmp.files(),
             tmp.path(),
             Some("base dañada".into()),
+            false,
         );
         assert_eq!(state.recovery().as_deref(), Some("base dañada"));
         assert_eq!(

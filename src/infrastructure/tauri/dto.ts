@@ -162,4 +162,5 @@ export const settingsSnapshotSchema = z.strictObject({
   shortcutFailures: z.array(z.strictObject({ action: z.enum(SHORTCUT_ACTIONS), accelerator: z.string() })),
   appVersion: z.string(),
   dataDir: z.string(),
+  portable: z.boolean(),
 });

@@ -303,6 +303,7 @@ pub struct SettingsDto {
     pub shortcut_failures: Vec<ShortcutFailureDto>,
     pub app_version: String,
     pub data_dir: String,
+    pub portable: bool,
 }
 
 #[cfg(test)]
@@ -406,6 +407,7 @@ mod contract {
                 }],
                 app_version: "0.5.0".into(),
                 data_dir: "C:\\Users\\ana\\AppData\\Roaming\\com.teams4soft.qapture".into(),
+                portable: false,
             },
         })
     }

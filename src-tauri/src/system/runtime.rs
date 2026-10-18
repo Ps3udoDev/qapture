@@ -166,7 +166,11 @@ impl ShortcutRegistrar for TauriRegistrar {
 }
 
 /// Activa o desactiva el inicio con Windows; un error solo queda en el log.
+/// En portable no hace nada: no se deja una entrada de inicio apuntando a un exe movible.
 pub fn sync_autostart(app: &AppHandle, enabled: bool) {
+    if app.state::<AppState>().is_portable() {
+        return;
+    }
     let manager = app.autolaunch();
     if manager.is_enabled().is_ok_and(|current| current == enabled) {
         return;
@@ -300,6 +304,7 @@ mod tests {
             tmp.files(),
             tmp.path(),
             None,
+            false,
         );
         state.install_registrar(Box::new(FakeRegistrar::default()));
         assert!(!Settings::default().system.autostart);
@@ -346,6 +351,7 @@ mod tests {
             tmp.files(),
             tmp.path(),
             None,
+            false,
         );
         let fake = FakeRegistrar::default();
         state.install_registrar(Box::new(fake.clone()));

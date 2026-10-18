@@ -18,10 +18,11 @@ const tabOf = (key: string): Tab => {
   return "Atajos";
 };
 
-function Check({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+function Check({ label, checked, onChange, disabled, note }: { label: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; note?: string }) {
   return (
     <label className="flex items-center gap-2 text-sm">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} /> {label}
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} /> {label}
+      {note && <span className="text-xs text-t4s-gray">{note}</span>}
     </label>
   );
 }
@@ -125,7 +126,13 @@ export function AppSettingsDialog({ onClose }: { onClose: () => void }) {
 
           {tab === "Sistema" && (
             <>
-              <Check label="Iniciar con Windows" checked={draft.system.autostart} onChange={(v) => patch("system", { autostart: v })} />
+              <Check
+                label="Iniciar con Windows"
+                checked={draft.system.autostart && !snapshot?.portable}
+                disabled={snapshot?.portable}
+                note={snapshot?.portable ? "No disponible en la versión portable." : undefined}
+                onChange={(v) => patch("system", { autostart: v })}
+              />
               <Check label="Iniciar oculto" checked={draft.system.startHidden} onChange={(v) => patch("system", { startHidden: v })} />
               <Check label="Cerrar oculta en la bandeja" checked={draft.system.closeToTray} onChange={(v) => patch("system", { closeToTray: v })} />
               <Check label="Esc oculta la ventana" checked={draft.system.escHides} onChange={(v) => patch("system", { escHides: v })} />

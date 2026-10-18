@@ -47,7 +47,28 @@ pub fn run() {
             Some(vec![system::runtime::HIDDEN_ARG]),
         ))
         .setup(|app| {
-            let data_dir = app.path().app_data_dir()?;
+            let exe_dir = std::env::current_exe()?
+                .parent()
+                .map(std::path::Path::to_path_buf)
+                .unwrap_or_default();
+            let location =
+                system::portable::resolve_data_dir(&exe_dir, &app.path().app_data_dir()?)?;
+            let (data_dir, portable) = (location.dir, location.portable);
+            if let Err(message) = system::portable::ensure_writable(&data_dir) {
+                use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+                app.dialog()
+                    .message(&message)
+                    .kind(MessageDialogKind::Error)
+                    .title("Qapture")
+                    .blocking_show();
+                app.handle().exit(1);
+                return Err(message.into());
+            }
+            if portable {
+                // El scope de tauri.conf.json solo cubre `$APPDATA`; aquí las imágenes están junto al exe.
+                app.asset_protocol_scope()
+                    .allow_directory(data_dir.join(media::storage::EVIDENCE_DIR), true)?;
+            }
             let files = media::storage::EvidenceFiles::new(&data_dir);
             let state = match db::recovery::open_or_recover(&data_dir.join(db::DB_FILE))? {
                 db::recovery::Startup::Ready(conn) => {
@@ -58,12 +79,18 @@ pub fn run() {
                     if let Err(error) = repo::evidence::sweep_orphans(&conn, &files) {
                         eprintln!("No se pudieron limpiar evidencias huérfanas: {error}");
                     }
-                    state::AppState::new(conn, files, &data_dir, None)
+                    state::AppState::new(conn, files, &data_dir, None, portable)
                 }
                 db::recovery::Startup::Recovery(detail) => {
                     // Nada de limpiezas ni respaldos: la base vacía en memoria no refleja los datos reales.
                     eprintln!("Base de datos dañada, se abre el modo recuperación: {detail}");
-                    state::AppState::new(db::open_in_memory()?, files, &data_dir, Some(detail))
+                    state::AppState::new(
+                        db::open_in_memory()?,
+                        files,
+                        &data_dir,
+                        Some(detail),
+                        portable,
+                    )
                 }
             };
             app.manage(state);
