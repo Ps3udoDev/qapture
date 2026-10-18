@@ -13,21 +13,24 @@ Qapture corre en segundo plano en Windows. Con un atajo capturas la pantalla, an
 
 > Estado: **v1.0.0 (Fase 7 completada · En pruebas del equipo)**. El diseño está en [`docs/superpowers/specs/2026-10-15-qapture-design.md`](docs/superpowers/specs/2026-10-15-qapture-design.md). Guía de uso en [`docs/usuario/`](docs/usuario/README.md); para contribuir, ver [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
-## Demo del Producto (45s)
+## Demo del producto (52 s)
 
 <p align="center">
-  <video src="assets/video/qapture-demo.mp4" controls width="850">
-    Tu navegador no soporta la reproducción de video HTML5. Puedes ver o descargar la demo en <a href="assets/video/qapture-demo.mp4"><code>assets/video/qapture-demo.mp4</code></a>.
-  </video>
+  <a href="assets/video/qapture-promo.mp4">
+    <img src="assets/video/qapture-preview.gif" width="850" alt="Vista previa animada de Qapture: captura con atajo, anotación de evidencias y exportación a Excel">
+  </a>
 </p>
 
-> 🎬 **Recorrido del producto mostrado en el video (subtitulado):**
-> 1. **Presentación de Qapture:** Ecosistema Teams4Soft y objetivo del producto.
-> 2. **Matriz de Casos:** Gestión de pruebas, columnas dinámicas y control de estados.
-> 3. **Captura Integrada:** Selección de regiones o monitor completo con DPI nativo.
-> 4. **Editor de Anotaciones:** Herramientas de foco (flechas, cajas, pasos numerados y blur confidencial).
-> 5. **Exportación a Excel:** 4 hojas nativas (Carátula con KPIs, Matriz, Evidencias incrustadas y Resumen con gráficos).
-> 6. **Descarga:** Instalador de Windows disponible en [GitHub Releases](https://github.com/Ps3udoDev/qapture/releases).
+<p align="center"><b>▶ <a href="assets/video/qapture-promo.mp4">Ver el video completo con audio</a></b></p>
+
+> 🎬 **Lo que muestra el video (con voz en off):**
+> 1. **Captura con un atajo:** `Ctrl+Alt+S` y seleccionas una región o la pantalla completa, con resolución nativa y multimonitor.
+> 2. **Anota en segundos:** recuadros, flechas, pasos numerados, texto y desenfoque para ocultar datos sensibles.
+> 3. **Organiza tu matriz:** cada evidencia queda en su caso de prueba, con columnas a tu medida y estados claros.
+> 4. **Exporta a Excel:** carátula con indicadores, matriz, evidencias incrustadas y resumen con gráficos.
+> 5. **Descarga:** instalador de Windows en [GitHub Releases](https://github.com/Ps3udoDev/qapture/releases).
+>
+> El video se genera con [HyperFrames](https://github.com/heygen-com/hyperframes) desde [`videos/qapture-promo/`](videos/qapture-promo/) usando capturas de la UI real.
 
 ## Fases implementadas
 

@@ -10,6 +10,7 @@ export default tseslint.config(
       'src-tauri/target',
       'node_modules',
       'src/infrastructure/tauri/__fixtures__',
+      'videos',
     ],
   },
   js.configs.recommended,
