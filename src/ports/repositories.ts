@@ -6,6 +6,7 @@ import type { ScreenCapture } from "./capture";
 import type { DataTransfer } from "./data";
 import type { DocVersionRepository, Exporter } from "./export";
 import type { SettingsStore } from "./settings";
+import type { Updater } from "./updater";
 
 export interface TemplateRepository {
   list(): Promise<Template[]>;
@@ -54,4 +55,5 @@ export interface Repositories {
   exporter: Exporter;
   data: DataTransfer;
   settings: SettingsStore;
+  updater: Updater;
 }

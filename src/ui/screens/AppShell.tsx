@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Toasts } from "../components/Toasts";
 import { useStoreApi, useWorkspace } from "../store/context";
+import { isUpdatePromptOpen } from "../store/update-slice";
 import { BackupsDialog } from "./BackupsDialog";
 import { EmptyState } from "./EmptyState";
 import { ExportDialog } from "./ExportDialog";
@@ -10,6 +11,7 @@ import { NewProjectDialog } from "./NewProjectDialog";
 import { ProjectSettingsDialog } from "./ProjectSettingsDialog";
 import { RecoveryScreen } from "./RecoveryScreen";
 import { TopBar } from "./TopBar";
+import { UpdateDialog } from "./UpdateDialog";
 import { Workspace } from "./Workspace";
 
 export function AppShell() {
@@ -21,6 +23,8 @@ export function AppShell() {
 
   const listenCaptures = useWorkspace((s) => s.listenCaptures);
   const listenNewCase = useWorkspace((s) => s.listenNewCase);
+  const listenUpdates = useWorkspace((s) => s.listenUpdates);
+  const updatePrompt = useWorkspace(isUpdatePromptOpen);
   const pushToast = useWorkspace((s) => s.pushToast);
   const hideWindow = useWorkspace((s) => s.hideWindow);
   const escHides = useWorkspace((s) => s.settings?.settings.system.escHides ?? false);
@@ -67,6 +71,23 @@ export function AppShell() {
   }, [listenNewCase, pushToast]);
 
   useEffect(() => {
+    let active = true;
+    let unlisten: (() => void) | undefined;
+    void listenUpdates()
+      .then((off) => {
+        if (active) unlisten = off;
+        else off();
+      })
+      .catch(() => {
+        if (active) pushToast("error", "No se pudo escuchar las actualizaciones.");
+      });
+    return () => {
+      active = false;
+      unlisten?.();
+    };
+  }, [listenUpdates, pushToast]);
+
+  useEffect(() => {
     if (!escHides) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -100,6 +121,7 @@ export function AppShell() {
       {dialog === "app-settings" && <AppSettingsDialog onClose={() => setDialog(null)} />}
       {dialog === "export" && project && <ExportDialog onClose={() => setDialog(null)} />}
       {dialog === "backups" && <BackupsDialog onClose={() => setDialog(null)} />}
+      {updatePrompt && <UpdateDialog />}
       <ImportIssuesDialog />
       <Toasts />
     </div>

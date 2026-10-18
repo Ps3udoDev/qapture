@@ -36,6 +36,7 @@ export function createMemorySettings(): MemorySettings {
       shortcutFailures: [],
       appVersion: "0.5.0",
       dataDir: "C:\\Users\\ana\\AppData\\Roaming\\com.teams4soft.qapture",
+      portable: false,
     },
     refuse: new Set(),
     failuresAtStart: [],

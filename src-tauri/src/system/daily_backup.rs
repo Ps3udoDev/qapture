@@ -44,6 +44,7 @@ mod tests {
             tmp.files(),
             tmp.path(),
             Some("base dañada".into()),
+            false,
         );
         run_once(&state);
         assert!(state.backups().list().unwrap().is_empty());

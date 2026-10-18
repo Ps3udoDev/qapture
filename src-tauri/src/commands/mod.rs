@@ -8,6 +8,7 @@ mod frame;
 pub mod projects;
 pub mod settings;
 pub mod templates;
+pub mod updater;
 
 // Solo lo leen build.rs (vía include!) y los tests de ACL.
 #[cfg(test)]

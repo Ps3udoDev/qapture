@@ -9,7 +9,7 @@ use crate::{
     backup::Backups,
     capture::session::{CaptureController, HIDE_DELAY, READY_TIMEOUT},
     db::DB_FILE,
-    dto::ShortcutFailureDto,
+    dto::{ShortcutFailureDto, UpdateInfoDto},
     error::{AppResult, validation},
     excel::save::RecentExports,
     media::storage::EvidenceFiles,
@@ -37,6 +37,7 @@ pub struct AppState {
     exports: RecentExports,
     backups: Backups,
     db_path: PathBuf,
+    portable: bool,
     /// `Some(detalle)` mientras la base está dañada y la app usa una base vacía en memoria.
     recovery: Mutex<Option<String>>,
     /// Copia en memoria de los ajustes guardados (la lee el handler de atajos sin tocar la base).
@@ -44,6 +45,8 @@ pub struct AppState {
     shortcut_failures: Mutex<Vec<ShortcutFailureDto>>,
     registrar: Mutex<Box<dyn ShortcutRegistrar + Send>>,
     on_saved: Mutex<Option<SavedHook>>,
+    /// Última versión nueva encontrada (la muestra la bandeja hasta instalarla).
+    pending_update: Mutex<Option<UpdateInfoDto>>,
 }
 
 impl AppState {
@@ -52,6 +55,7 @@ impl AppState {
         files: EvidenceFiles,
         data_dir: &Path,
         recovery: Option<String>,
+        portable: bool,
     ) -> Self {
         Self {
             db: Mutex::new(conn),
@@ -60,11 +64,13 @@ impl AppState {
             exports: RecentExports::default(),
             backups: Backups::new(data_dir),
             db_path: data_dir.join(DB_FILE),
+            portable,
             recovery: Mutex::new(recovery),
             settings: RwLock::new(Settings::default()),
             shortcut_failures: Mutex::new(Vec::new()),
             registrar: Mutex::new(Box::new(NullRegistrar)),
             on_saved: Mutex::new(None),
+            pending_update: Mutex::new(None),
         }
     }
 
@@ -93,6 +99,11 @@ impl AppState {
 
     pub fn db_path(&self) -> &Path {
         &self.db_path
+    }
+
+    /// Datos junto al exe (`portable.flag`): sin inicio con Windows ni instalación.
+    pub fn is_portable(&self) -> bool {
+        self.portable
     }
 
     pub fn recovery(&self) -> Option<String> {
@@ -171,6 +182,20 @@ impl AppState {
         }
     }
 
+    pub fn pending_update(&self) -> Option<UpdateInfoDto> {
+        self.pending_update
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
+    }
+
+    pub fn set_pending_update(&self, update: Option<UpdateInfoDto>) {
+        *self
+            .pending_update
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = update;
+    }
+
     pub fn finish_recovery(&self, conn: Connection) {
         *self.db() = conn;
         *self
@@ -193,6 +218,7 @@ mod tests {
             tmp.files(),
             tmp.path(),
             Some("base dañada".into()),
+            false,
         );
         assert_eq!(state.recovery().as_deref(), Some("base dañada"));
         assert_eq!(

@@ -34,3 +34,6 @@ evidence/
 
 # Espacio de trabajo de agentes (superpowers)
 .superpowers/
+
+# Clave privada del updater: nunca al repo
+*.key

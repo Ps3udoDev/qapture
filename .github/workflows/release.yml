@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag de versión a publicar (ej. v0.4.0)'
-        required: false
+        description: 'Tag de versión a publicar (ej. v0.6.0)'
+        required: true
         type: string
 
 concurrency:
@@ -24,6 +24,21 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag_name || github.ref }}
+
+      - name: Resolver tag
+        shell: bash
+        env:
+          RAW_TAG: ${{ inputs.tag_name || github.ref_name }}
+        run: |
+          TAG="$RAW_TAG"
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag inválido: '$TAG' (se esperaba vX.Y.Z)" >&2
+            exit 1
+          fi
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -45,19 +60,69 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verificar versiones contra el tag
+        shell: bash
+        run: pnpm check-version "$TAG"
+
       - name: Run test quality gate
+        shell: bash
         run: |
+          pnpm lint
           pnpm typecheck
           pnpm test
           cargo test --manifest-path src-tauri/Cargo.toml
 
-      - name: Build desktop app and create release
+      - name: Notas del release
+        id: notes
+        shell: bash
+        run: |
+          node scripts/release-notes.mjs "$TAG" > release-notes.md
+          { echo "notes<<QAPTURE_NOTES_EOF"; cat release-notes.md; echo "QAPTURE_NOTES_EOF"; } >> "$GITHUB_OUTPUT"
+
+      - name: Build desktop app and create draft release
+        id: tauri
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ inputs.tag_name || github.ref_name }}
-          releaseName: 'Qapture ${{ inputs.tag_name || github.ref_name }}'
-          releaseBody: 'Instalador oficial de Qapture ${{ inputs.tag_name || github.ref_name }}. Descarga el archivo `.exe` (NSIS setup) o `.msi` adjunto para instalar en Windows.'
-          releaseDraft: false
+          tagName: ${{ env.TAG }}
+          releaseName: 'Qapture ${{ env.TAG }}'
+          releaseBody: |
+            ${{ steps.notes.outputs.notes }}
+
+            Windows puede mostrar un aviso de SmartScreen al instalar. Consulta cómo continuar en [docs/usuario/instalacion.md](https://github.com/Ps3udoDev/qapture/blob/main/docs/usuario/instalacion.md).
+          releaseDraft: true
           prerelease: false
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true
+          args: --config src-tauri/tauri.release.conf.json
+
+      - name: Crear y subir ZIP portable
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          New-Item -ItemType Directory -Force portable | Out-Null
+          Copy-Item src-tauri/target/release/qapture.exe portable/Qapture.exe
+          New-Item -ItemType File -Force portable/portable.flag | Out-Null
+          Copy-Item src-tauri/portable/LEEME.txt portable/LEEME.txt
+          $zip = "Qapture_${env:VERSION}_portable.zip"
+          Compress-Archive -Path portable/* -DestinationPath $zip -Force
+
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [IO.Compression.ZipFile]::OpenRead((Resolve-Path $zip).Path)
+          try { $entries = @($archive.Entries | ForEach-Object { $_.FullName }) } finally { $archive.Dispose() }
+          foreach ($required in 'Qapture.exe', 'portable.flag', 'LEEME.txt') {
+            if ($entries -notcontains $required) {
+              throw "Falta $required en la raíz del ZIP portable (contiene: $($entries -join ', '))"
+            }
+          }
+
+          $releaseId = "${{ steps.tauri.outputs.releaseId }}"
+          if ([string]::IsNullOrWhiteSpace($releaseId)) {
+            throw "tauri-action no devolvió releaseId; no se puede subir el ZIP portable al borrador."
+          }
+          gh api --method POST -H "Content-Type: application/zip" "https://uploads.github.com/repos/${{ github.repository }}/releases/$releaseId/assets?name=$zip" --input $zip
+          if ($LASTEXITCODE -ne 0) { throw "Falló la subida del ZIP portable (gh api)." }

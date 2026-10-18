@@ -2,12 +2,14 @@ import { FileSpreadsheet, Plus, Settings, SlidersHorizontal } from "lucide-react
 import mark from "../../assets/brand/qapture-mark.svg";
 import { btn, inputCls } from "../components/styles";
 import { useWorkspace } from "../store/context";
+import { hasPostponedUpdate } from "../store/update-slice";
 import { DataMenu } from "./DataMenu";
 
 export function TopBar({ onNewProject, onSettings, onAppSettings, onExport, onBackups }: { onNewProject: () => void; onSettings?: () => void; onAppSettings?: () => void; onExport?: () => void; onBackups?: () => void }) {
   const projects = useWorkspace((s) => s.projects);
   const project = useWorkspace((s) => s.project);
   const selectProject = useWorkspace((s) => s.selectProject);
+  const updatePending = useWorkspace(hasPostponedUpdate);
 
   return (
     <header className="flex items-center gap-4 border-b border-t4s-line bg-white px-5 py-3">
@@ -43,8 +45,9 @@ export function TopBar({ onNewProject, onSettings, onAppSettings, onExport, onBa
           </button>
         )}
         {onAppSettings && (
-          <button type="button" className={btn.secondary} aria-label="Ajustes" title="Ajustes" onClick={onAppSettings}>
+          <button type="button" className={`${btn.secondary} relative`} aria-label={updatePending ? "Ajustes (actualización disponible)" : "Ajustes"} title={updatePending ? "Ajustes (actualización disponible)" : "Ajustes"} onClick={onAppSettings}>
             <SlidersHorizontal size={16} />
+            {updatePending && <span aria-hidden="true" data-testid="update-dot" className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-t4s-blue ring-2 ring-white" />}
           </button>
         )}
         <button type="button" className={btn.primary} onClick={onNewProject}>

@@ -9,6 +9,7 @@ import { createEvidenceSlice, type EvidenceSlice } from "./evidence-slice";
 import { createDataSlice, type DataSlice } from "./data-slice";
 import { createExportSlice, type ExportSlice } from "./export-slice";
 import { createSettingsSlice, type SettingsSlice } from "./settings-slice";
+import { createUpdateSlice, type UpdateSlice } from "./update-slice";
 import { browserPreferences, type Preferences } from "./preferences";
 
 export type FormResult = { ok: true } | { ok: false; errors: FormErrors };
@@ -23,7 +24,7 @@ export interface Toast {
   actions?: ToastAction[];
 }
 
-export interface WorkspaceState extends EvidenceSlice, ExportSlice, DataSlice, SettingsSlice {
+export interface WorkspaceState extends EvidenceSlice, ExportSlice, DataSlice, SettingsSlice, UpdateSlice {
   templates: Template[];
   projects: ProjectSummary[];
   project: Project | null;
@@ -291,6 +292,7 @@ export function createWorkspaceStore(repos: Repositories, prefs: Preferences = b
       ...createExportSlice(repos, set, get, helpers),
       ...createDataSlice(repos, set, get, helpers),
       ...createSettingsSlice(repos, set, get, helpers),
+      ...createUpdateSlice(repos, set, get, helpers),
     };
   });
 

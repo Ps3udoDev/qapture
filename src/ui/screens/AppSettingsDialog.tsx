@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { FormErrors } from "../../domain/cases";
 import { IMAGE_WIDTH } from "../../domain/export";
+import { PORTABLE_MESSAGE } from "../../domain/update";
 import { DEFAULT_SETTINGS, SHORTCUT_ACTIONS, SHORTCUT_LABEL, type Settings } from "../../domain/settings";
 import { Dialog, DialogFooter } from "../components/Dialog";
 import { FormField } from "../components/FormField";
@@ -18,10 +19,11 @@ const tabOf = (key: string): Tab => {
   return "Atajos";
 };
 
-function Check({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+function Check({ label, checked, onChange, disabled, note }: { label: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; note?: string }) {
   return (
     <label className="flex items-center gap-2 text-sm">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} /> {label}
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} /> {label}
+      {note && <span className="text-xs text-t4s-gray">{note}</span>}
     </label>
   );
 }
@@ -33,6 +35,10 @@ export function AppSettingsDialog({ onClose }: { onClose: () => void }) {
   const pickExportFolder = useWorkspace((s) => s.pickExportFolder);
   const openDataFolder = useWorkspace((s) => s.openDataFolder);
   const openLink = useWorkspace((s) => s.openLink);
+  const available = useWorkspace((s) => s.update.available);
+  const updateStatus = useWorkspace((s) => s.update.status);
+  const checkForUpdates = useWorkspace((s) => s.checkForUpdates);
+  const installUpdate = useWorkspace((s) => s.installUpdate);
   const importLegacy = useWorkspace((s) => s.importLegacy);
   const busyData = useWorkspace((s) => s.dataBusy);
   const [draft, setDraft] = useState<Settings>(() => structuredClone(snapshot?.settings ?? DEFAULT_SETTINGS));
@@ -125,7 +131,13 @@ export function AppSettingsDialog({ onClose }: { onClose: () => void }) {
 
           {tab === "Sistema" && (
             <>
-              <Check label="Iniciar con Windows" checked={draft.system.autostart} onChange={(v) => patch("system", { autostart: v })} />
+              <Check
+                label="Iniciar con Windows"
+                checked={draft.system.autostart && !snapshot?.portable}
+                disabled={snapshot?.portable}
+                note={snapshot?.portable ? "No disponible en la versión portable." : undefined}
+                onChange={(v) => patch("system", { autostart: v })}
+              />
               <Check label="Iniciar oculto" checked={draft.system.startHidden} onChange={(v) => patch("system", { startHidden: v })} />
               <Check label="Cerrar oculta en la bandeja" checked={draft.system.closeToTray} onChange={(v) => patch("system", { closeToTray: v })} />
               <Check label="Esc oculta la ventana" checked={draft.system.escHides} onChange={(v) => patch("system", { escHides: v })} />
@@ -189,6 +201,25 @@ export function AppSettingsDialog({ onClose }: { onClose: () => void }) {
           {tab === "Acerca de" && (
             <>
               <p className="text-sm font-medium">Qapture {snapshot?.appVersion}</p>
+              <div className="grid gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" className={btn.secondary} disabled={updateStatus !== "idle"} onClick={() => void checkForUpdates(true)}>
+                    {updateStatus === "checking" ? "Buscando actualizaciones…" : "Buscar actualizaciones"}
+                  </button>
+                  {available && <span className="text-sm">Versión {available.version} disponible</span>}
+                  {available &&
+                    (available.portable ? (
+                      <button type="button" className={btn.primary} onClick={() => void openLink("releases")}>
+                        Descargar
+                      </button>
+                    ) : (
+                      <button type="button" className={btn.primary} disabled={updateStatus !== "idle"} onClick={() => void installUpdate()}>
+                        Instalar y reiniciar
+                      </button>
+                    ))}
+                </div>
+                {available?.portable && <p className="text-xs text-t4s-gray">{PORTABLE_MESSAGE}</p>}
+              </div>
               <div className="flex gap-2">
                 <button type="button" className={btn.secondary} onClick={() => void openLink("releases")}>
                   Releases

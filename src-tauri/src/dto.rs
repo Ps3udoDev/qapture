@@ -303,6 +303,26 @@ pub struct SettingsDto {
     pub shortcut_failures: Vec<ShortcutFailureDto>,
     pub app_version: String,
     pub data_dir: String,
+    pub portable: bool,
+}
+
+/// Una versión nueva publicada (payload de `update:available` y resultado de `check_update`).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateInfoDto {
+    pub version: String,
+    pub current_version: String,
+    pub notes: String,
+    pub date: Option<String>,
+    pub portable: bool,
+}
+
+/// Payload de `update:progress`: bytes descargados y total (si el servidor lo informa).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateProgressDto {
+    pub downloaded: u64,
+    pub total: Option<u64>,
 }
 
 #[cfg(test)]
@@ -406,7 +426,16 @@ mod contract {
                 }],
                 app_version: "0.5.0".into(),
                 data_dir: "C:\\Users\\ana\\AppData\\Roaming\\com.teams4soft.qapture".into(),
+                portable: false,
             },
+            "updateInfo": UpdateInfoDto {
+                version: "1.0.1".into(),
+                current_version: "1.0.0".into(),
+                notes: "Correcciones de la exportación a Excel.".into(),
+                date: Some("2026-10-17T12:00:00Z".into()),
+                portable: false,
+            },
+            "updateProgress": UpdateProgressDto { downloaded: 1_048_576, total: Some(8_388_608) },
         })
     }
 

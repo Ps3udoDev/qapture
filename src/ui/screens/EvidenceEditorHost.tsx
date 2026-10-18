@@ -17,8 +17,8 @@ export function EvidenceEditorHost() {
 
   useEffect(() => {
     if (unreadable) pushToast("error", "Las anotaciones guardadas no se pudieron leer; se abrirá sin capa editable.");
-    // Solo al abrir otra evidencia en edición, no en cada render.
-  }, [evidenceId, unreadable]);
+    // Solo al abrir otra evidencia en edición, no en cada render (pushToast es una acción estable del store).
+  }, [evidenceId, unreadable, pushToast]);
 
   if (!editor) return null;
   return (

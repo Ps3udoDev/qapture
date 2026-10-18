@@ -1,0 +1,30 @@
+Qapture - versión portable
+==========================
+
+Esta es la versión portable de Qapture: no se instala, solo se ejecuta
+Qapture.exe desde la carpeta donde la extraigas.
+
+DATOS
+- Todos tus datos (base de datos, evidencias y respaldos) se guardan en la
+  carpeta .\data, junto a Qapture.exe.
+- No borres el archivo portable.flag: es el que le indica a Qapture que debe
+  trabajar en modo portable. Si lo borras, la app usará otra ubicación y no
+  verás tus datos.
+
+ACTUALIZAR
+- Descarga el ZIP nuevo, extráelo y reemplaza Qapture.exe por el del ZIP nuevo.
+- Tu carpeta .\data y el archivo portable.flag se conservan tal cual.
+
+DÓNDE EXTRAERLO
+- No lo extraigas en "Archivos de programa" (C:\Program Files): Qapture
+  necesita permiso de escritura en su carpeta para guardar los datos.
+  Usa, por ejemplo, el Escritorio, Documentos o una unidad como D:\Qapture.
+
+AVISO DE SMARTSCREEN
+- Al abrirlo por primera vez, Windows puede mostrar "Windows protegió su PC"
+  porque la aplicación aún no tiene firma de editor reconocida.
+- Haz clic en "Más información" y luego en "Ejecutar de todas formas".
+
+REQUISITOS
+- Necesita Microsoft Edge WebView2, que ya viene incluido en Windows 11.
+  En Windows 10 puedes instalarlo desde el sitio de Microsoft.

@@ -265,6 +265,7 @@
   "settings": {
     "appVersion": "0.5.0",
     "dataDir": "C:\\Users\\ana\\AppData\\Roaming\\com.teams4soft.qapture",
+    "portable": false,
     "settings": {
       "export": {
         "defaultFolder": "",
@@ -327,5 +328,16 @@
     "id": "tpl-funcional",
     "name": "Funcional",
     "testType": "Funcional"
+  },
+  "updateInfo": {
+    "currentVersion": "1.0.0",
+    "date": "2026-10-17T12:00:00Z",
+    "notes": "Correcciones de la exportación a Excel.",
+    "portable": false,
+    "version": "1.0.1"
+  },
+  "updateProgress": {
+    "downloaded": 1048576,
+    "total": 8388608
   }
 }

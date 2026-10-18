@@ -51,6 +51,8 @@
     "allow-pick-export-folder",
     "allow-open-data-folder",
     "allow-hide-main-window",
-    "allow-open-link"
+    "allow-open-link",
+    "allow-check-update",
+    "allow-install-update"
   ]
 }

@@ -1,6 +1,6 @@
 [package]
 name = "qapture"
-version = "0.6.0"
+version = "1.0.0"
 description = "Qapture — evidencias y matrices de prueba QA (Teams4Soft)"
 authors = ["Teams4Soft"]
 edition = "2024"
@@ -39,6 +39,7 @@ tauri-plugin-clipboard-manager = "2.5.0"
 tauri-plugin-notification = "2.7.0"
 tauri-plugin-global-shortcut = "2.4.1"
 tauri-plugin-autostart = "2.7.0"
+tauri-plugin-updater = "2.14.0"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

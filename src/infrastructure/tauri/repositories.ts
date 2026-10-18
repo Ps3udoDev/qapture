@@ -8,6 +8,7 @@ import { tauriData } from "./data";
 import { tauriDocVersions, tauriExporter } from "./export";
 import { encodeFrame } from "./frame";
 import { tauriSettings } from "./settings";
+import { tauriUpdater } from "./updater";
 
 const nothing = z.null();
 
@@ -63,5 +64,6 @@ export function tauriRepositories(): Repositories {
     exporter: tauriExporter(),
     data: tauriData(),
     settings: tauriSettings(),
+    updater: tauriUpdater(),
   };
 }

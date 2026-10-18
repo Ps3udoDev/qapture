@@ -24,6 +24,8 @@ export interface SettingsSnapshot {
   shortcutFailures: ShortcutFailure[];
   appVersion: string;
   dataDir: string;
+  /** Datos junto al exe (`portable.flag`): sin inicio con Windows. */
+  portable: boolean;
 }
 
 export type LinkTarget = "releases" | "docs";

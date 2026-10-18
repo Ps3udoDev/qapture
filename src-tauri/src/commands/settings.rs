@@ -57,7 +57,10 @@ pub(crate) fn sanitized(mut loaded: Settings) -> Settings {
     }
 }
 
-fn dto(state: &AppState, settings: Settings, app_version: &str) -> SettingsDto {
+fn dto(state: &AppState, mut settings: Settings, app_version: &str) -> SettingsDto {
+    if state.is_portable() {
+        settings.system.autostart = false;
+    }
     SettingsDto {
         settings,
         shortcut_failures: state.shortcut_failures(),
@@ -67,6 +70,7 @@ fn dto(state: &AppState, settings: Settings, app_version: &str) -> SettingsDto {
             .parent()
             .map(|dir| dir.to_string_lossy().into_owned())
             .unwrap_or_default(),
+        portable: state.is_portable(),
     }
 }
 
@@ -75,6 +79,9 @@ fn dto(state: &AppState, settings: Settings, app_version: &str) -> SettingsDto {
 pub(crate) fn save(state: &AppState, input: Settings, app_version: &str) -> AppResult<SettingsDto> {
     state.ensure_ready()?;
     let mut wanted = settings::validate(&input)?;
+    if state.is_portable() {
+        wanted.system.autostart = false;
+    }
     let folder = &wanted.export.default_folder;
     if !folder.is_empty() && !Path::new(folder).is_dir() {
         return Err(validation("La carpeta de exportación no existe."));
@@ -211,7 +218,7 @@ mod tests {
     fn state_with(recovery: Option<String>) -> (TempDir, AppState, FakeRegistrar) {
         let tmp = TempDir::new();
         let conn = db::open(&tmp.path().join(db::DB_FILE)).unwrap();
-        let state = AppState::new(conn, tmp.files(), tmp.path(), recovery);
+        let state = AppState::new(conn, tmp.files(), tmp.path(), recovery, false);
         let fake = FakeRegistrar::default();
         let mut boot = fake.clone();
         shortcuts::register_all(&mut boot, &state.settings().shortcuts);
@@ -289,6 +296,40 @@ mod tests {
             "0.5.0",
         );
         assert!(ok.is_ok(), "una carpeta existente se acepta");
+    }
+
+    #[test]
+    fn the_snapshot_says_whether_qapture_is_portable() {
+        let (_tmp, state, _fake) = state_with(None);
+        assert!(!save(&state, Settings::default(), "0.5.0").unwrap().portable);
+
+        let tmp = TempDir::new();
+        let conn = db::open(&tmp.path().join(db::DB_FILE)).unwrap();
+        let portable = AppState::new(conn, tmp.files(), tmp.path(), None, true);
+        portable.install_registrar(Box::new(FakeRegistrar::default()));
+        let dto = save(&portable, with(|s| s.system.autostart = true), "0.5.0").unwrap();
+        assert!(dto.portable);
+        assert!(
+            !dto.settings.system.autostart,
+            "en portable no hay inicio con Windows"
+        );
+        assert!(
+            !repo::settings::load(&portable.db())
+                .unwrap()
+                .system
+                .autostart
+        );
+    }
+
+    #[test]
+    fn a_portable_snapshot_never_shows_autostart_from_a_copied_db() {
+        let tmp = TempDir::new();
+        let conn = db::open(&tmp.path().join(db::DB_FILE)).unwrap();
+        repo::settings::save(&conn, &with(|s| s.system.autostart = true)).unwrap();
+        let portable = AppState::new(conn, tmp.files(), tmp.path(), None, true);
+        let stored = repo::settings::load(&portable.db()).unwrap();
+        assert!(stored.system.autostart, "la base copiada lo tiene activo");
+        assert!(!dto(&portable, stored, "0.5.0").settings.system.autostart);
     }
 
     #[test]

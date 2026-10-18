@@ -1,4 +1,4 @@
-use super::{runtime, shortcuts::ShortcutAction};
+use super::{runtime, shortcuts::ShortcutAction, updater};
 use tauri::{
     Manager,
     menu::{Menu, MenuItem, PredefinedMenuItem},
@@ -13,6 +13,7 @@ pub enum TrayAction {
     Capture,
     Paste,
     NewCase,
+    CheckUpdate,
 }
 
 fn action_for(id: &str) -> Option<TrayAction> {
@@ -23,6 +24,7 @@ fn action_for(id: &str) -> Option<TrayAction> {
         "capture" => Some(TrayAction::Capture),
         "paste" => Some(TrayAction::Paste),
         "new-case" => Some(TrayAction::NewCase),
+        "check-update" => Some(TrayAction::CheckUpdate),
         _ => None,
     }
 }
@@ -91,6 +93,19 @@ pub fn on_action(app: &tauri::AppHandle, action: TrayAction) {
         TrayAction::Capture => runtime::dispatch(app, ShortcutAction::Capture),
         TrayAction::Paste => runtime::dispatch(app, ShortcutAction::Paste),
         TrayAction::NewCase => runtime::dispatch(app, ShortcutAction::NewCase),
+        TrayAction::CheckUpdate => updater::check_from_tray(app),
+    }
+}
+
+/// Ítem «Buscar actualizaciones»: con una versión pendiente pasa a «Instalar actualización <v>»
+/// («Descargar actualización <v>» en portable).
+struct UpdateMenuItem(MenuItem<tauri::Wry>);
+
+pub fn set_update_label(app: &tauri::AppHandle, text: &str) {
+    if let Some(item) = app.try_state::<UpdateMenuItem>()
+        && let Err(error) = item.0.set_text(text)
+    {
+        eprintln!("No se pudo cambiar el menú de la bandeja: {error}");
     }
 }
 
@@ -101,6 +116,13 @@ pub fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
     let capture = MenuItem::with_id(app, "capture", "Capturar pantalla", true, None::<&str>)?;
     let paste = MenuItem::with_id(app, "paste", "Pegar evidencia", true, None::<&str>)?;
     let new_case = MenuItem::with_id(app, "new-case", "Nuevo caso", true, None::<&str>)?;
+    let check_update = MenuItem::with_id(
+        app,
+        "check-update",
+        "Buscar actualizaciones",
+        true,
+        None::<&str>,
+    )?;
     let second_separator = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "Salir", true, None::<&str>)?;
     let menu = Menu::with_items(
@@ -113,6 +135,7 @@ pub fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
             &paste,
             &new_case,
             &second_separator,
+            &check_update,
             &quit,
         ],
     )?;
@@ -138,6 +161,7 @@ pub fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
         })
         .build(app)?;
     app.manage(tray);
+    app.manage(UpdateMenuItem(check_update));
     Ok(())
 }
 
@@ -171,6 +195,7 @@ mod tests {
         assert_eq!(action_for("capture"), Some(TrayAction::Capture));
         assert_eq!(action_for("paste"), Some(TrayAction::Paste));
         assert_eq!(action_for("new-case"), Some(TrayAction::NewCase));
+        assert_eq!(action_for("check-update"), Some(TrayAction::CheckUpdate));
     }
 
     #[test]

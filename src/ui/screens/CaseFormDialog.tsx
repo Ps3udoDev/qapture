@@ -14,7 +14,7 @@ export function CaseFormDialog({ caseId, onClose }: { caseId?: string; onClose: 
   const saveCase = useWorkspace((s) => s.saveCase);
   const testerName = useWorkspace((s) => s.testerName);
   const existing = caseId ? cases.find((c) => c.id === caseId) : undefined;
-  const projectFields = project?.fields ?? [];
+  const projectFields = useMemo(() => project?.fields ?? [], [project?.fields]);
   const fields = useMemo(() => activeFields(projectFields), [projectFields]);
   const [input, setInput] = useState<CaseInput>(() => (existing ? caseToInput(projectFields, existing) : emptyCaseInput(projectFields, { responsable: testerName() })));
   const [errors, setErrors] = useState<FormErrors>({});
