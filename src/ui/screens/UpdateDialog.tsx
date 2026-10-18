@@ -1,4 +1,4 @@
-import { availableMessage, PORTABLE_MESSAGE, progressMessage } from "../../domain/update";
+import { availableMessage, PORTABLE_MESSAGE, progressPercentMessage } from "../../domain/update";
 import { Dialog, DialogFooter } from "../components/Dialog";
 import { btn } from "../components/styles";
 import { useWorkspace } from "../store/context";
@@ -13,6 +13,7 @@ export function UpdateDialog() {
   const openLink = useWorkspace((s) => s.openLink);
   if (!info) return null;
   const downloading = status === "downloading";
+  const busy = status !== "idle";
 
   return (
     <Dialog title="Nueva versión disponible" kicker="Qapture" onClose={downloading ? () => undefined : dismissUpdate}>
@@ -22,7 +23,7 @@ export function UpdateDialog() {
         {info.portable && <p className="text-sm">{PORTABLE_MESSAGE}</p>}
         {downloading && (
           <div role="status" className="grid gap-1">
-            <p className="text-sm">{progressMessage(progress ?? 0, progress === null ? null : 100)}</p>
+            <p className="text-sm">{progressPercentMessage(progress)}</p>
             {progress !== null && (
               <div className="h-2 overflow-hidden rounded bg-t4s-line" aria-hidden="true">
                 <div className="h-full bg-t4s-blue" style={{ width: `${progress}%` }} />
@@ -32,7 +33,7 @@ export function UpdateDialog() {
         )}
       </div>
       <DialogFooter>
-        <button type="button" className={btn.secondary} disabled={downloading} onClick={dismissUpdate}>
+        <button type="button" className={btn.secondary} disabled={busy} onClick={dismissUpdate}>
           Después
         </button>
         {info.portable ? (
@@ -40,7 +41,7 @@ export function UpdateDialog() {
             Descargar
           </button>
         ) : (
-          <button type="button" className={btn.primary} disabled={downloading} onClick={() => void installUpdate()}>
+          <button type="button" className={btn.primary} disabled={busy} onClick={() => void installUpdate()}>
             Instalar y reiniciar
           </button>
         )}

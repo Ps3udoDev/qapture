@@ -30,10 +30,11 @@ export function progressPercent(downloaded: number, total: number | null): numbe
   return Math.min(100, Math.floor((downloaded / total) * 100));
 }
 
-export function progressMessage(downloaded: number, total: number | null): string {
-  const percent = progressPercent(downloaded, total);
+export function progressPercentMessage(percent: number | null): string {
   return percent === null ? "Descargando actualización…" : `Descargando actualización… ${percent} %`;
 }
+
+export const progressMessage = (downloaded: number, total: number | null): string => progressPercentMessage(progressPercent(downloaded, total));
 
 export function parseVersion(version: string): [number, number, number] | null {
   const parts = version.trim().replace(/^v/, "").split(".");

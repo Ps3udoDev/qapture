@@ -75,14 +75,52 @@ describe("slice del updater", () => {
   it("instala y muestra el progreso de descarga", async () => {
     const { repos, s } = await setup();
     repos.updater.emitAvailable(info("1.0.1"));
-    repos.updater.emitProgress({ downloaded: 50, total: 200 });
+    // Sin instalación en curso, el progreso se ignora.
+    repos.updater.emitProgress({ downloaded: 10, total: 200 });
+    expect(s().update.status).toBe("idle");
+    expect(s().update.progress).toBeNull();
+    repos.updater.hold = true;
+    const installing = s().installUpdate();
     expect(s().update.status).toBe("downloading");
+    repos.updater.emitProgress({ downloaded: 50, total: 200 });
     expect(s().update.progress).toBe(25);
     expect(progressMessage(50, 200)).toBe("Descargando actualización… 25 %");
     repos.updater.emitProgress({ downloaded: 80, total: null });
     expect(s().update.progress).toBeNull();
-    await s().installUpdate();
+    repos.updater.release();
+    await installing;
     expect(repos.updater.installs).toBe(1);
+    expect(s().update.status).toBe("idle");
+  });
+
+  it("no instala con el editor abierto", async () => {
+    const { repos, store, s } = await setup();
+    store.setState({ editor: { kind: "new", imagePath: "C:/tmp/a.png", caseId: null } });
+    await s().installUpdate();
+    expect(s().toasts.map((t) => t.message)).toEqual(["Guarda o descarta la captura abierta antes de actualizar."]);
+    expect(repos.updater.installs).toBe(0);
+  });
+
+  it("una revisión y una instalación no se superponen", async () => {
+    const { repos, s } = await setup();
+    repos.updater.emitAvailable(info("1.0.1"));
+    repos.updater.holdCheck = true;
+    const checking = s().checkForUpdates(true);
+    expect(s().update.status).toBe("checking");
+    await s().installUpdate();
+    expect(repos.updater.installs).toBe(0);
+    repos.updater.releaseCheck();
+    await checking;
+    expect(s().update.status).toBe("idle");
+
+    repos.updater.holdCheck = false;
+    repos.updater.hold = true;
+    const installing = s().installUpdate();
+    await s().checkForUpdates(true);
+    expect(s().update.status).toBe("downloading");
+    repos.updater.release();
+    await installing;
+    expect(s().update.status).toBe("idle");
   });
 
   it("un error al instalar vuelve a reposo y lo avisa", async () => {

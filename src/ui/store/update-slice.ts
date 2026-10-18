@@ -35,7 +35,6 @@ export const isUpdatePromptOpen = (s: Pick<WorkspaceState, "update">): boolean =
 export const hasPostponedUpdate = (s: Pick<WorkspaceState, "update">): boolean => s.update.available !== null && !isUpdatePromptOpen(s);
 
 export function createUpdateSlice(repos: Repositories, set: Set, get: Get, h: SliceHelpers): UpdateSlice {
-  let installing = false;
   const patch = (change: Partial<UpdateState>) => set((s) => ({ update: { ...s.update, ...change } }));
 
   return {
@@ -53,25 +52,23 @@ export function createUpdateSlice(repos: Repositories, set: Set, get: Get, h: Sl
         if (manual) h.report(error);
         else console.warn("No se pudo buscar actualizaciones.", error);
       } finally {
-        patch({ status: "idle" });
+        if (get().update.status === "checking") patch({ status: "idle" });
       }
     },
 
     async installUpdate() {
-      if (installing) return;
+      if (get().update.status !== "idle") return;
       // Reiniciar borraría `_staging`: una captura abierta o en cola se perdería.
       if (get().editor || get().editorQueue.length > 0) {
         get().pushToast("error", SAVE_FIRST_MESSAGE);
         return;
       }
-      installing = true;
       patch({ status: "downloading", progress: null });
       try {
         await repos.updater.install();
       } catch (error) {
         h.report(error);
       } finally {
-        installing = false;
         patch({ status: "idle", progress: null });
       }
     },
@@ -86,7 +83,10 @@ export function createUpdateSlice(repos: Repositories, set: Set, get: Get, h: Sl
       // solo se reabre si no está pospuesta; el indicador de Ajustes y «Acerca de» son el camino de vuelta.
       const offAvailable = await repos.updater.onAvailable((info) => patch({ available: info }));
       try {
-        const offProgress = await repos.updater.onProgress((p) => patch({ status: "downloading", progress: progressPercent(p.downloaded, p.total) }));
+        const offProgress = await repos.updater.onProgress((p) => {
+          // Solo cuenta mientras hay una instalación en curso.
+          if (get().update.status === "downloading") patch({ progress: progressPercent(p.downloaded, p.total) });
+        });
         return () => {
           offAvailable();
           offProgress();

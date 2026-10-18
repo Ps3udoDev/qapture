@@ -9,11 +9,14 @@ export interface MemoryUpdater extends Updater {
   installError: AppError | null;
   /** Si es `true`, `install` queda pendiente hasta `release()` (para ver el progreso). */
   hold: boolean;
+  /** Si es `true`, `check` queda pendiente hasta `releaseCheck()`. */
+  holdCheck: boolean;
   /** Veces que se pidió instalar. */
   installs: number;
   emitAvailable(info: UpdateInfo): void;
   emitProgress(progress: UpdateProgress): void;
   release(): void;
+  releaseCheck(): void;
 }
 
 /** Replica en memoria `check_update` e `install_update` y sus eventos. */
@@ -21,12 +24,15 @@ export function createMemoryUpdater(): MemoryUpdater {
   const available = new Set<(info: UpdateInfo) => void>();
   const progress = new Set<(p: UpdateProgress) => void>();
   let release: () => void = () => undefined;
+  let releaseCheck: () => void = () => undefined;
   const m: MemoryUpdater = {
     next: null,
     installError: null,
     hold: false,
+    holdCheck: false,
     installs: 0,
     async check() {
+      if (m.holdCheck) await new Promise<void>((resolve) => (releaseCheck = resolve));
       if (m.next instanceof Error) throw m.next;
       return m.next ? structuredClone(m.next) : null;
     },
@@ -50,6 +56,7 @@ export function createMemoryUpdater(): MemoryUpdater {
       for (const h of [...progress]) h({ ...p });
     },
     release: () => release(),
+    releaseCheck: () => releaseCheck(),
   };
   return m;
 }

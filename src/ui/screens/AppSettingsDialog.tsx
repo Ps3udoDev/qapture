@@ -213,7 +213,7 @@ export function AppSettingsDialog({ onClose }: { onClose: () => void }) {
                         Descargar
                       </button>
                     ) : (
-                      <button type="button" className={btn.primary} disabled={updateStatus === "downloading"} onClick={() => void installUpdate()}>
+                      <button type="button" className={btn.primary} disabled={updateStatus !== "idle"} onClick={() => void installUpdate()}>
                         Instalar y reiniciar
                       </button>
                     ))}
