@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.0.1 — 2026-10-18
+
+### Nuevo
+- Video de presentación de Qapture y vista previa en el README
+
 ## 1.0.0 — 2026-10-17
 
 ### Nuevo
