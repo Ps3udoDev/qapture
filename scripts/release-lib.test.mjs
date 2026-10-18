@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { bump, changelogSection, checkVersions, insertSection, notesFor, readVersions } from "./release-lib.mjs";
+import {
+  bump,
+  changelogSection,
+  checkGreater,
+  checkVersions,
+  insertSection,
+  notesFor,
+  parseReleaseArgs,
+  readVersions,
+} from "./release-lib.mjs";
 
 const files = (v, lockExtra = "") => ({
   pkg: `{\n  "name": "qapture",\n  "version": "${v}"\n}\n`,
@@ -82,5 +91,38 @@ describe("release-lib", () => {
     expect(notesFor(log, "1.0.0")).toBe("### Nuevo\n- a\n");
     expect(notesFor(log, "0.6.0")).toBe("viejo\n");
     expect(notesFor(log, "2.0.0")).toBe("");
+  });
+
+  it("nombra el archivo sin versión en vez de decir null", () => {
+    const v = readVersions({ ...files("1.0.0"), tauriConf: "{}\n" });
+    expect(checkVersions(v)).toEqual(["src-tauri/tauri.conf.json no tiene versión."]);
+    expect(checkVersions({ ...v, pkg: null })).toEqual(["package.json no tiene versión."]);
+  });
+
+  it("lee los argumentos de pnpm release, con --since y --no-tag", () => {
+    expect(parseReleaseArgs(["1.2.0"])).toEqual({ version: "1.2.0", since: null, noTag: false });
+    expect(parseReleaseArgs(["1.2.0", "--no-tag"])).toEqual({ version: "1.2.0", since: null, noTag: true });
+    expect(parseReleaseArgs(["--no-tag", "1.2.0", "--since", "v1.0.0"])).toEqual({
+      version: "1.2.0",
+      since: "v1.0.0",
+      noTag: true,
+    });
+  });
+
+  it("rechaza argumentos inválidos de pnpm release", () => {
+    expect(() => parseReleaseArgs([])).toThrow("Uso: pnpm release <X.Y.Z> [--since <ref>] [--no-tag]");
+    expect(() => parseReleaseArgs(["1.2.0", "extra"])).toThrow(/^Uso:/);
+    expect(() => parseReleaseArgs(["1.2.0", "--since"])).toThrow("--since necesita una referencia (tag o commit).");
+    expect(() => parseReleaseArgs(["1.2.0", "--since", "--no-tag"])).toThrow(/--since necesita/);
+    expect(() => parseReleaseArgs(["1.2.0-rc.1"])).toThrow(/X\.Y\.Z/);
+  });
+
+  it("exige que la versión nueva sea mayor que la actual (comparación numérica)", () => {
+    expect(checkGreater("1.0.1", "1.0.0")).toBeNull();
+    expect(checkGreater("1.10.0", "1.9.9")).toBeNull();
+    expect(checkGreater("2.0.0", "1.99.99")).toBeNull();
+    expect(checkGreater("1.0.0", "1.0.0")).toBe("La versión 1.0.0 debe ser mayor que la actual 1.0.0.");
+    expect(checkGreater("0.9.0", "1.0.0")).toBe("La versión 0.9.0 debe ser mayor que la actual 1.0.0.");
+    expect(checkGreater("1.9.0", "1.10.0")).toBe("La versión 1.9.0 debe ser mayor que la actual 1.10.0.");
   });
 });

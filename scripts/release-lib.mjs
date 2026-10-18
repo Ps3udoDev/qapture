@@ -34,12 +34,18 @@ export function readVersions(files) {
 export function checkVersions(versions, tag) {
   const errors = [];
   const reference = versions.pkg;
-  if (reference === null || !SEMVER.test(reference)) {
+  if (reference === null) {
+    errors.push(`${FILE_NAMES.pkg} no tiene versión.`);
+    return errors;
+  }
+  if (!SEMVER.test(reference)) {
     errors.push(`La versión debe ser X.Y.Z (el MSI no admite prereleases): ${reference}.`);
     return errors;
   }
   for (const key of ["cargoToml", "tauriConf", "cargoLock"]) {
-    if (versions[key] !== reference) {
+    if (versions[key] === null) {
+      errors.push(`${FILE_NAMES[key]} no tiene versión.`);
+    } else if (versions[key] !== reference) {
       errors.push(`${FILE_NAMES[key]} tiene ${versions[key]} y ${FILE_NAMES.pkg} ${reference}.`);
     }
   }
@@ -47,6 +53,43 @@ export function checkVersions(versions, tag) {
     errors.push(`El tag ${tag} no coincide con la versión ${reference}.`);
   }
   return errors;
+}
+
+// Argumentos de `pnpm release <X.Y.Z> [--since <ref>] [--no-tag]`. Lanza un Error con el mensaje
+// para el usuario si son inválidos.
+export function parseReleaseArgs(argv) {
+  const args = [...argv];
+  const usage = "Uso: pnpm release <X.Y.Z> [--since <ref>] [--no-tag]";
+  let since = null;
+  const sinceAt = args.indexOf("--since");
+  if (sinceAt !== -1) {
+    since = args[sinceAt + 1];
+    if (!since || since.startsWith("--")) throw new Error("--since necesita una referencia (tag o commit).");
+    args.splice(sinceAt, 2);
+  }
+  let noTag = false;
+  const noTagAt = args.indexOf("--no-tag");
+  if (noTagAt !== -1) {
+    noTag = true;
+    args.splice(noTagAt, 1);
+  }
+  const version = args[0];
+  if (!version || args.length !== 1) throw new Error(usage);
+  if (!SEMVER.test(version)) {
+    throw new Error(`La versión debe ser X.Y.Z (el MSI no admite prereleases): ${version}.`);
+  }
+  return { version, since, noTag };
+}
+
+// Error si `next` no es mayor que `current` (ambas X.Y.Z, comparación numérica); si no, null.
+export function checkGreater(next, current) {
+  const a = next.split(".").map(Number);
+  const b = current.split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    if (a[i] > b[i]) return null;
+    if (a[i] < b[i]) break;
+  }
+  return `La versión ${next} debe ser mayor que la actual ${current}.`;
 }
 
 export function bump(files, version) {

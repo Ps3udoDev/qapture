@@ -62,28 +62,42 @@ Un comando nuevo se registra en `src-tauri/src/commands/names.rs`, en `generate_
 
 ## Publicar una versión
 
-Las versiones son `X.Y.Z` numéricas, sin `-rc` (el MSI no acepta prereleases). El tag es `v` + versión.
+Las versiones son `X.Y.Z` numéricas, sin `-rc` (el MSI no acepta prereleases), y cada una mayor que la anterior. El tag es `v` + versión. `main` está protegida (todo entra por PR), así que el commit de versión va por PR y el tag se pone después, sobre `main`.
 
-1. Con `main` actualizado y el árbol limpio:
+1. Desde `main` actualizado, en una rama de release y con el árbol limpio:
 
    ```bash
-   pnpm release X.Y.Z
+   git checkout main && git pull
+   git checkout -b release/vX.Y.Z
+   pnpm release X.Y.Z --no-tag
    ```
 
-   (opcional `--since <ref>` para elegir desde qué tag o commit se arma el CHANGELOG). El script sincroniza la versión en `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json` y `src-tauri/Cargo.lock`, agrega la sección al `CHANGELOG.md`, hace el commit `chore(release): vX.Y.Z` y crea el tag. **No hace push**; imprime los comandos.
+   (opcional `--since <ref>` para elegir desde qué tag o commit se arma el CHANGELOG). El script sincroniza la versión en `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json` y `src-tauri/Cargo.lock`, agrega la sección al `CHANGELOG.md` y hace el commit `chore(release): vX.Y.Z`. Con `--no-tag` no crea el tag. **No hace push**; imprime los pasos siguientes. Rechaza una versión que no sea mayor que la actual.
 
-2. Haz push del commit y del tag:
+2. Sube la rama y abre el PR a `main`:
 
    ```bash
-   git push origin main
+   git push -u origin release/vX.Y.Z
+   ```
+
+   Fusiónalo con **merge commit** (no squash). Si se fusiona con squash, el tag va igual sobre el commit que queda en `main`, no sobre el de la rama.
+
+3. Con el PR fusionado, crea el tag sobre `main` y súbelo:
+
+   ```bash
+   git checkout main && git pull
+   pnpm check-version vX.Y.Z
+   git tag vX.Y.Z
    git push origin vX.Y.Z
    ```
 
-   `release.yml` verifica que el tag coincide con las versiones, corre las pruebas, compila y crea un **release en borrador** con `Qapture_X.Y.Z_x64-setup.exe`, el `.msi`, sus `.sig`, `latest.json` y `Qapture_X.Y.Z_portable.zip`.
+   `pnpm check-version vX.Y.Z` confirma que `main` tiene la versión del tag antes de crearlo. El push del tag dispara `release.yml`, que vuelve a verificar el tag contra las versiones, corre las pruebas, compila y crea un **release en borrador** con `Qapture_X.Y.Z_x64-setup.exe`, el `.msi`, sus `.sig`, `latest.json` y `Qapture_X.Y.Z_portable.zip`.
 
-3. Revisa el borrador en GitHub (artefactos y notas) y pasa el [checklist manual](docs/release-checklist.md).
+4. Revisa el borrador en GitHub (artefactos, `latest.json` y notas) y pasa el [checklist manual](docs/release-checklist.md).
 
-4. **Publica el borrador.** Las apps instaladas solo ven el release cuando está publicado: `releases/latest` ignora borradores y prereleases.
+5. **Publica el borrador.** Las apps instaladas solo ven el release cuando está publicado: `releases/latest` ignora borradores y prereleases.
+
+Sin `--no-tag`, `pnpm release X.Y.Z` también crea el tag local; sirve solo en un repo sin protección de `main`.
 
 La firma del updater usa los secretos `TAURI_SIGNING_PRIVATE_KEY` y `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` de GitHub; la clave pública va en `tauri.conf.json`. Si el repo se mueve de dueño, se publica un release puente que cambie la URL del updater.
 

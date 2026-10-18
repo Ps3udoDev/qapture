@@ -64,7 +64,7 @@ No existen: clave del updater ni secretos (`gh secret list` está vacío), modo 
 - **Script propio en vez de `release-please`:**
   - un tag creado por el bot con `GITHUB_TOKEN` no dispara `release.yml`, así que exigiría un PAT;
   - `release-please` tampoco actualiza bien `Cargo.lock` en un proyecto que no es un workspace Rust;
-  - `pnpm release <X.Y.Z>` hace el bump y el CHANGELOG, el commit y el tag quedan locales, y el push lo hace una persona.
+  - `pnpm release <X.Y.Z>` hace el bump y el CHANGELOG, el commit y el tag quedan locales, y el push lo hace una persona (con `--no-tag`, el tag se crea sobre `main` después del PR).
 - **CHANGELOG:** las versiones 0.1.0–0.6.0 se escriben a mano, un resumen por fase sacado de los contratos. Desde la siguiente se genera de los commits `feat`/`fix` (en el repo ya son convencionales: `feat(f6): …`).
 - **Portable:**
   - **WebView2:** el WebView sigue guardando su caché y su `localStorage` (preferencias de UI) en `%LOCALAPPDATA%`, porque la ventana principal se crea desde la configuración. Los datos de Qapture (base, capturas, respaldos) sí van a `.\data`.
@@ -86,7 +86,8 @@ No existen: clave del updater ni secretos (`gh secret list` está vacío), modo 
   - `install_update() -> ()`: descarga, instala y reinicia; en portable responde con el mensaje de la versión portable.
   - `UpdateInfoDto { version, currentVersion, notes, date?, portable }` (camelCase).
 - **Eventos:**
-  - `update:available` (payload `UpdateInfoDto`): hay una versión nueva pendiente;
+  - `update:available` (payload `UpdateInfoDto`): hay una versión nueva pendiente (no reabre una versión pospuesta);
+  - `update:show` (payload `UpdateInfoDto`): clic en el ítem de la bandeja; abre el diálogo aunque la versión se haya pospuesto;
   - `update:progress { downloaded, total? }`: avance de la descarga.
 - **`portable.flag`:** archivo vacío junto a `Qapture.exe`; con él, los datos van a `<carpeta del exe>\data` (base, `evidence\`, `backups\`, `evidence-sin-uso\`).
-- **Scripts:** `pnpm lint` (`eslint . --max-warnings 0`) y, desde la Task 5, `pnpm release <X.Y.Z>`.
+- **Scripts:** `pnpm lint` (`eslint . --max-warnings 0`), `pnpm release <X.Y.Z> [--since <ref>] [--no-tag]` (con `main` protegida se usa `--no-tag` y el tag se crea tras el merge; ver `CONTRIBUTING.md`) y `pnpm check-version [vX.Y.Z]`.
