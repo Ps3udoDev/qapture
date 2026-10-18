@@ -164,3 +164,16 @@ export const settingsSnapshotSchema = z.strictObject({
   dataDir: z.string(),
   portable: z.boolean(),
 });
+
+export const updateInfoSchema = z.strictObject({
+  version: z.string(),
+  currentVersion: z.string(),
+  notes: z.string(),
+  date: z.string().nullable(),
+  portable: z.boolean(),
+});
+
+export const updateProgressSchema = z.strictObject({
+  downloaded: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative().nullable(),
+});

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { FormErrors } from "../../domain/cases";
 import { IMAGE_WIDTH } from "../../domain/export";
+import { PORTABLE_MESSAGE } from "../../domain/update";
 import { DEFAULT_SETTINGS, SHORTCUT_ACTIONS, SHORTCUT_LABEL, type Settings } from "../../domain/settings";
 import { Dialog, DialogFooter } from "../components/Dialog";
 import { FormField } from "../components/FormField";
@@ -34,6 +35,10 @@ export function AppSettingsDialog({ onClose }: { onClose: () => void }) {
   const pickExportFolder = useWorkspace((s) => s.pickExportFolder);
   const openDataFolder = useWorkspace((s) => s.openDataFolder);
   const openLink = useWorkspace((s) => s.openLink);
+  const available = useWorkspace((s) => s.update.available);
+  const updateStatus = useWorkspace((s) => s.update.status);
+  const checkForUpdates = useWorkspace((s) => s.checkForUpdates);
+  const installUpdate = useWorkspace((s) => s.installUpdate);
   const importLegacy = useWorkspace((s) => s.importLegacy);
   const busyData = useWorkspace((s) => s.dataBusy);
   const [draft, setDraft] = useState<Settings>(() => structuredClone(snapshot?.settings ?? DEFAULT_SETTINGS));
@@ -196,6 +201,25 @@ export function AppSettingsDialog({ onClose }: { onClose: () => void }) {
           {tab === "Acerca de" && (
             <>
               <p className="text-sm font-medium">Qapture {snapshot?.appVersion}</p>
+              <div className="grid gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" className={btn.secondary} disabled={updateStatus !== "idle"} onClick={() => void checkForUpdates(true)}>
+                    {updateStatus === "checking" ? "Buscando actualizaciones…" : "Buscar actualizaciones"}
+                  </button>
+                  {available && <span className="text-sm">Versión {available.version} disponible</span>}
+                  {available &&
+                    (available.portable ? (
+                      <button type="button" className={btn.primary} onClick={() => void openLink("releases")}>
+                        Descargar
+                      </button>
+                    ) : (
+                      <button type="button" className={btn.primary} disabled={updateStatus === "downloading"} onClick={() => void installUpdate()}>
+                        Instalar y reiniciar
+                      </button>
+                    ))}
+                </div>
+                {available?.portable && <p className="text-xs text-t4s-gray">{PORTABLE_MESSAGE}</p>}
+              </div>
               <div className="flex gap-2">
                 <button type="button" className={btn.secondary} onClick={() => void openLink("releases")}>
                   Releases
