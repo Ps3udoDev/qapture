@@ -11,7 +11,7 @@ Qapture corre en segundo plano en Windows. Con un atajo capturas la pantalla, an
 
 **[⬇ Descargar la última versión](https://github.com/Ps3udoDev/qapture/releases/latest)** (instalador `.exe`, `.msi` o ZIP portable)
 
-> Estado: **v1.0.0 (Fase 7 completada · En pruebas del equipo)**. El diseño está en [`docs/superpowers/specs/2026-10-15-qapture-design.md`](docs/superpowers/specs/2026-10-15-qapture-design.md). Guía de uso en [`docs/usuario/`](docs/usuario/README.md); para contribuir, ver [`CONTRIBUTING.md`](CONTRIBUTING.md).
+> Estado: **v1.0.1 (Fase 7 completada · En pruebas del equipo)**. El diseño está en [`docs/superpowers/specs/2026-10-15-qapture-design.md`](docs/superpowers/specs/2026-10-15-qapture-design.md). Guía de uso en [`docs/usuario/`](docs/usuario/README.md); para contribuir, ver [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Demo del producto (52 s)
 
@@ -42,7 +42,7 @@ Qapture corre en segundo plano en Windows. Con un atajo capturas la pantalla, an
 - **F6: Bandeja, atajos y ajustes** (`v0.6.0`) — Qapture vive en la bandeja del sistema y se invoca con atajos globales configurables desde Ajustes.
 - **F7: CI/CD, actualizaciones y release** (`v1.0.0`) — CI en cada PR, publicación automática con cada tag (instalador NSIS, MSI y ZIP portable), actualizaciones firmadas dentro de la app, versionado con `pnpm release` y documentación de usuario y de desarrollo.
 
-> Solo `v0.4.0` existe hoy como tag de git; las demás etiquetas son la versión de cada fase y los tags nuevos se crean desde `main` al publicar (`v1.0.0` es el primero con el pipeline automático).
+> Los tags de git publicados son `v0.4.0`, `v1.0.0` y `v1.0.1`; las demás etiquetas son la versión de cada fase. Los tags nuevos se crean desde `main` al publicar (`v1.0.0` fue el primero con el pipeline automático).
 
 ## Stack
 
