@@ -4,3 +4,4 @@ pub mod portable;
 pub mod runtime;
 pub mod shortcuts;
 pub mod tray;
+pub mod updater;

@@ -9,7 +9,7 @@ use crate::{
     backup::Backups,
     capture::session::{CaptureController, HIDE_DELAY, READY_TIMEOUT},
     db::DB_FILE,
-    dto::ShortcutFailureDto,
+    dto::{ShortcutFailureDto, UpdateInfoDto},
     error::{AppResult, validation},
     excel::save::RecentExports,
     media::storage::EvidenceFiles,
@@ -45,6 +45,8 @@ pub struct AppState {
     shortcut_failures: Mutex<Vec<ShortcutFailureDto>>,
     registrar: Mutex<Box<dyn ShortcutRegistrar + Send>>,
     on_saved: Mutex<Option<SavedHook>>,
+    /// Última versión nueva encontrada (la muestra la bandeja hasta instalarla).
+    pending_update: Mutex<Option<UpdateInfoDto>>,
 }
 
 impl AppState {
@@ -68,6 +70,7 @@ impl AppState {
             shortcut_failures: Mutex::new(Vec::new()),
             registrar: Mutex::new(Box::new(NullRegistrar)),
             on_saved: Mutex::new(None),
+            pending_update: Mutex::new(None),
         }
     }
 
@@ -177,6 +180,20 @@ impl AppState {
         if let Some(hook) = guard.as_ref() {
             hook(settings);
         }
+    }
+
+    pub fn pending_update(&self) -> Option<UpdateInfoDto> {
+        self.pending_update
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
+    }
+
+    pub fn set_pending_update(&self, update: Option<UpdateInfoDto>) {
+        *self
+            .pending_update
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = update;
     }
 
     pub fn finish_recovery(&self, conn: Connection) {

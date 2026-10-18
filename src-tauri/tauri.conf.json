@@ -41,5 +41,16 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZCNDNFMkU2RTlCMzNEMkQKUldRdFBiUHA1dUpEYTRKc0dGZjVLNDROU2ZEQ09Qbjcvb2VWWkNYUGlISHRJWGk1dDN5NWREWTgK",
+      "endpoints": [
+        "https://github.com/Ps3udoDev/qapture/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

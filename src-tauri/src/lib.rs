@@ -42,6 +42,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             Some(vec![system::runtime::HIDDEN_ARG]),
@@ -123,6 +124,7 @@ pub fn run() {
                 system::runtime::sync_autostart(&hook_app, saved.system.autostart);
             }));
             system::daily_backup::spawn(handle.clone());
+            system::updater::spawn(handle.clone());
             system::tray::setup_tray(app)?;
             // La ventana arranca oculta (tauri.conf.json); se muestra salvo inicio oculto.
             if plan.show {
@@ -214,6 +216,8 @@ pub fn run() {
             commands::settings::open_data_folder,
             commands::settings::hide_main_window,
             commands::settings::open_link,
+            commands::updater::check_update,
+            commands::updater::install_update,
         ])
         .run(tauri::generate_context!())
         .expect("no se pudo iniciar Qapture");

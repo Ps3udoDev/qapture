@@ -54,6 +54,8 @@ pub const APP_COMMANDS: &[&str] = &[
     "open_data_folder",
     "hide_main_window",
     "open_link",
+    "check_update",
+    "install_update",
 ];
 
 /// Lo único que puede invocar una ventana overlay (spec §9). El resto es de la principal.
