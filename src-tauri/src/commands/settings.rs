@@ -322,6 +322,17 @@ mod tests {
     }
 
     #[test]
+    fn a_portable_snapshot_never_shows_autostart_from_a_copied_db() {
+        let tmp = TempDir::new();
+        let conn = db::open(&tmp.path().join(db::DB_FILE)).unwrap();
+        repo::settings::save(&conn, &with(|s| s.system.autostart = true)).unwrap();
+        let portable = AppState::new(conn, tmp.files(), tmp.path(), None, true);
+        let stored = repo::settings::load(&portable.db()).unwrap();
+        assert!(stored.system.autostart, "la base copiada lo tiene activo");
+        assert!(!dto(&portable, stored, "0.5.0").settings.system.autostart);
+    }
+
+    #[test]
     fn saving_is_blocked_in_recovery_mode() {
         let (_tmp, state, _fake) = state_with(Some("base dañada".into()));
         let error = save(&state, Settings::default(), "0.5.0").unwrap_err();
