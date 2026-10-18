@@ -79,8 +79,8 @@ export function createUpdateSlice(repos: Repositories, set: Set, get: Get, h: Sl
     },
 
     async listenUpdates() {
-      // `onAvailable` puede repetir la misma versión (revisión cada 6 h, clic en la bandeja): el diálogo
-      // solo se reabre si no está pospuesta; el indicador de Ajustes y «Acerca de» son el camino de vuelta.
+      // `onAvailable` puede repetir la misma versión (revisión cada 6 h): el diálogo solo se reabre si no
+      // está pospuesta; la bandeja, el indicador de Ajustes y «Acerca de» son el camino de vuelta.
       const offs: (() => void)[] = [];
       try {
         offs.push(await repos.updater.onAvailable((info) => patch({ available: info })));

@@ -93,6 +93,7 @@ Rust avisa al WebView con eventos (no hay sondeo):
 | `evidence:captured` | Captura (botón, `Ctrl+Alt+S`) y pegado (`Ctrl+Alt+V`) | Hay una imagen lista en `_staging`; la UI abre el editor |
 | `shortcut:new-case` | Atajo «Nuevo caso» | La UI abre el formulario de caso en el proyecto activo |
 | `update:available` | Updater (al iniciar, cada 6 h o revisión manual) | Hay una versión nueva; la UI abre el diálogo y muestra el indicador |
+| `update:show` | Bandeja («Buscar actualizaciones» / «Instalar actualización») | Pedido explícito: la UI abre el diálogo aunque la versión se haya pospuesto |
 | `update:progress` | Updater durante la descarga | Avance «Descargando actualización… n %» |
 
 ## Dónde viven los datos
