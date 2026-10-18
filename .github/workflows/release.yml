@@ -29,8 +29,14 @@ jobs:
 
       - name: Resolver tag
         shell: bash
+        env:
+          RAW_TAG: ${{ inputs.tag_name || github.ref_name }}
         run: |
-          TAG="${{ inputs.tag_name || github.ref_name }}"
+          TAG="$RAW_TAG"
+          if ! [[ "$TAG" =~ ^v[0-9]+.[0-9]+.[0-9]+$ ]]; then
+            echo "Tag inválido: '$TAG' (se esperaba vX.Y.Z)" >&2
+            exit 1
+          fi
           echo "TAG=$TAG" >> "$GITHUB_ENV"
           echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
 
@@ -74,6 +80,7 @@ jobs:
           { echo "notes<<QAPTURE_NOTES_EOF"; cat release-notes.md; echo "QAPTURE_NOTES_EOF"; } >> "$GITHUB_OUTPUT"
 
       - name: Build desktop app and create draft release
+        id: tauri
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -103,4 +110,19 @@ jobs:
           Copy-Item src-tauri/portable/LEEME.txt portable/LEEME.txt
           $zip = "Qapture_${env:VERSION}_portable.zip"
           Compress-Archive -Path portable/* -DestinationPath $zip -Force
-          gh release upload "${env:TAG}" $zip --clobber
+
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [IO.Compression.ZipFile]::OpenRead((Resolve-Path $zip).Path)
+          try { $entries = @($archive.Entries | ForEach-Object { $_.FullName }) } finally { $archive.Dispose() }
+          foreach ($required in 'Qapture.exe', 'portable.flag', 'LEEME.txt') {
+            if ($entries -notcontains $required) {
+              throw "Falta $required en la raíz del ZIP portable (contiene: $($entries -join ', '))"
+            }
+          }
+
+          $releaseId = "${{ steps.tauri.outputs.releaseId }}"
+          if ([string]::IsNullOrWhiteSpace($releaseId)) {
+            throw "tauri-action no devolvió releaseId; no se puede subir el ZIP portable al borrador."
+          }
+          gh api --method POST -H "Content-Type: application/zip" "https://uploads.github.com/repos/${{ github.repository }}/releases/$releaseId/assets?name=$zip" --input $zip
+          if ($LASTEXITCODE -ne 0) { throw "Falló la subida del ZIP portable (gh api)." }
