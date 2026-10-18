@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.0.0 — 2026-10-17
+
+### Nuevo
+- Actualizaciones dentro de la app: revisa al iniciar y cada 6 horas, avisa, muestra el progreso, instala y reinicia; también desde Acerca de y la bandeja
+- Versión portable en ZIP: los datos quedan junto al exe
+- Publicación automática: cada tag genera el instalador, el MSI, el ZIP portable y la actualización firmada
+- Documentación de usuario y de desarrollo
+
 ## 0.6.0
 
 Qapture vive en la bandeja del sistema y se invoca con atajos globales configurables desde Ajustes.
