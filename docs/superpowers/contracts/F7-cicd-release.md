@@ -15,21 +15,24 @@ Que publicar sea automático: un tag `vX.Y.Z` produce el instalador NSIS, el MSI
 | Versionado semántico y CHANGELOG automático | |
 
 ## Tasks
-| ID | Task |
-|---|---|
-| F7-T1 | `ci.yml` (windows-latest): pnpm install, typecheck, ESLint, Vitest, `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test`, `tauri build --no-bundle`, verificación de fixture de contrato sin cambios |
-| F7-T2 | Par de claves del updater (`pnpm tauri signer generate`); `TAURI_SIGNING_PRIVATE_KEY` y su contraseña en GitHub Secrets; pubkey en `tauri.conf.json` |
-| F7-T3 | `release.yml`: `tauri-apps/tauri-action` en tag `v*` → release en borrador con `.exe`, `.msi`, `latest.json`, `.sig` |
-| F7-T4 | Job portable: ZIP de `Qapture.exe` + `portable.flag` + LEEME; modo portable en Rust (directorio de datos junto al exe) |
-| F7-T5 | Updater en la app (plugins `updater` + `process`): UI en Acerca de y en la bandeja; deshabilitado en modo portable (avisa y enlaza) |
-| F7-T6 | `release-please` o script de versión: sincroniza `package.json`, `Cargo.toml` y `tauri.conf.json`, y genera el CHANGELOG |
-| F7-T7 | Docs: `docs/usuario/` (instalación, SmartScreen, uso, atajos, FAQ), `docs/arquitectura.md`, ADRs (D6, D7, D8, D12), `CONTRIBUTING.md` |
-| F7-T8 | README con badge de release y enlace de descarga |
+| ID | Task | Estado |
+|---|---|---|
+| F7-T1 | `ci.yml` (windows-latest): pnpm install, typecheck, ESLint, Vitest, `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test`, `tauri build --no-bundle`, verificación de fixture de contrato sin cambios | ✅ |
+| F7-T2 | Par de claves del updater (`pnpm tauri signer generate`); `TAURI_SIGNING_PRIVATE_KEY` y su contraseña en GitHub Secrets; pubkey en `tauri.conf.json` | ✅ |
+| F7-T3 | `release.yml`: `tauri-apps/tauri-action` en tag `v*` → release en borrador con `.exe`, `.msi`, `latest.json`, `.sig` | ✅ |
+| F7-T4 | Job portable: ZIP de `Qapture.exe` + `portable.flag` + LEEME; modo portable en Rust (directorio de datos junto al exe) | ✅ |
+| F7-T5 | Updater en la app (plugins `updater` + `process`): UI en Acerca de y en la bandeja; deshabilitado en modo portable (avisa y enlaza) | ✅ |
+| F7-T6 | `release-please` o script de versión: sincroniza `package.json`, `Cargo.toml` y `tauri.conf.json`, y genera el CHANGELOG | ✅ |
+| F7-T7 | Docs: `docs/usuario/` (instalación, SmartScreen, uso, atajos, FAQ), `docs/arquitectura.md`, ADRs (D6, D7, D8, D12), `CONTRIBUTING.md` | ✅ |
+| F7-T8 | README con badge de release y enlace de descarga | ✅ |
 
 ## Criterios de aceptación
 - [ ] Un PR con un test roto queda bloqueado por CI.
+  - Cubierto por: jobs de `ci.yml` (typecheck, ESLint, Vitest, fmt, clippy, cargo test, `tauri build --no-bundle`, fixture, versiones). Pendiente (manual): activar la protección de rama en `main` y comprobarla con un PR de prueba que rompa un test.
 - [ ] Al hacer push de `v1.0.0` aparece un release en borrador con los 4 artefactos.
+  - Cubierto por: `release.yml` (borrador, `.exe`, `.msi`, `latest.json`/`.sig`, ZIP portable) y `pnpm check-version v1.0.0`. Pendiente: se confirma con el primer release real (tag `v1.0.0` desde `main`).
 - [ ] Una app instalada en v1.0.0 detecta v1.0.1 y se actualiza verificando la firma.
+  - Cubierto por: tests Rust y de UI del updater (F7-T5). Pendiente: se confirma con el ensayo real `1.0.0` → `1.0.1` tras el primer release.
 
 ## Checklist de pruebas locales
 | # | Prueba | Esperado | OK |
