@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Portal Andes — Transferencias</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 1280px; height: 720px; font-family: "Segoe UI", Arial, sans-serif; background: #eef1f5; color: #1d2733; overflow: hidden; }
+  header { height: 64px; background: #0f2a44; color: #fff; display: flex; align-items: center; padding: 0 28px; gap: 36px; }
+  header b { font-size: 20px; letter-spacing: .02em; }
+  header nav { display: flex; gap: 24px; font-size: 14px; opacity: .85; }
+  header nav span.on { border-bottom: 2px solid #4fb3ff; padding-bottom: 4px; opacity: 1; }
+  header .user { margin-left: auto; font-size: 13px; opacity: .8; }
+  main { display: grid; grid-template-columns: 240px 1fr; height: 656px; }
+  aside { background: #fff; border-right: 1px solid #dde3ea; padding: 22px 18px; font-size: 14px; }
+  aside div { padding: 10px 12px; border-radius: 6px; margin-bottom: 4px; color: #4a5866; }
+  aside div.on { background: #e7f1fb; color: #0f2a44; font-weight: 600; }
+  section { padding: 28px 36px; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  .sub { color: #66737f; font-size: 14px; margin-bottom: 22px; }
+  .card { background: #fff; border-radius: 10px; border: 1px solid #dde3ea; padding: 24px; width: 640px; }
+  .row { margin-bottom: 16px; }
+  label { display: block; font-size: 12px; color: #66737f; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em; }
+  .in { height: 40px; border: 1px solid #cfd7e0; border-radius: 6px; padding: 0 12px; display: flex; align-items: center; font-size: 15px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .btn { display: inline-flex; height: 42px; padding: 0 22px; align-items: center; border-radius: 6px; background: #1769c4; color: #fff; font-weight: 600; font-size: 15px; }
+  .btn.ghost { background: #fff; color: #1769c4; border: 1px solid #1769c4; margin-left: 10px; }
+  .alert { position: absolute; left: 556px; top: 96px; width: 460px; background: #fff3f3; border: 1px solid #f1b5b5; border-left: 5px solid #d33; border-radius: 8px; padding: 14px 18px; font-size: 14px; color: #8a1f1f; box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+  .alert b { display: block; font-size: 15px; margin-bottom: 4px; }
+  .side { position: absolute; left: 960px; top: 200px; width: 280px; }
+  .bal { background: #fff; border: 1px solid #dde3ea; border-radius: 10px; padding: 18px; margin-bottom: 14px; font-size: 13px; color: #66737f; }
+  .bal strong { display: block; font-size: 22px; color: #1d2733; margin-top: 6px; }
+</style>
+</head>
+<body>
+<header><b>Portal Andes</b><nav><span>Inicio</span><span class="on">Transferencias</span><span>Pagos</span><span>Tarjetas</span></nav><span class="user">María Torres · Cerrar sesión</span></header>
+<main>
+  <aside><div>Resumen</div><div class="on">Nueva transferencia</div><div>Beneficiarios</div><div>Historial</div><div>Programadas</div></aside>
+  <section>
+    <h1>Nueva transferencia</h1>
+    <p class="sub">Transfiere a cuentas propias o de terceros.</p>
+    <div class="card">
+      <div class="row"><label>Cuenta origen</label><div class="in">Ahorros ···· 4821 — $ 12.450,00</div></div>
+      <div class="row"><label>Beneficiario</label><div class="in">Carlos Pérez · Corriente ···· 0917</div></div>
+      <div class="grid row"><div><label>Monto</label><div class="in">$ 1.250,00</div></div><div><label>Fecha</label><div class="in">18/10/2026</div></div></div>
+      <div class="row"><label>Concepto</label><div class="in">Pago arriendo octubre</div></div>
+      <span class="btn">Transferir</span><span class="btn ghost">Cancelar</span>
+    </div>
+  </section>
+</main>
+<div class="alert"><b>Error 500 · No se pudo completar la transferencia</b>El servicio de pagos no respondió. Código: TRX-5021.</div>
+<div class="side"><div class="bal">Saldo disponible<strong>$ 12.450,00</strong></div><div class="bal">Límite diario restante<strong>$ 3.750,00</strong></div></div>
+</body>
+</html>
