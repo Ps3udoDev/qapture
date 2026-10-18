@@ -20,16 +20,17 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   const docVersions = useWorkspace((s) => s.docVersions);
   const exporting = useWorkspace((s) => s.exporting);
   const exportExcel = useWorkspace((s) => s.exportExcel);
-  const rememberedTester = useWorkspace((s) => s.rememberedTester);
+  const testerName = useWorkspace((s) => s.testerName);
+  const exportDefaults = useWorkspace((s) => s.settings?.settings.export);
   const [kind, setKind] = useState<ExportKind>("project");
-  const [tester, setTester] = useState(rememberedTester);
+  const [tester, setTester] = useState(testerName);
   const [versionId, setVersionId] = useState(() => latestVersion(docVersions)?.id ?? NEW);
   const [newVersion, setNewVersion] = useState(() => ({
     version: suggestNextVersion(docVersions),
     changes: docVersions.length ? "" : "Versión inicial",
   }));
   const [includeEvidence, setIncludeEvidence] = useState(true);
-  const [includeSummary, setIncludeSummary] = useState(true);
+  const [includeSummary, setIncludeSummary] = useState(exportDefaults?.includeSummary ?? true);
   const [errors, setErrors] = useState<FormErrors>({});
 
   useEffect(() => {
@@ -53,7 +54,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
         docVersionId: kind === "project" && !isNew ? versionId : null,
         includeEvidence,
         includeSummary,
-        imageMaxWidth: IMAGE_WIDTH.default,
+        imageMaxWidth: exportDefaults?.imageMaxWidth ?? IMAGE_WIDTH.default,
       },
       newVersion: isNew ? { ...emptyDocVersion(todayIso(), tester.trim()), version: newVersion.version, changes: newVersion.changes } : undefined,
     };

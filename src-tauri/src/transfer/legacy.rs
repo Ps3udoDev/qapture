@@ -12,17 +12,21 @@ use serde_json::Value;
 
 use rusqlite::Connection;
 
+#[cfg(test)]
+use super::bundle;
 use super::bundle::{
-    self, BundleCase, BundleEvidence, BundleField, EMPTY_ANNOTATIONS, IMPORT_FAILED, ImportFiles,
+    BundleCase, BundleEvidence, BundleField, EMPTY_ANNOTATIONS, IMPORT_FAILED, ImportFiles,
     Problems, ProjectBundle, code_number, is_case_code,
 };
+#[cfg(test)]
+use crate::dto::ImportSummaryDto;
 use crate::{
     db::{new_id, now},
     domain::{
         fields::{FieldType, is_iso_date, normalize_value},
         status::is_status,
     },
-    dto::{ImportSummaryDto, ProjectMetaInput},
+    dto::ProjectMetaInput,
     error::{AppResult, validation},
     media::{raster, storage::EvidenceFiles},
     repo::templates,
@@ -496,16 +500,27 @@ fn to_bundles(
     Ok(bundles)
 }
 
-/// UC-19 completo: valida, escribe las capturas y crea los proyectos en una transacción.
+/// Parte de UC-19 que no necesita la base: valida, decodifica y escribe las capturas.
+pub fn prepare<'a>(
+    template: &[BundleField],
+    files: &'a EvidenceFiles,
+    bytes: &[u8],
+) -> AppResult<(Vec<ProjectBundle>, ImportFiles<'a>)> {
+    let projects = parse(bytes)?;
+    let mut out = ImportFiles::new(files);
+    let bundles = to_bundles(projects, template, &mut out)?;
+    Ok((bundles, out))
+}
+
+/// UC-19 completo: `prepare` y crea los proyectos en una transacción.
+#[cfg(test)]
 pub fn import(
     conn: &Connection,
     files: &EvidenceFiles,
     bytes: &[u8],
 ) -> AppResult<ImportSummaryDto> {
-    let projects = parse(bytes)?;
     let template = template_fields(conn)?;
-    let mut out = ImportFiles::new(files);
-    let bundles = to_bundles(projects, &template, &mut out)?;
+    let (bundles, out) = prepare(&template, files, bytes)?;
     bundle::insert(conn, bundles, out)
 }
 

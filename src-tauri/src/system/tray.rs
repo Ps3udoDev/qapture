@@ -1,3 +1,4 @@
+use super::{runtime, shortcuts::ShortcutAction};
 use tauri::{
     Manager,
     menu::{Menu, MenuItem, PredefinedMenuItem},
@@ -5,10 +6,13 @@ use tauri::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-enum TrayAction {
+pub enum TrayAction {
     Show,
     Hide,
     Quit,
+    Capture,
+    Paste,
+    NewCase,
 }
 
 fn action_for(id: &str) -> Option<TrayAction> {
@@ -16,6 +20,9 @@ fn action_for(id: &str) -> Option<TrayAction> {
         "open" => Some(TrayAction::Show),
         "hide" => Some(TrayAction::Hide),
         "quit" => Some(TrayAction::Quit),
+        "capture" => Some(TrayAction::Capture),
+        "paste" => Some(TrayAction::Paste),
+        "new-case" => Some(TrayAction::NewCase),
         _ => None,
     }
 }
@@ -34,32 +41,90 @@ fn hide_main(app: &tauri::AppHandle) {
     }
 }
 
-fn toggle_main(app: &tauri::AppHandle) {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToggleDecision {
+    Show,
+    Hide,
+}
+
+/// `is_visible` también es cierto minimizada o tapada por otras ventanas: solo se oculta la
+/// ventana que la persona tiene delante; en cualquier otro caso se trae al frente.
+pub fn toggle_decision(visible: bool, focused: bool, minimized: bool) -> ToggleDecision {
+    if visible && focused && !minimized {
+        ToggleDecision::Hide
+    } else {
+        ToggleDecision::Show
+    }
+}
+
+/// Atajo «Mostrar/ocultar».
+pub fn toggle_main(app: &tauri::AppHandle) {
+    toggle(app, false);
+}
+
+/// Clic en el icono: el propio clic le quita el foco a la ventana (pasa a la barra de tareas),
+/// así que ahí el foco no cuenta y se trata como si lo tuviera.
+fn toggle_from_tray(app: &tauri::AppHandle) {
+    toggle(app, true);
+}
+
+fn toggle(app: &tauri::AppHandle, ignore_focus: bool) {
     if let Some(window) = app.get_webview_window("main") {
-        if window.is_visible().unwrap_or(false) {
-            hide_main(app);
-        } else {
-            show_main(app);
+        let decision = toggle_decision(
+            window.is_visible().unwrap_or(false),
+            ignore_focus || window.is_focused().unwrap_or(false),
+            window.is_minimized().unwrap_or(false),
+        );
+        match decision {
+            ToggleDecision::Hide => hide_main(app),
+            ToggleDecision::Show => show_main(app),
         }
+    }
+}
+
+/// Punto único de despacho del menú; captura, pegar y nuevo caso usan el despacho de los atajos.
+pub fn on_action(app: &tauri::AppHandle, action: TrayAction) {
+    match action {
+        TrayAction::Show => show_main(app),
+        TrayAction::Hide => hide_main(app),
+        TrayAction::Quit => app.exit(0),
+        TrayAction::Capture => runtime::dispatch(app, ShortcutAction::Capture),
+        TrayAction::Paste => runtime::dispatch(app, ShortcutAction::Paste),
+        TrayAction::NewCase => runtime::dispatch(app, ShortcutAction::NewCase),
     }
 }
 
 pub fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "Abrir Qapture", true, None::<&str>)?;
     let hide = MenuItem::with_id(app, "hide", "Ocultar", true, None::<&str>)?;
-    let separator = PredefinedMenuItem::separator(app)?;
+    let first_separator = PredefinedMenuItem::separator(app)?;
+    let capture = MenuItem::with_id(app, "capture", "Capturar pantalla", true, None::<&str>)?;
+    let paste = MenuItem::with_id(app, "paste", "Pegar evidencia", true, None::<&str>)?;
+    let new_case = MenuItem::with_id(app, "new-case", "Nuevo caso", true, None::<&str>)?;
+    let second_separator = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "Salir", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &hide, &separator, &quit])?;
+    let menu = Menu::with_items(
+        app,
+        &[
+            &open,
+            &hide,
+            &first_separator,
+            &capture,
+            &paste,
+            &new_case,
+            &second_separator,
+            &quit,
+        ],
+    )?;
     let tray = TrayIconBuilder::with_id("main-tray")
         .icon(app.default_window_icon().unwrap().clone())
         .tooltip("Qapture · Teams4Soft")
         .menu(&menu)
         .show_menu_on_left_click(false)
-        .on_menu_event(|app, event| match action_for(event.id.as_ref()) {
-            Some(TrayAction::Show) => show_main(app),
-            Some(TrayAction::Hide) => hide_main(app),
-            Some(TrayAction::Quit) => app.exit(0),
-            None => {}
+        .on_menu_event(|app, event| {
+            if let Some(action) = action_for(event.id.as_ref()) {
+                on_action(app, action);
+            }
         })
         .on_tray_icon_event(|tray, event| {
             if let TrayIconEvent::Click {
@@ -68,7 +133,7 @@ pub fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
                 ..
             } = event
             {
-                toggle_main(tray.app_handle());
+                toggle_from_tray(tray.app_handle());
             }
         })
         .build(app)?;
@@ -78,13 +143,34 @@ pub fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{TrayAction, action_for};
+    use super::{ToggleDecision, TrayAction, action_for, toggle_decision};
+
+    #[test]
+    fn toggle_hides_only_the_window_in_front_of_the_user() {
+        assert_eq!(toggle_decision(true, true, false), ToggleDecision::Hide);
+        for (visible, focused, minimized) in [
+            (false, false, false),
+            (true, false, false),
+            (true, true, true),
+            (true, false, true),
+            (false, true, false),
+        ] {
+            assert_eq!(
+                toggle_decision(visible, focused, minimized),
+                ToggleDecision::Show,
+                "visible={visible} focused={focused} minimized={minimized}"
+            );
+        }
+    }
 
     #[test]
     fn menu_ids_map_to_the_expected_actions() {
         assert_eq!(action_for("open"), Some(TrayAction::Show));
         assert_eq!(action_for("hide"), Some(TrayAction::Hide));
         assert_eq!(action_for("quit"), Some(TrayAction::Quit));
+        assert_eq!(action_for("capture"), Some(TrayAction::Capture));
+        assert_eq!(action_for("paste"), Some(TrayAction::Paste));
+        assert_eq!(action_for("new-case"), Some(TrayAction::NewCase));
     }
 
     #[test]

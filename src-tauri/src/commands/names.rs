@@ -48,6 +48,12 @@ pub const APP_COMMANDS: &[&str] = &[
     "create_backup",
     "restore_backup",
     "recover_database",
+    "get_settings",
+    "save_settings",
+    "pick_export_folder",
+    "open_data_folder",
+    "hide_main_window",
+    "open_link",
 ];
 
 /// Lo único que puede invocar una ventana overlay (spec §9). El resto es de la principal.

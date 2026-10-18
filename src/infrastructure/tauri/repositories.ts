@@ -7,6 +7,7 @@ import { caseSchema, evidenceSchema, fieldSchema, projectSchema, projectSummaryS
 import { tauriData } from "./data";
 import { tauriDocVersions, tauriExporter } from "./export";
 import { encodeFrame } from "./frame";
+import { tauriSettings } from "./settings";
 
 const nothing = z.null();
 
@@ -61,5 +62,6 @@ export function tauriRepositories(): Repositories {
     docVersions: tauriDocVersions(),
     exporter: tauriExporter(),
     data: tauriData(),
+    settings: tauriSettings(),
   };
 }

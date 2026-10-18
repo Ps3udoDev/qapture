@@ -20,8 +20,8 @@ export function DocVersionsPanel() {
   const docVersions = useWorkspace((s) => s.docVersions);
   const saveDocVersion = useWorkspace((s) => s.saveDocVersion);
   const deleteDocVersion = useWorkspace((s) => s.deleteDocVersion);
-  const rememberedTester = useWorkspace((s) => s.rememberedTester);
-  const blank = (): DocVersionInput => ({ ...emptyDocVersion(todayIso(), rememberedTester()), version: suggestNextVersion(docVersions) });
+  const testerName = useWorkspace((s) => s.testerName);
+  const blank = (): DocVersionInput => ({ ...emptyDocVersion(todayIso(), testerName()), version: suggestNextVersion(docVersions) });
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<DocVersionInput>(blank);
   const [errors, setErrors] = useState<FormErrors>({});

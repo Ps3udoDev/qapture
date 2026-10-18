@@ -9,6 +9,7 @@ import { createMemoryData, type MemoryData } from "./data";
 import { createMemoryEvidence, type MemoryEvidence } from "./evidence";
 import { createMemoryDocVersions, createMemoryExporter, type MemoryDocVersions, type MemoryExporter } from "./export";
 import { builtinTemplates } from "./fixtures";
+import { createMemorySettings, type MemorySettings } from "./settings";
 
 export interface MemoryRepositories extends Repositories {
   evidence: MemoryEvidence;
@@ -16,6 +17,7 @@ export interface MemoryRepositories extends Repositories {
   docVersions: MemoryDocVersions;
   exporter: MemoryExporter;
   data: MemoryData;
+  settings: MemorySettings;
 }
 
 /** Implementación en memoria para tests de la aplicación y de la UI. Replica las reglas principales de Rust. */
@@ -244,6 +246,7 @@ export function createMemoryRepositories(): MemoryRepositories {
       },
       remember: (path) => repos.exporter.remember(path),
     }),
+    settings: createMemorySettings(),
   };
   return repos;
 }

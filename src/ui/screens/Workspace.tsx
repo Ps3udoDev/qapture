@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { isAcceptedImage } from "../../domain/evidence";
+import { useWorkspace } from "../store/context";
 import { filesFrom, hasFiles } from "../gallery/files";
 import { useEvidenceIntake } from "../gallery/useEvidenceIntake";
 import { CaseDetail } from "./CaseDetail";
@@ -8,7 +9,10 @@ import { CaseListPane } from "./CaseListPane";
 import { EvidenceEditorHost } from "./EvidenceEditorHost";
 
 export function Workspace() {
-  const [editing, setEditing] = useState<{ caseId?: string } | null>(null);
+  const request = useWorkspace((s) => s.caseFormRequest);
+  const editorOpen = useWorkspace((s) => s.editor !== null);
+  const openCaseForm = useWorkspace((s) => s.openCaseForm);
+  const closeCaseForm = useWorkspace((s) => s.closeCaseForm);
   const intake = useEvidenceIntake();
 
   useEffect(() => {
@@ -43,9 +47,9 @@ export function Workspace() {
 
   return (
     <main className="flex min-h-0 flex-1">
-      <CaseListPane onNewCase={() => setEditing({})} />
-      <CaseDetail onEdit={(caseId) => setEditing({ caseId })} />
-      {editing && <CaseFormDialog caseId={editing.caseId} onClose={() => setEditing(null)} />}
+      <CaseListPane onNewCase={() => openCaseForm()} />
+      <CaseDetail onEdit={(caseId) => openCaseForm(caseId)} />
+      {request && !editorOpen && <CaseFormDialog key={request.caseId ?? "new"} caseId={request.caseId ?? undefined} onClose={closeCaseForm} />}
       <EvidenceEditorHost />
     </main>
   );

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::domain::fields::FieldType;
+use crate::{domain::fields::FieldType, settings::Settings, system::shortcuts::ShortcutAction};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -288,6 +288,23 @@ pub struct StartupStatusDto {
     pub detail: String,
 }
 
+/// Un atajo que el SO no dejó registrar (otra aplicación ya lo usa).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShortcutFailureDto {
+    pub action: ShortcutAction,
+    pub accelerator: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SettingsDto {
+    pub settings: Settings,
+    pub shortcut_failures: Vec<ShortcutFailureDto>,
+    pub app_version: String,
+    pub data_dir: String,
+}
+
 #[cfg(test)]
 mod contract {
     use std::{collections::BTreeMap, path::PathBuf};
@@ -333,6 +350,7 @@ mod contract {
                            "viewportWidth": 1536.0, "viewportHeight": 864.0 },
             "docVersionInput": { "version": "1.0", "date": "2026-10-16", "author": "Ana Pérez",
                                  "reviewer": "Luis Gómez", "approver": "", "changes": "Versión inicial" },
+            "saveSettings": serde_json::to_value(Settings::default()).unwrap_or_default(),
             "exportOptions": { "tester": "Ana Pérez", "docVersionId": "ver-1", "includeEvidence": true,
                                "includeSummary": true, "imageMaxWidth": 940 }
         })
@@ -380,6 +398,15 @@ mod contract {
             },
             "startupStatus": StartupStatusDto { recovery: true, detail: "base dañada: database disk image is malformed".into() },
             "corruptError": AppError::Corrupt("database disk image is malformed".into()),
+            "settings": SettingsDto {
+                settings: Settings::default(),
+                shortcut_failures: vec![ShortcutFailureDto {
+                    action: ShortcutAction::Capture,
+                    accelerator: "Ctrl+Alt+S".into(),
+                }],
+                app_version: "0.5.0".into(),
+                data_dir: "C:\\Users\\ana\\AppData\\Roaming\\com.teams4soft.qapture".into(),
+            },
         })
     }
 
@@ -439,6 +466,7 @@ mod contract {
         serde_json::from_value::<crate::capture::crop::Selection>(i["selection"].clone()).unwrap();
         serde_json::from_value::<DocVersionInput>(i["docVersionInput"].clone()).unwrap();
         serde_json::from_value::<ExportOptionsInput>(i["exportOptions"].clone()).unwrap();
+        serde_json::from_value::<Settings>(i["saveSettings"].clone()).unwrap();
     }
 
     #[test]

@@ -1,7 +1,8 @@
 use std::{fs, path::PathBuf};
 
 use chrono::{Local, NaiveDateTime};
-use tauri::{State, WebviewWindow};
+use tauri::{AppHandle, State, WebviewWindow};
+use tauri_plugin_autostart::ManagerExt as _;
 use tauri_plugin_dialog::DialogExt;
 
 use crate::{
@@ -11,7 +12,8 @@ use crate::{
     },
     error::{AppResult, validation},
     state::AppState,
-    transfer::{legacy, package},
+    system::runtime,
+    transfer::{bundle, legacy, package},
 };
 
 fn now() -> NaiveDateTime {
@@ -63,7 +65,9 @@ pub fn import_legacy(
         return Err(validation("El archivo supera 200 MB."));
     }
     let bytes = fs::read(&path)?;
-    legacy::import(&state.db(), state.files(), &bytes).map(Some)
+    let template = legacy::template_fields(&state.db())?;
+    let (bundles, out) = legacy::prepare(&template, state.files(), &bytes)?;
+    bundle::insert(&state.db(), bundles, out).map(Some)
 }
 
 #[tauri::command(async)]
@@ -80,7 +84,8 @@ pub fn import_package(
     ) else {
         return Ok(None);
     };
-    package::import(&state.db(), state.files(), &path).map(Some)
+    let (bundle, out) = package::prepare(state.files(), &path)?;
+    bundle::insert(&state.db(), vec![bundle], out).map(Some)
 }
 
 #[tauri::command(async)]
@@ -139,19 +144,48 @@ pub fn create_backup(state: State<'_, AppState>) -> AppResult<BackupDto> {
 
 #[tauri::command(async)]
 pub fn restore_backup(
+    app: AppHandle,
     state: State<'_, AppState>,
     file_name: String,
 ) -> AppResult<RestoreResultDto> {
     state.ensure_ready()?;
-    let mut db = state.db();
-    state
-        .backups()
-        .restore(&mut db, state.files(), &file_name, now())
+    let result = {
+        let mut db = state.db();
+        state
+            .backups()
+            .restore(&mut db, state.files(), &file_name, now())?
+    };
+    settings_changed_underneath(&app, &state);
+    Ok(result)
+}
+
+/// La base cambió por debajo (restaurar o salir de recuperación con un respaldo): ajustes, atajos
+/// e inicio con Windows pasan a reflejar la base nueva. Se llama sin el candado de la base.
+fn settings_changed_underneath(app: &AppHandle, state: &AppState) {
+    let loaded = runtime::reload_settings(state);
+    runtime::sync_autostart(app, loaded.system.autostart);
+}
+
+/// Base vacía: el inicio con Windows no se toca; la base nueva guarda lo que el SO tiene ahora.
+fn started_empty(app: &AppHandle, state: &AppState) {
+    match app.autolaunch().is_enabled() {
+        Ok(enabled) => {
+            if let Err(error) = runtime::seed_autostart(state, enabled) {
+                eprintln!("No se pudo guardar el inicio con Windows en la base nueva: {error}");
+            }
+        }
+        Err(error) => eprintln!("No se pudo leer el inicio con Windows: {error}"),
+    }
+    runtime::reload_settings(state);
 }
 
 /// Sale del modo recuperación: `fileName` restaura ese respaldo; `null` empieza con una base vacía.
 #[tauri::command(async)]
-pub fn recover_database(state: State<'_, AppState>, file_name: Option<String>) -> AppResult<()> {
+pub fn recover_database(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    file_name: Option<String>,
+) -> AppResult<()> {
     if state.recovery().is_none() {
         return Err(validation("Qapture no está en modo recuperación."));
     }
@@ -163,5 +197,10 @@ pub fn recover_database(state: State<'_, AppState>, file_name: Option<String>) -
         now(),
     )?;
     state.finish_recovery(conn);
+    if file_name.is_some() {
+        settings_changed_underneath(&app, &state);
+    } else {
+        started_empty(&app, &state);
+    }
     Ok(())
 }

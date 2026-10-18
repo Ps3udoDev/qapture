@@ -3,6 +3,7 @@ pub mod doc_versions;
 pub mod evidence;
 pub mod fields;
 pub mod projects;
+pub mod settings;
 pub mod templates;
 
 #[cfg(test)]

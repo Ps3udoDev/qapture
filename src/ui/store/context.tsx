@@ -15,3 +15,10 @@ export function useWorkspace<T>(selector: (state: WorkspaceState) => T): T {
   if (!store) throw new Error("useWorkspace requiere <WorkspaceProvider>.");
   return useStore(store, selector);
 }
+
+/** Acceso al store para leer estado puntual desde un manejador de eventos sin suscribirse. */
+export function useStoreApi(): StoreApi<WorkspaceState> {
+  const store = useContext(WorkspaceContext);
+  if (!store) throw new Error("useStoreApi requiere <WorkspaceProvider>.");
+  return store;
+}

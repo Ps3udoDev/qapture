@@ -8,11 +8,14 @@ mod error;
 mod excel;
 mod media;
 mod repo;
+mod settings;
 mod state;
 mod system;
 mod transfer;
 
 use tauri::Manager;
+use tauri_plugin_autostart::MacosLauncher;
+use tauri_plugin_global_shortcut::ShortcutState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -22,6 +25,27 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, shortcut, event| {
+                    if event.state != ShortcutState::Pressed {
+                        return;
+                    }
+                    // Solo la copia en memoria de los ajustes: ni la base ni el registrador.
+                    let current = app.state::<state::AppState>().settings().shortcuts;
+                    let pressed = system::runtime::canonical_of(shortcut);
+                    if let Some(action) = system::shortcuts::action_for(&pressed, &current) {
+                        system::runtime::dispatch(app, action);
+                    }
+                })
+                .build(),
+        )
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            Some(vec![system::runtime::HIDDEN_ARG]),
+        ))
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
             let files = media::storage::EvidenceFiles::new(&data_dir);
@@ -43,8 +67,36 @@ pub fn run() {
                 }
             };
             app.manage(state);
-            system::daily_backup::spawn(app.handle().clone());
+            let handle = app.handle().clone();
+            let state = app.state::<state::AppState>();
+            // Registrador real y ajustes saneados: `reload_settings` deja la copia en memoria
+            // antes de registrar (en recuperación, los valores por defecto de la base en memoria);
+            // lo que el SO rechace queda para el aviso del front.
+            state.install_registrar(Box::new(system::runtime::TauriRegistrar {
+                app: handle.clone(),
+            }));
+            let loaded = system::runtime::reload_settings(&state);
+            let args: Vec<String> = std::env::args().collect();
+            let plan =
+                system::runtime::startup_plan(state.recovery().is_some(), &args, &loaded.system);
+            // Inicio con Windows: nunca al arrancar (se respeta si la persona lo quitó desde
+            // Windows); solo al guardar Ajustes y al restaurar o recuperar la base.
+            let hook_app = handle.clone();
+            state.set_on_saved(Box::new(move |saved| {
+                system::runtime::sync_autostart(&hook_app, saved.system.autostart);
+            }));
+            system::daily_backup::spawn(handle.clone());
             system::tray::setup_tray(app)?;
+            // La ventana arranca oculta (tauri.conf.json); se muestra salvo inicio oculto.
+            if plan.show {
+                system::tray::show_main(&handle);
+            }
+            // Con la ventana oculta nadie vería el toast del front: aviso nativo por cada atajo caído.
+            for message in
+                system::runtime::startup_notifications(&state.shortcut_failures(), !plan.show)
+            {
+                system::runtime::notify(&handle, &message);
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -62,8 +114,15 @@ pub fn run() {
                 return;
             }
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let app = window.app_handle();
+                let prefs = app.state::<state::AppState>().settings().system;
                 api.prevent_close();
-                let _ = window.hide();
+                match system::runtime::close_action(&prefs) {
+                    system::runtime::CloseAction::Hide => {
+                        let _ = window.hide();
+                    }
+                    system::runtime::CloseAction::Exit => app.exit(0),
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -112,6 +171,12 @@ pub fn run() {
             commands::data::create_backup,
             commands::data::restore_backup,
             commands::data::recover_database,
+            commands::settings::get_settings,
+            commands::settings::save_settings,
+            commands::settings::pick_export_folder,
+            commands::settings::open_data_folder,
+            commands::settings::hide_main_window,
+            commands::settings::open_link,
         ])
         .run(tauri::generate_context!())
         .expect("no se pudo iniciar Qapture");

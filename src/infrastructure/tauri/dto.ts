@@ -2,6 +2,7 @@ import { z } from "zod";
 import { FIELD_TYPES } from "../../domain/fields";
 import { BACKUP_KINDS } from "../../domain/data";
 import { EXPORT_STAGES } from "../../domain/export";
+import { SHORTCUT_ACTIONS } from "../../domain/settings";
 import { STATUSES } from "../../domain/status";
 
 export const fieldSchema = z.strictObject({
@@ -147,4 +148,18 @@ export const restoreResultSchema = z.strictObject({
 export const startupStatusSchema = z.strictObject({
   recovery: z.boolean(),
   detail: z.string(),
+});
+
+export const settingsSchema = z.strictObject({
+  profile: z.strictObject({ tester: z.string(), role: z.string(), email: z.string() }),
+  shortcuts: z.strictObject({ toggle: z.string(), capture: z.string(), paste: z.string(), newCase: z.string() }),
+  system: z.strictObject({ autostart: z.boolean(), startHidden: z.boolean(), closeToTray: z.boolean(), escHides: z.boolean() }),
+  export: z.strictObject({ defaultFolder: z.string(), imageMaxWidth: z.number().int(), includeSummary: z.boolean() }),
+});
+
+export const settingsSnapshotSchema = z.strictObject({
+  settings: settingsSchema,
+  shortcutFailures: z.array(z.strictObject({ action: z.enum(SHORTCUT_ACTIONS), accelerator: z.string() })),
+  appVersion: z.string(),
+  dataDir: z.string(),
 });
