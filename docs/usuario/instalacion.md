@@ -9,6 +9,9 @@ Entra a la página de [Releases](https://github.com/Ps3udoDev/qapture/releases) 
 | `Qapture_<versión>_x64-setup.exe` | **Recomendado.** Instalador normal. Se actualiza solo. |
 | `Qapture_<versión>_x64_es-ES.msi` | Para el equipo de TI que despliega en varias computadoras. |
 | `Qapture_<versión>_portable.zip` | No se instala: lo extraes y lo ejecutas (por ejemplo, desde una memoria USB). No se actualiza solo. |
+| `Qapture_<versión>_amd64.AppImage` | **Linux, recomendado.** Funciona en casi cualquier distribución. Se actualiza solo. |
+| `Qapture_<versión>_amd64.deb` | Linux Debian / Ubuntu / Mint. No se actualiza solo. |
+| `Qapture-<versión>-1.x86_64.rpm` | Linux Fedora / openSUSE / RHEL. No se actualiza solo. |
 
 ## El aviso de SmartScreen
 
@@ -33,6 +36,18 @@ El `.msi` sirve para desplegar Qapture en varias computadoras con las herramient
 3. No borres `portable.flag`. Ese archivo le dice a Qapture que trabaje en modo portable; sin él, la app usaría otra carpeta de datos y no verías tus proyectos.
 
 Tus datos quedan en la carpeta `data`, junto a `Qapture.exe`. Para actualizar, descarga el ZIP nuevo y reemplaza `Qapture.exe`; `data` y `portable.flag` se conservan. El archivo `LEEME.txt` del ZIP repite estas indicaciones.
+
+## Linux
+
+Los paquetes se generan en Ubuntu 24.04, así que piden una distribución de esa época o más nueva (glibc 2.39: Ubuntu 24.04+, Debian 13+, Fedora 40+).
+
+- **AppImage:** dale permiso de ejecución y ábrelo: `chmod +x Qapture_<versión>_amd64.AppImage && ./Qapture_<versión>_amd64.AppImage`. Si no arranca, instala FUSE 2 (`sudo apt install libfuse2t64` en Ubuntu 24.04).
+- **.deb:** `sudo apt install ./Qapture_<versión>_amd64.deb`
+- **.rpm:** `sudo dnf install ./Qapture-<versión>-1.x86_64.rpm`
+
+Para ver el ícono en la bandeja en GNOME hace falta la extensión *AppIndicator* (Ubuntu ya la trae activada).
+
+En sesiones **Wayland**, el sistema puede pedir permiso la primera vez que Qapture captura la pantalla, y algunos escritorios no dejan que una app registre atajos globales. Si el atajo no responde, inicia sesión con «Ubuntu en Xorg» o usa **Capturar pantalla** en el menú de la bandeja.
 
 ## Actualizaciones automáticas
 
@@ -64,3 +79,5 @@ Desinstalar **no borra tus datos**. En la versión instalada viven en:
 Pega esa ruta en el Explorador de archivos, o usa **Ajustes › Datos › Abrir carpeta de datos**. Ahí están la base de datos, las capturas (`evidence`) y los respaldos (`backups`). Si quieres borrar todo, elimina esa carpeta después de desinstalar. Antes, haz un respaldo o exporta lo que quieras conservar (ver [Uso](uso.md#paquetes-qapture-y-respaldos)).
 
 En la versión portable, los datos están en la carpeta `data` junto a `Qapture.exe`.
+
+En Linux los datos viven en `~/.local/share/com.teams4soft.qapture`. Para desinstalar: borra el `.AppImage`, o usa `sudo apt remove qapture` / `sudo dnf remove qapture`.

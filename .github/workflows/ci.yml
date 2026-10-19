@@ -47,11 +47,24 @@ jobs:
         run: pnpm build
 
   backend:
-    name: Backend (Rust Fmt, Clippy & Test)
-    runs-on: windows-latest
+    name: Backend (Rust Fmt, Clippy & Test) · ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Dependencias del sistema (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev patchelf \
+            libxcb1-dev libxcb-randr0-dev libxcb-shm0-dev libdbus-1-dev \
+            libpipewire-0.3-dev libspa-0.2-dev libclang-dev libgbm-dev libegl1-mesa-dev libdrm-dev
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -76,11 +89,24 @@ jobs:
         run: git diff --exit-code -- src/infrastructure/tauri/__fixtures__/contracts.json
 
   tauri-build:
-    name: Tauri build (sin instaladores)
-    runs-on: windows-latest
+    name: Tauri build (sin instaladores) · ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Dependencias del sistema (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev patchelf \
+            libxcb1-dev libxcb-randr0-dev libxcb-shm0-dev libdbus-1-dev \
+            libpipewire-0.3-dev libspa-0.2-dev libclang-dev libgbm-dev libegl1-mesa-dev libdrm-dev
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -98,7 +124,7 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-          shared-key: tauri-build
+          shared-key: tauri-build-${{ matrix.os }}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

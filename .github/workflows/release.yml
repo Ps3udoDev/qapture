@@ -16,11 +16,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish-release:
-    name: Build & Publish Release
-    runs-on: windows-latest
+  # Un solo job crea el borrador: si cada build de la matriz lo creara, podrían salir dos borradores.
+  create-release:
+    name: Crear borrador del release
+    runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+      release_id: ${{ steps.release.outputs.result }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,6 +33,7 @@ jobs:
           ref: ${{ inputs.tag_name || github.ref }}
 
       - name: Resolver tag
+        id: tag
         shell: bash
         env:
           RAW_TAG: ${{ inputs.tag_name || github.ref_name }}
@@ -37,8 +43,86 @@ jobs:
             echo "Tag inválido: '$TAG' (se esperaba vX.Y.Z)" >&2
             exit 1
           fi
-          echo "TAG=$TAG" >> "$GITHUB_ENV"
-          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verificar versiones contra el tag
+        run: node scripts/check-version.mjs "${{ steps.tag.outputs.tag }}"
+
+      - name: Notas del release
+        run: |
+          node scripts/release-notes.mjs "${{ steps.tag.outputs.tag }}" > release-notes.md
+          cat >> release-notes.md <<'EOF'
+
+          Windows puede mostrar un aviso de SmartScreen al instalar. Consulta cómo continuar en [docs/usuario/instalacion.md](https://github.com/Ps3udoDev/qapture/blob/main/docs/usuario/instalacion.md).
+
+          En Linux usa el `.AppImage` (se actualiza solo), el `.deb` (Debian/Ubuntu) o el `.rpm` (Fedora/openSUSE). Detalles en la misma guía.
+          EOF
+
+      - name: Crear (o reutilizar) el borrador
+        id: release
+        uses: actions/github-script@v7
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        with:
+          script: |
+            const fs = require('fs');
+            const tag = process.env.TAG;
+            const body = fs.readFileSync('release-notes.md', 'utf8');
+            // Re-ejecutar el workflow no debe duplicar el borrador.
+            const releases = await github.paginate(github.rest.repos.listReleases, context.repo);
+            const existing = releases.find((r) => r.tag_name === tag);
+            if (existing) {
+              if (!existing.draft) core.setFailed(`El release ${tag} ya está publicado.`);
+              return existing.id;
+            }
+            const { data } = await github.rest.repos.createRelease({
+              ...context.repo,
+              tag_name: tag,
+              name: `Qapture ${tag}`,
+              body,
+              draft: true,
+              prerelease: false,
+            });
+            return data.id;
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: create-release
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+          # 24.04: pipewire-rs (xcap) necesita libpipewire más nueva que la de 22.04.
+          - name: Linux
+            os: ubuntu-24.04
+    runs-on: ${{ matrix.os }}
+    env:
+      TAG: ${{ needs.create-release.outputs.tag }}
+      VERSION: ${{ needs.create-release.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag_name || github.ref }}
+
+      - name: Dependencias del sistema (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev patchelf \
+            libxcb1-dev libxcb-randr0-dev libxcb-shm0-dev libdbus-1-dev \
+            libpipewire-0.3-dev libspa-0.2-dev libclang-dev libgbm-dev libegl1-mesa-dev libdrm-dev
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -60,10 +144,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Verificar versiones contra el tag
-        shell: bash
-        run: pnpm check-version "$TAG"
-
       - name: Run test quality gate
         shell: bash
         run: |
@@ -72,34 +152,20 @@ jobs:
           pnpm test
           cargo test --manifest-path src-tauri/Cargo.toml
 
-      - name: Notas del release
-        id: notes
-        shell: bash
-        run: |
-          node scripts/release-notes.mjs "$TAG" > release-notes.md
-          { echo "notes<<QAPTURE_NOTES_EOF"; cat release-notes.md; echo "QAPTURE_NOTES_EOF"; } >> "$GITHUB_OUTPUT"
-
-      - name: Build desktop app and create draft release
-        id: tauri
+      - name: Build desktop app and upload to draft release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ env.TAG }}
-          releaseName: 'Qapture ${{ env.TAG }}'
-          releaseBody: |
-            ${{ steps.notes.outputs.notes }}
-
-            Windows puede mostrar un aviso de SmartScreen al instalar. Consulta cómo continuar en [docs/usuario/instalacion.md](https://github.com/Ps3udoDev/qapture/blob/main/docs/usuario/instalacion.md).
-          releaseDraft: true
-          prerelease: false
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           includeUpdaterJson: true
           updaterJsonPreferNsis: true
           args: --config src-tauri/tauri.release.conf.json
 
       - name: Crear y subir ZIP portable
+        if: runner.os == 'Windows'
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -120,9 +186,6 @@ jobs:
             }
           }
 
-          $releaseId = "${{ steps.tauri.outputs.releaseId }}"
-          if ([string]::IsNullOrWhiteSpace($releaseId)) {
-            throw "tauri-action no devolvió releaseId; no se puede subir el ZIP portable al borrador."
-          }
+          $releaseId = "${{ needs.create-release.outputs.release_id }}"
           gh api --method POST -H "Content-Type: application/zip" "https://uploads.github.com/repos/${{ github.repository }}/releases/$releaseId/assets?name=$zip" --input $zip
           if ($LASTEXITCODE -ne 0) { throw "Falló la subida del ZIP portable (gh api)." }
