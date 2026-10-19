@@ -131,3 +131,23 @@ jobs:
 
       - name: Build Tauri (debug, sin instaladores)
         run: pnpm tauri build --no-bundle --debug
+
+  # La protección de main exige estos dos nombres; los jobs con matriz llevan el SO en el nombre.
+  # `always()` + revisar `result`: un check requerido que queda "skipped" contaría como aprobado.
+  backend-required:
+    name: Backend (Rust Fmt, Clippy & Test)
+    needs: backend
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Todas las plataformas pasaron
+        run: test "${{ needs.backend.result }}" = "success"
+
+  tauri-build-required:
+    name: Tauri build (sin instaladores)
+    needs: tauri-build
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Todas las plataformas pasaron
+        run: test "${{ needs.tauri-build.result }}" = "success"
