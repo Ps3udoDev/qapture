@@ -9,7 +9,7 @@ Qapture corre en segundo plano en Windows. Con un atajo capturas la pantalla, an
 [![Release](https://img.shields.io/github/v/release/Ps3udoDev/qapture)](https://github.com/Ps3udoDev/qapture/releases/latest)
 [![CI](https://github.com/Ps3udoDev/qapture/actions/workflows/ci.yml/badge.svg)](https://github.com/Ps3udoDev/qapture/actions/workflows/ci.yml)
 
-**[⬇ Descargar la última versión](https://github.com/Ps3udoDev/qapture/releases/latest)** (instalador `.exe`, `.msi` o ZIP portable)
+**[⬇ Descargar la última versión](https://github.com/Ps3udoDev/qapture/releases/latest)** (Windows: instalador `.exe`, `.msi` o ZIP portable · Linux: `.AppImage`, `.deb` o `.rpm`)
 
 > Estado: **v1.0.1 (Fase 7 completada · En pruebas del equipo)**. El diseño está en [`docs/superpowers/specs/2026-10-15-qapture-design.md`](docs/superpowers/specs/2026-10-15-qapture-design.md). Guía de uso en [`docs/usuario/`](docs/usuario/README.md); para contribuir, ver [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
