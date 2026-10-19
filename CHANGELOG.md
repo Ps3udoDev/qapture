@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.0.2 — 2026-10-19
+
+### Nuevo
+- Qapture para Linux: instaladores `.AppImage` (se actualiza solo), `.deb` y `.rpm` en cada release
+
 ## 1.0.1 — 2026-10-18
 
 ### Nuevo
