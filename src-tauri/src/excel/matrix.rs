@@ -1,6 +1,7 @@
 use chrono::Datelike;
 use rust_xlsxwriter::{
-    ConditionalFormatCell, ConditionalFormatCellRule, DataValidation, ExcelDateTime, Url, Worksheet,
+    ConditionalFormatCell, ConditionalFormatCellRule, DataValidation, ExcelDateTime, Note, Url,
+    Worksheet,
 };
 
 use super::{
@@ -33,6 +34,7 @@ pub enum Column<'a> {
     Field(&'a FieldDto),
     Status,
     Evidence,
+    Issue,
 }
 
 impl Column<'_> {
@@ -43,6 +45,7 @@ impl Column<'_> {
             Self::Field(f) => &f.label,
             Self::Status => "Estado",
             Self::Evidence => "Evidencias",
+            Self::Issue => "Issue",
         }
     }
 
@@ -52,16 +55,20 @@ impl Column<'_> {
             Self::Title => 36.0,
             Self::Field(f) => f.width.clamp(6, 80) as f64,
             Self::Status => 16.0,
-            Self::Evidence => 22.0,
+            Self::Evidence | Self::Issue => 22.0,
         }
     }
 }
 
-/// ID · Caso de prueba · columnas visibles del proyecto (en su orden) · Estado · Evidencias.
+/// ID · Caso de prueba · columnas visibles del proyecto (en su orden) · Estado · Evidencias
+/// · Issue (solo si algún caso tiene issues vinculados).
 pub fn columns(data: &ExportData) -> Vec<Column<'_>> {
     let mut cols = vec![Column::Code, Column::Title];
     cols.extend(data.project.fields.iter().map(Column::Field));
     cols.extend([Column::Status, Column::Evidence]);
+    if data.cases.iter().any(|c| !c.issues.is_empty()) {
+        cols.push(Column::Issue);
+    }
     cols
 }
 
@@ -75,7 +82,10 @@ pub fn write(
 ) -> AppResult<()> {
     ws.set_name(SHEET)?;
     ws.set_screen_gridlines(false);
-    let cols = columns(data);
+    let mut cols = columns(data);
+    if template {
+        cols.retain(|c| *c != Column::Issue);
+    }
     let last_col = (cols.len() - 1) as u16;
     for (i, c) in cols.iter().enumerate() {
         ws.set_column_width(i as u16, c.width())?;
@@ -169,6 +179,21 @@ fn write_case(
                     texts.push((value, col.width()));
                 }
             }
+            Column::Issue => match c.issues.as_slice() {
+                [] => {
+                    ws.write_blank(row, at, &s.text)?;
+                }
+                [(text, url)] => {
+                    let link = Url::new(url).set_text(text);
+                    ws.write_url_with_format(row, at, link, &s.link)?;
+                }
+                many => {
+                    let text: Vec<&str> = many.iter().map(|(t, _)| t.as_str()).collect();
+                    ws.write_string_with_format(row, at, text.join(", "), &s.text)?;
+                    let urls: Vec<&str> = many.iter().map(|(_, u)| u.as_str()).collect();
+                    ws.insert_note(row, at, &Note::new(urls.join("\n")))?;
+                }
+            },
             Column::Evidence => {
                 let count = c.evidence.len();
                 match links.and_then(|l| l.get(index)) {
@@ -287,6 +312,65 @@ mod tests {
         testing::{Book, fixture},
     };
     use calamine::{Data, DataType};
+
+    fn with_issues(case: usize, issues: &[(&str, &str)]) -> ExportData {
+        let mut data = fixture();
+        data.cases[case].issues = issues
+            .iter()
+            .map(|(t, u)| (t.to_string(), u.to_string()))
+            .collect();
+        data
+    }
+
+    fn sheet_rels(book: &Book) -> String {
+        book.part("xl/worksheets/_rels/sheet1.xml.rels")
+    }
+
+    #[test]
+    fn no_links_no_issue_column() {
+        let book = render(&fixture(), None, false);
+        assert_eq!(book.row_texts(SHEET, HEADER_ROW, 12), HEADERS);
+        assert_eq!(book.cell(SHEET, HEADER_ROW, 12), Data::Empty);
+        let data = with_issues(0, &[("app#1", "https://github.com/o/app/issues/1")]);
+        let template = render(&data, None, true);
+        assert_eq!(template.cell(SHEET, HEADER_ROW, 12), Data::Empty);
+    }
+
+    #[test]
+    fn one_link_is_a_hyperlink_with_repo_and_number() {
+        let data = with_issues(1, &[("app#7", "https://github.com/o/app/issues/7")]);
+        let book = render(&data, None, false);
+        assert_eq!(book.text(SHEET, row_of(1), 12), "app#7");
+        assert_eq!(book.text(SHEET, row_of(0), 12), "");
+        assert!(sheet_rels(&book).contains("https://github.com/o/app/issues/7"));
+        assert!(!book.has_part("xl/comments1.xml"));
+    }
+
+    #[test]
+    fn several_links_are_text_with_a_note_listing_urls() {
+        let data = with_issues(
+            0,
+            &[
+                ("app#7", "https://github.com/o/app/issues/7"),
+                ("web#2", "https://github.com/o/web/issues/2"),
+            ],
+        );
+        let book = render(&data, None, false);
+        assert_eq!(book.text(SHEET, row_of(0), 12), "app#7, web#2");
+        assert!(!sheet_rels(&book).contains("github.com"));
+        let note = book.part("xl/comments1.xml");
+        assert!(note.contains("https://github.com/o/app/issues/7"));
+        assert!(note.contains("https://github.com/o/web/issues/2"));
+    }
+
+    #[test]
+    fn issue_column_goes_after_evidencias() {
+        let data = with_issues(0, &[("app#7", "https://github.com/o/app/issues/7")]);
+        let book = render(&data, None, false);
+        let mut headers = HEADERS.to_vec();
+        headers.push("Issue");
+        assert_eq!(book.row_texts(SHEET, HEADER_ROW, 13), headers);
+    }
 
     fn render(data: &ExportData, links: Option<&[u32]>, template: bool) -> Book {
         let mut workbook = styles::workbook().unwrap();

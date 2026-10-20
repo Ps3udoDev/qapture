@@ -8,7 +8,7 @@ use crate::{
     dto::{CaseDto, DocVersionDto, ExportOptionsInput, FieldDto, ProjectDto},
     error::{AppError, AppResult, validation},
     media::storage::EvidenceFiles,
-    repo::{cases, doc_versions, projects},
+    repo::{cases, doc_versions, integrations, projects},
 };
 
 /// Ancho máximo de las capturas en la hoja Evidencias. El valor por defecto (940 px, el de la
@@ -25,6 +25,8 @@ pub struct ExportEvidence {
 pub struct ExportCase {
     pub case: CaseDto,
     pub evidence: Vec<ExportEvidence>,
+    /// `(repo#n, url)` de los issues vinculados, por repo y número.
+    pub issues: Vec<(String, String)>,
 }
 
 /// Todo lo que necesita el libro, leído en una sola pasada para soltar la base de datos
@@ -61,10 +63,20 @@ impl ExportData {
                 render_path: files.absolute(&rel),
             });
         }
+        let mut links = integrations::links_for_project(conn, project_id)?;
+        links.sort_by(|a, b| (&a.repo, a.issue_number).cmp(&(&b.repo, b.issue_number)));
+        let mut issues_by_case: HashMap<String, Vec<(String, String)>> = HashMap::new();
+        for l in links {
+            issues_by_case
+                .entry(l.case_id)
+                .or_default()
+                .push((format!("{}#{}", l.repo, l.issue_number), l.html_url));
+        }
         let cases = cases::list(conn, project_id)?
             .into_iter()
             .map(|case| ExportCase {
                 evidence: by_case.remove(&case.id).unwrap_or_default(),
+                issues: issues_by_case.remove(&case.id).unwrap_or_default(),
                 case,
             })
             .collect();
@@ -335,6 +347,39 @@ mod tests {
             ExportData::load(&conn, &files, "nope").unwrap_err().code(),
             "not_found"
         );
+    }
+
+    #[test]
+    fn load_reads_issue_links_ordered_by_repo() {
+        let conn = conn();
+        let tmp = TempDir::new();
+        let p = project(&conn);
+        let c = db_case(&conn, &p);
+        db_case(&conn, &p);
+        for (repo, n) in [("web", 2u64), ("lib", 10), ("app", 9)] {
+            integrations::insert_link(
+                &conn,
+                &integrations::CaseIssueLink {
+                    case_id: c.id.clone(),
+                    owner: "o".into(),
+                    repo: repo.into(),
+                    issue_number: n,
+                    node_id: format!("I_{repo}{n}"),
+                    html_url: format!("https://github.com/o/{repo}/issues/{n}"),
+                    direction: "exported".into(),
+                    issue_state: "open".into(),
+                },
+            )
+            .unwrap();
+        }
+        let data = ExportData::load(&conn, &tmp.files(), &p.id).unwrap();
+        let texts: Vec<_> = data.cases[0].issues.iter().map(|i| i.0.as_str()).collect();
+        assert_eq!(texts, ["app#9", "lib#10", "web#2"]);
+        assert_eq!(
+            data.cases[0].issues[0].1,
+            "https://github.com/o/app/issues/9"
+        );
+        assert!(data.cases[1].issues.is_empty());
     }
 
     #[test]
