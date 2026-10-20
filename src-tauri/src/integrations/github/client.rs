@@ -250,8 +250,6 @@ impl GhClient {
             .await
     }
 
-    // Lo usa la subida de evidencias (Task 2): actualiza la ref de la rama.
-    #[allow(dead_code)]
     pub async fn patch_json<B: Serialize, T: DeserializeOwned>(
         &self,
         token: &str,
