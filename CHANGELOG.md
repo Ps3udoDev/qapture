@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar
+## 1.1.0 — 2026-10-20
 
 ### Nuevo
 - Conectar tu cuenta de GitHub desde Ajustes › GitHub, sin contraseñas ni tokens manuales: código en pantalla, autorización en el navegador y sesión guardada en el llavero del sistema
