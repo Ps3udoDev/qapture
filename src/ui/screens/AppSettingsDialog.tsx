@@ -8,9 +8,10 @@ import { FormField } from "../components/FormField";
 import { btn, inputCls } from "../components/styles";
 import { useWorkspace } from "../store/context";
 import { BackupsDialog } from "./BackupsDialog";
+import { GithubAccountPanel } from "./GithubAccountPanel";
 import { ShortcutRecorder } from "./ShortcutRecorder";
 
-const TABS = ["Perfil", "Atajos", "Sistema", "Exportación", "Datos", "Acerca de"] as const;
+const TABS = ["Perfil", "Atajos", "Sistema", "Exportación", "Datos", "GitHub", "Acerca de"] as const;
 type Tab = (typeof TABS)[number];
 
 const tabOf = (key: string): Tab => {
@@ -197,6 +198,8 @@ export function AppSettingsDialog({ onClose }: { onClose: () => void }) {
               </div>
             </>
           )}
+
+          {tab === "GitHub" && <GithubAccountPanel />}
 
           {tab === "Acerca de" && (
             <>

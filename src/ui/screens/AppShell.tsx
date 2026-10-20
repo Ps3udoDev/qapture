@@ -24,6 +24,7 @@ export function AppShell() {
   const listenCaptures = useWorkspace((s) => s.listenCaptures);
   const listenNewCase = useWorkspace((s) => s.listenNewCase);
   const listenUpdates = useWorkspace((s) => s.listenUpdates);
+  const listenGithub = useWorkspace((s) => s.listenGithub);
   const updatePrompt = useWorkspace(isUpdatePromptOpen);
   const pushToast = useWorkspace((s) => s.pushToast);
   const hideWindow = useWorkspace((s) => s.hideWindow);
@@ -86,6 +87,23 @@ export function AppShell() {
       unlisten?.();
     };
   }, [listenUpdates, pushToast]);
+
+  useEffect(() => {
+    let active = true;
+    let unlisten: (() => void) | undefined;
+    void listenGithub()
+      .then((off) => {
+        if (active) unlisten = off;
+        else off();
+      })
+      .catch(() => {
+        if (active) pushToast("error", "No se pudo escuchar los eventos de GitHub.");
+      });
+    return () => {
+      active = false;
+      unlisten?.();
+    };
+  }, [listenGithub, pushToast]);
 
   useEffect(() => {
     if (!escHides) return;

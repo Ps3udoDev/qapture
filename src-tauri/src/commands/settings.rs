@@ -8,6 +8,7 @@ use tauri_plugin_opener::OpenerExt;
 use crate::{
     dto::{SettingsDto, ShortcutFailureDto},
     error::{AppError, AppResult, validation},
+    integrations::github,
     repo,
     settings::{self, Settings},
     state::AppState,
@@ -16,13 +17,17 @@ use crate::{
 
 const RELEASES_URL: &str = "https://github.com/Ps3udoDev/qapture/releases";
 const DOCS_URL: &str = "https://github.com/Ps3udoDev/qapture#readme";
+const GITHUB_DEVICE_URL: &str = "https://github.com/login/device";
 const IMAGE_WIDTH: std::ops::RangeInclusive<u32> = 400..=1600;
 
 #[derive(Debug, Clone, Copy, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub enum LinkTarget {
     Releases,
     Docs,
+    GithubDevice,
+    GithubInstall,
+    GithubRevoke,
 }
 
 impl LinkTarget {
@@ -30,6 +35,9 @@ impl LinkTarget {
         match self {
             Self::Releases => RELEASES_URL,
             Self::Docs => DOCS_URL,
+            Self::GithubDevice => GITHUB_DEVICE_URL,
+            Self::GithubInstall => github::config::INSTALL_URL,
+            Self::GithubRevoke => github::config::REVOKE_URL,
         }
     }
 }
@@ -476,10 +484,30 @@ mod tests {
     }
 
     #[test]
+    fn github_links_open_fixed_urls() {
+        for (raw, url) in [
+            ("githubDevice", "https://github.com/login/device"),
+            (
+                "githubInstall",
+                "https://github.com/apps/qapture-qa/installations/new",
+            ),
+            (
+                "githubRevoke",
+                "https://github.com/settings/apps/authorizations",
+            ),
+        ] {
+            let target: LinkTarget = serde_json::from_value(serde_json::json!(raw)).unwrap();
+            assert_eq!(target.url(), url, "{raw}");
+        }
+    }
+
+    #[test]
     fn link_target_and_action_wire_names() {
         for (raw, ok) in [
             ("releases", true),
             ("docs", true),
+            ("githubDevice", true),
+            ("githubdevice", false),
             ("other", false),
             ("Docs", false),
         ] {
