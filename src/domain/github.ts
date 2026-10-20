@@ -144,3 +144,41 @@ export function isRoutingStale(config: ProjectGithubInput, fields: FieldDef[]): 
   if (!field) return true;
   return field.archived || field.type !== "list" || Object.keys(config.routingMap).some((o) => !field.options.includes(o));
 }
+
+export interface CaseIssueLink {
+  caseId: string;
+  owner: string;
+  repo: string;
+  fullName: string;
+  issueNumber: number;
+  htmlUrl: string;
+  direction: "exported" | "imported";
+  issueState: string;
+}
+
+export interface RepoMeta {
+  labels: string[];
+  milestones: { number: number; title: string }[];
+  assignees: string[];
+}
+
+/** Lo que reciben `gh_create_issue` y `gh_comment_issue`. */
+export interface ReportInput {
+  caseId: string;
+  repo: string;
+  title: string;
+  body: string;
+  labels: string[];
+  assignees: string[];
+  milestone: number | null;
+  evidenceIds: string[];
+}
+
+export interface ReportResult {
+  link: CaseIssueLink;
+  uploadMode: "repo" | "assisted";
+  assistedReason: string | null;
+  /** Evidencias sin subir (modo asistido), en el orden elegido. */
+  pendingEvidence: string[];
+  commentUrl: string | null;
+}

@@ -252,7 +252,7 @@ export function createMemoryRepositories(): MemoryRepositories {
     }),
     settings: createMemorySettings(),
     updater: createMemoryUpdater(),
-    github: createMemoryGithub((projectId) => projects.get(projectId)?.fields ?? []),
+    github: createMemoryGithub((projectId) => projects.get(projectId)?.fields ?? [], (caseId) => cases.get(caseId)?.projectId),
   };
   return repos;
 }

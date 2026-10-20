@@ -2,7 +2,7 @@ import { listen } from "@tauri-apps/api/event";
 import { z } from "zod";
 import type { IssueTracker } from "../../ports/issue-tracker";
 import { call } from "./client";
-import { deviceCodeSchema, ghAccountSchema, ghConnectFailedSchema, ghRepoSchema, projectGithubSchema } from "./dto";
+import { caseIssueLinkSchema, deviceCodeSchema, ghAccountSchema, ghConnectFailedSchema, ghRepoSchema, projectGithubSchema, repoMetaSchema, reportResultSchema } from "./dto";
 
 export const GH_CONNECTED_EVENT = "gh:connected";
 export const GH_CONNECT_FAILED_EVENT = "gh:connect-failed";
@@ -20,6 +20,16 @@ export function tauriGithub(): IssueTracker {
     listRepos: () => call("gh_list_repos", {}, z.array(ghRepoSchema)),
     getProjectGithub: (projectId) => call("gh_project_github_get", { projectId }, projectGithubSchema),
     setProjectGithub: (projectId, config) => call("gh_project_github_set", { projectId, config }, projectGithubSchema),
+    repoMeta: (repo) => call("gh_repo_meta", { repo }, repoMetaSchema),
+    projectLinks: (projectId) => call("gh_project_links", { projectId }, z.array(caseIssueLinkSchema)),
+    createIssue: (input) => call("gh_create_issue", { input }, reportResultSchema),
+    commentIssue: (input) => call("gh_comment_issue", { input }, reportResultSchema),
+    copyEvidence: async (evidenceId) => {
+      await call("gh_copy_evidence", { evidenceId }, z.null());
+    },
+    openIssue: async (caseId, repo) => {
+      await call("gh_open_issue", { caseId, repo }, z.null());
+    },
     onConnected: (handler) =>
       listen<unknown>(GH_CONNECTED_EVENT, (event) => {
         const parsed = ghAccountSchema.safeParse(event.payload);

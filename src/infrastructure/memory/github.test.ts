@@ -40,4 +40,20 @@ describe("memory github", () => {
     expect(saved.routingStale).toBe(false);
     expect((await repos.github.getProjectGithub(project.id)).repos[0].fullName).toBe("a/b");
   });
+
+  it("simula vínculos, conflicto por (caso, repo), modo forzado, copias y aperturas", async () => {
+    const { github } = createMemoryRepositories();
+    const input = { caseId: "c1", repo: "o/r", title: "t", body: "b", labels: [], assignees: [], milestone: null, evidenceIds: ["e1"] };
+    const first = await github.createIssue(input);
+    expect(first).toMatchObject({ uploadMode: "repo", assistedReason: null, pendingEvidence: [], commentUrl: null });
+    await expect(github.createIssue(input)).rejects.toMatchObject({ code: "gh_conflict", message: "El caso ya tiene un issue en o/r (#1)." });
+    github.forcedUpload = { mode: "assisted", reason: "Tu cuenta no puede escribir en o/r." };
+    const comment = await github.commentIssue(input);
+    expect(comment).toMatchObject({ uploadMode: "assisted", assistedReason: "Tu cuenta no puede escribir en o/r.", pendingEvidence: ["e1"] });
+    expect(comment.commentUrl).toContain("/issues/1#");
+    await github.copyEvidence("e1");
+    await github.openIssue("c1", "o/r");
+    expect(github.copies).toBe(1);
+    expect(github.opened).toEqual([{ caseId: "c1", repo: "o/r" }]);
+  });
 });
