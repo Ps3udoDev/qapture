@@ -81,6 +81,6 @@ El tester conecta su cuenta de GitHub desde Ajustes con Device Flow (sin backend
 | 6 | Revocar en `https://github.com/settings/apps/authorizations` | Al listar repos aparece «Reconectar» | ✅ 2026-10-20 (y reconexión OK) |
 | 7 | Linux AppImage: conectar | Conecta, o muestra el mensaje del llavero antes de abrir el navegador | ☐ (llavero real de Linux pendiente; el de Windows pasó en el test ignorado de la Task 3) |
 | 8 | Cuando el owner apruebe la instalación: ver los repos de TEAMS4SOFT | Aparecen en la lista | ☐ |
-| 9 | Spike de la Task 0 (imágenes entre repos privados) | Resultado anotado: `blob?raw` / `raw` / ❌ | ✅ 2026-10-20: `blob/<sha>/…?raw=true` y `raw.githubusercontent.com/<sha>` se ven en un issue de `Ps3udoDev/testing` (privado) con el repo de evidencias privado, para su dueño. Falta confirmar que alguien sin acceso no las ve (con el owner de TEAMS4SOFT) |
+| 9 | Spike de la Task 0 (imágenes entre repos privados) | Resultado anotado: `blob?raw` / `raw` / ❌ | ✅ 2026-10-20: con el repo de evidencias **privado**, en un issue de `Ps3udoDev/testing` (privado) solo se ve `github.com/<owner>/<repo>/blob/<sha>/<ruta>?raw=true`; las dos variantes de `raw.githubusercontent.com` (por SHA y por rama) dan 404. Falta confirmar que alguien sin acceso no la ve (con el owner de TEAMS4SOFT) |
 
 **Spike de imágenes:** pendiente.
