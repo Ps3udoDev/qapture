@@ -14,11 +14,11 @@ Permisos que pedirá GitHub:
 |---|---|---|
 | **Metadata** | Solo lectura | Obligatorio en toda GitHub App: ver nombre y visibilidad del repo |
 | **Issues** | Lectura y escritura | Crear y comentar issues **en nombre de la persona** que usa Qapture |
-| **Contents** | Lectura y escritura | Subir las capturas como archivos a un repo de evidencias |
+| **Contents** | Lectura y escritura | Subir las capturas de los reportes como archivos (un commit por reporte) al repo de evidencias |
 
 Dos aclaraciones importantes:
 
-- GitHub **no permite** dar *Contents* solo a un repo: se aplica a todos los repos que selecciones al instalar. Qapture **solo escribe en el repo de evidencias** que cada proyecto configure y rechaza cualquier otro destino.
+- GitHub **no permite** dar *Contents* solo a un repo: se aplica a todos los repos que selecciones al instalar. Qapture **solo escribe en el repo de evidencias** que cada proyecto configure y rechaza cualquier otro destino; en los demás repos solo crea y comenta issues. Las capturas se suben a la rama predeterminada del repo de evidencias, en carpetas `proyecto/caso/fecha_tester/`.
 - Cada acción está limitada por los permisos de la persona: nadie puede hacer con Qapture algo que no pueda hacer ya en GitHub.
 
 ## Instalar la App (si eres owner)
@@ -29,7 +29,7 @@ Sabrás si eres owner en **tu organización › People**, columna **Role**.
 2. Elige la organización (por ejemplo **TEAMS4SOFT**).
 3. Elige **Only select repositories** y marca los repos del producto (por ejemplo `GMX-frontend`, `GMX-CommonAPI`, `GMX-ClaimsAPI`) **y** el repo de evidencias `qa-evidencias`.
 4. Revisa los permisos y pulsa **Install**.
-5. **Importante:** en `qa-evidencias` ve a **Settings › Collaborators and teams** y da **Read** al equipo de desarrollo (o confirma que el permiso base de la organización ya da lectura). Sin esto, quien lea el issue verá las imágenes rotas.
+5. **Importante:** en `qa-evidencias` ve a **Settings › Collaborators and teams** y da **Read** al equipo de desarrollo (o confirma que el permiso base de la organización ya da lectura). Los issues enlazan las capturas a ese repo, así que **cada miembro del equipo necesita al menos Read en el repo de evidencias para ver las imágenes**; sin esto las verá rotas. El repo debe tener al menos un commit (por ejemplo, un README).
 
 ## Si quien instala no es owner
 

@@ -67,10 +67,10 @@ Reglas: `ui → application → domain`; `infrastructure` implementa `ports`; `d
 | `media/` | Archivos de evidencia y rasterizado de PNG |
 | `capture/` | Captura de pantalla (`xcap`), ventana overlay de selección y recorte |
 | `excel/` | Generación del `.xlsx`: carátula, matriz, evidencias y resumen |
-| `transfer/` | Importar Bitácora v1 y exportar/importar paquetes `.qapture` |
+| `transfer/` | Importar Bitácora v1 y exportar/importar paquetes `.qapture` (`github_json.rs` maneja el `github.json` opcional) |
 | `backup.rs` | Respaldos diarios, manuales y de seguridad |
 | `system/` | Bandeja, atajos globales, modo portable, updater, respaldo diario, pegado del portapapeles |
-| `integrations/github/` | Conexión con GitHub ([ADR 0005](adr/0005-integracion-github.md)): `config`, `client` (reqwest + rustls, errores a `AppError::GitHub`), `token_store` (llavero), `auth` (Device Flow), `repos`, `project_config`. Comandos `gh_*` en `commands/github.rs` |
+| `integrations/github/` | Conexión con GitHub ([ADR 0005](adr/0005-integracion-github.md)): `config`, `client` (reqwest + rustls, errores a `AppError::GitHub`), `token_store` (llavero), `auth` (Device Flow), `repos`, `project_config`, `issues` (issues, comentarios y metadatos del repo), `evidence_upload` (subida de capturas en un commit) y `report` (saneamiento del cuerpo y enlaces). Comandos `gh_*` en `commands/github.rs` |
 | `settings.rs`, `state.rs`, `error.rs`, `dto.rs` | Ajustes, estado compartido, `AppError` tipado y DTO serializables |
 
 Los plugins de Tauri (single-instance, dialog, opener, global-shortcut, clipboard, notification, updater, autostart) se usan **solo desde Rust**; el WebView no recibe permisos de plugins que no necesite.
@@ -109,6 +109,14 @@ Todas las llamadas a `api.github.com` salen de Rust; el WebView solo invoca coma
 | `gh_account` / `gh_disconnect` | Lee la cuenta conectada (o `null`) / borra token y cuenta |
 | `gh_list_repos` | Repos donde la App está instalada, con permisos del usuario; un 401 activa «Reconectar» |
 | `gh_project_github_get` / `gh_project_github_set` | Repos vinculados, ruteo y repo de evidencias del proyecto |
+| `gh_repo_meta` | Etiquetas, milestones y asignables de un repo, para el diálogo de reporte |
+| `gh_project_links` | Vínculos caso ↔ issue del proyecto (chips y ícono de la lista) |
+| `gh_create_issue` | Sube las capturas (modo `repo`) o marca las pendientes (modo `assisted`), sanea el cuerpo, crea el issue y guarda el vínculo; `gh_conflict` si ya existe uno para ese caso y repo |
+| `gh_comment_issue` | Comenta un re-test en el issue vinculado, con las mismas reglas de subida |
+| `gh_copy_evidence` | Copia al portapapeles la captura renderizada (modo asistido) |
+| `gh_open_issue` | Abre en el navegador un issue vinculado |
+
+**Reporte y evidencias.** `report::sanitize_body` deja cada `{{img:n}}` elegido exactamente una vez, quita los inválidos y garantiza el comentario oculto `<!-- qapture:case=…;v=1 -->`. `evidence_upload` solo escribe en el repo de evidencias guardado del proyecto del caso (ningún comando lo recibe desde el WebView) y arma la ruta únicamente en Rust. Sube las capturas en un solo commit a la rama predeterminada (reintenta hasta 3 veces si la ref cambió) y el enlace usa `github.com/<o>/<r>/blob/<sha>/<ruta>?raw=true`, porque `raw.githubusercontent.com` no funciona con repos privados. Sin repo, permiso `push` o instalación, el modo es `assisted`; los pendientes viven solo en memoria de la UI. El `github.json` de los paquetes no cambia `FORMAT_VERSION`: la v1.0 lo ignora y el repo de evidencias no se importa.
 
 Los datos están en la migración `0005_integrations.sql` (`gh_account`, `project_repo_link`, `project_gh_settings`, `case_issue_link`). El comando `open_link` acepta además los destinos `githubDevice`, `githubInstall`, `githubRevoke` y `githubAdminGuide` (la guía para el admin, `docs/usuario/github-admin.md` en GitHub), siempre con URL fijas en Rust.
 

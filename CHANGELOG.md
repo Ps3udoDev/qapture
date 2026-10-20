@@ -6,6 +6,11 @@
 - Conectar tu cuenta de GitHub desde Ajustes › GitHub, sin contraseñas ni tokens manuales: código en pantalla, autorización en el navegador y sesión guardada en el llavero del sistema
 - Vincular repos de GitHub a cada proyecto en Configurar proyecto › GitHub: repo predeterminado, etiquetas, ruteo por columna y repo de evidencias
 - Guías para conectar con GitHub y para que el administrador de una organización instale la App
+- Reportar un caso como issue de GitHub desde su detalle, con título, descripción editable, etiquetas, asignados, milestone y capturas ya renderizadas; o comentar un re-test si el caso ya tiene un issue en ese repo
+- Las capturas se suben en un solo commit al repo de evidencias del proyecto y se enlazan en el issue (las ve quien tenga lectura de ese repo)
+- Modo asistido cuando no se pueden subir: copias cada captura y la pegas con Ctrl+V en GitHub, con aviso de las pendientes mientras la app siga abierta
+- Chips `repo#n` en el caso para abrir sus issues, ícono en la lista de casos y columna «Issue» en el Excel
+- Los paquetes `.qapture` pueden llevar los datos de GitHub (repos, ruteo y vínculos) en un `github.json` opcional; la versión 1.0 los abre sin esos datos
 
 ## 1.0.2 — 2026-10-19
 
