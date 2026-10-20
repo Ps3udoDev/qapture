@@ -1,4 +1,4 @@
-import { Images, Plus, Search } from "lucide-react";
+import { Bug, Images, Plus, Search } from "lucide-react";
 import { useMemo } from "react";
 import { filterCases } from "../../domain/cases";
 import { STATUSES, type Status } from "../../domain/status";
@@ -15,6 +15,8 @@ export function CaseListPane({ onNewCase }: { onNewCase: () => void }) {
   const setSearch = useWorkspace((s) => s.setSearch);
   const setStatusFilter = useWorkspace((s) => s.setStatusFilter);
   const selectCase = useWorkspace((s) => s.selectCase);
+  const links = useWorkspace((s) => (project ? s.github.links[project.id] : undefined));
+  const withIssues = useMemo(() => new Set((links ?? []).map((l) => l.caseId)), [links]);
   const visible = useMemo(
     () => filterCases(cases, project?.fields ?? [], { search, status }),
     [cases, project, search, status],
@@ -67,11 +69,18 @@ export function CaseListPane({ onNewCase }: { onNewCase: () => void }) {
               <span className="mt-0.5 block truncate font-medium">{c.title}</span>
               <span className="flex items-center justify-between gap-2">
                 <span className="truncate text-xs text-t4s-gray">{envField ? c.values[envField.id] ?? "" : ""}</span>
-                {c.evidenceCount > 0 && (
-                  <span aria-label={`${c.evidenceCount} ${c.evidenceCount === 1 ? "evidencia" : "evidencias"}`} className="inline-flex shrink-0 items-center gap-1 rounded-full bg-t4s-cream px-2 text-xs text-t4s-gray">
-                    <Images size={12} /> {c.evidenceCount}
-                  </span>
-                )}
+                <span className="flex shrink-0 items-center gap-1">
+                  {withIssues.has(c.id) && (
+                    <span role="img" aria-label="Tiene issues en GitHub" title="Tiene issues en GitHub" className="text-t4s-gray">
+                      <Bug size={12} />
+                    </span>
+                  )}
+                  {c.evidenceCount > 0 && (
+                    <span aria-label={`${c.evidenceCount} ${c.evidenceCount === 1 ? "evidencia" : "evidencias"}`} className="inline-flex shrink-0 items-center gap-1 rounded-full bg-t4s-cream px-2 text-xs text-t4s-gray">
+                      <Images size={12} /> {c.evidenceCount}
+                    </span>
+                  )}
+                </span>
               </span>
             </button>
           </li>

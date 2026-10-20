@@ -1,6 +1,6 @@
 import type { StoreApi } from "zustand/vanilla";
 import type { FormErrors } from "../../domain/cases";
-import type { CaseIssueLink, DeviceCode, GhAccount, GhRepo, ProjectGithub, ProjectGithubInput, ReportInput, ReportResult } from "../../domain/github";
+import type { CaseIssueLink, DeviceCode, GhAccount, GhRepo, ProjectGithub, ProjectGithubInput, RepoMeta, ReportInput, ReportResult } from "../../domain/github";
 import { AppError, isValidationError } from "../../ports/errors";
 import type { Repositories } from "../../ports/repositories";
 import type { SliceHelpers } from "./evidence-slice";
@@ -39,12 +39,21 @@ export interface GithubSlice {
   loadProjectGithub(projectId: string): Promise<ProjectGithub | null>;
   saveProjectGithub(projectId: string, input: ProjectGithubInput): Promise<FormResult>;
   loadProjectLinks(projectId: string): Promise<void>;
+  /** Etiquetas, milestones y asignados del repo; `null` si falló (ya se avisó). */
+  loadRepoMeta(repo: string): Promise<RepoMeta | null>;
   reportIssue(input: ReportInput): Promise<ReportOutcome>;
   commentIssue(input: ReportInput): Promise<ReportOutcome>;
   copyPendingEvidence(key: string, evidenceId: string): Promise<void>;
   markPendingDone(key: string, evidenceId: string, done: boolean): void;
   dismissPending(key: string): void;
   openIssue(caseId: string, repo: string): Promise<void>;
+}
+
+/** Copia del mapa sin la clave. */
+function withoutKey<T>(map: Record<string, T>, key: string): Record<string, T> {
+  const copy = { ...map };
+  delete copy[key];
+  return copy;
 }
 
 type Set = StoreApi<WorkspaceState>["setState"];
@@ -202,6 +211,15 @@ export function createGithubSlice(repos: Repositories, set: Set, get: Get, h: Sl
 
     loadProjectLinks: loadLinks,
 
+    async loadRepoMeta(repo) {
+      try {
+        return await repos.github.repoMeta(repo);
+      } catch (error) {
+        await fail(error);
+        return null;
+      }
+    },
+
     reportIssue: (input) => report(input, (i) => repos.github.createIssue(i), (r) => `Issue #${r.link.issueNumber} creado en ${r.link.fullName}.`),
 
     commentIssue: (input) => report(input, (i) => repos.github.commentIssue(i), (r) => `Comentario agregado en ${r.link.fullName}#${r.link.issueNumber}.`),
@@ -221,7 +239,7 @@ export function createGithubSlice(repos: Repositories, set: Set, get: Get, h: Sl
         const entry = s.github.pending[key];
         if (!entry) return s;
         const items = entry.items.map((i) => (i.evidenceId === evidenceId ? { ...i, done } : i));
-        const { [key]: _removed, ...rest } = s.github.pending;
+        const rest = withoutKey(s.github.pending, key);
         const pending = items.every((i) => i.done) ? rest : { ...s.github.pending, [key]: { ...entry, items } };
         return { github: { ...s.github, pending } };
       });
@@ -229,7 +247,7 @@ export function createGithubSlice(repos: Repositories, set: Set, get: Get, h: Sl
 
     dismissPending(key) {
       set((s) => {
-        const { [key]: _removed, ...rest } = s.github.pending;
+        const rest = withoutKey(s.github.pending, key);
         return { github: { ...s.github, pending: rest } };
       });
     },
