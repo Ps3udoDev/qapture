@@ -12,7 +12,7 @@ use serde_json::Value;
 use super::client::GhClient;
 use super::config;
 use super::token_store::TokenStore;
-use crate::error::{AppResult, GhErrorKind, gh};
+use crate::error::{AppError, AppResult, GhErrorKind, gh};
 use crate::repo::integrations::{GhAccountRow, save_account};
 
 const MSG_EXPIRED: &str = "El código venció. Vuelve a pulsar «Conectar con GitHub».";
@@ -58,18 +58,26 @@ pub fn next_step(body: &Value, interval: Duration) -> PollStep {
         Some("expired_token") => PollStep::Fail(MSG_EXPIRED.into()),
         Some("access_denied") => PollStep::Fail(MSG_DENIED.into()),
         Some("device_flow_disabled") => PollStep::Fail(MSG_DISABLED.into()),
-        Some(other) => PollStep::Fail(
-            body.get("error_description")
-                .and_then(Value::as_str)
-                .filter(|s| !s.is_empty())
-                .unwrap_or(other)
-                .to_string(),
-        ),
+        // `error_description` llega en inglés: se muestra un mensaje fijo con el código.
+        Some(other) => PollStep::Fail(format!("GitHub rechazó la autorización (código: {other}).")),
         None => PollStep::Fail("Respuesta inesperada de GitHub.".into()),
     }
 }
 
-/// Sondea hasta obtener el token. `Ok(None)` si se canceló.
+/// Fallos pasajeros (sin red, 5xx, respuesta rara) que no deben cortar el sondeo.
+fn is_transient(error: &AppError) -> bool {
+    matches!(
+        error,
+        AppError::Io(_)
+            | AppError::GitHub {
+                kind: GhErrorKind::Offline,
+                ..
+            }
+    )
+}
+
+/// Sondea hasta obtener el token. `Ok(None)` si se canceló. Un fallo pasajero se reintenta
+/// tras `interval` mientras el código no venza.
 pub async fn poll(
     client: &GhClient,
     code: &DeviceCode,
@@ -85,7 +93,7 @@ pub async fn poll(
         if started.elapsed() >= limit {
             return Err(gh(GhErrorKind::Auth, MSG_EXPIRED));
         }
-        let body: Value = client
+        let body: Value = match client
             .post_form_web(
                 "/login/oauth/access_token",
                 &[
@@ -94,7 +102,15 @@ pub async fn poll(
                     ("grant_type", GRANT_TYPE),
                 ],
             )
-            .await?;
+            .await
+        {
+            Ok(body) => body,
+            Err(error) if is_transient(&error) => {
+                tokio::time::sleep(interval).await;
+                continue;
+            }
+            Err(error) => return Err(error),
+        };
         // Un token que llega tras cancelar se descarta.
         if cancel.load(Ordering::SeqCst) {
             return Ok(None);
@@ -210,7 +226,13 @@ mod tests {
                 &json!({"error": "boom", "error_description": "Algo falló"}),
                 i
             ),
-            PollStep::Fail("Algo falló".into())
+            PollStep::Fail("GitHub rechazó la autorización (código: boom).".into())
+        );
+        assert_eq!(
+            next_step(&json!({"error": "unsupported_grant_type"}), i),
+            PollStep::Fail(
+                "GitHub rechazó la autorización (código: unsupported_grant_type).".into()
+            )
         );
     }
 
@@ -232,6 +254,42 @@ mod tests {
         let cancel = AtomicBool::new(false);
         let token = poll(&client, &code(), &cancel).await.unwrap();
         assert_eq!(token.as_deref(), Some("tok123"));
+    }
+
+    #[tokio::test]
+    async fn poll_retries_after_a_transient_server_error() {
+        let mut server = mockito::Server::new_async().await;
+        let _bad = server
+            .mock("POST", "/login/oauth/access_token")
+            .with_status(502)
+            .with_body("bad gateway")
+            .expect(1)
+            .create_async()
+            .await;
+        let _token = server
+            .mock("POST", "/login/oauth/access_token")
+            .with_body(r#"{"access_token":"tok123"}"#)
+            .create_async()
+            .await;
+        let client = GhClient::new(&server.url(), &server.url());
+        let cancel = AtomicBool::new(false);
+        let token = poll(&client, &code(), &cancel).await.unwrap();
+        assert_eq!(token.as_deref(), Some("tok123"));
+    }
+
+    #[tokio::test]
+    async fn poll_keeps_retrying_while_offline_until_the_code_expires() {
+        let client = GhClient::new("http://127.0.0.1:9", "http://127.0.0.1:9");
+        let cancel = AtomicBool::new(false);
+        let dc = DeviceCode {
+            expires_in: 1,
+            ..code()
+        };
+        let err = poll(&client, &dc, &cancel).await.unwrap_err();
+        assert_eq!(
+            err.user_message(),
+            "El código venció. Vuelve a pulsar «Conectar con GitHub»."
+        );
     }
 
     #[tokio::test]

@@ -18,6 +18,8 @@ use crate::{
 const RELEASES_URL: &str = "https://github.com/Ps3udoDev/qapture/releases";
 const DOCS_URL: &str = "https://github.com/Ps3udoDev/qapture#readme";
 const GITHUB_DEVICE_URL: &str = "https://github.com/login/device";
+const GITHUB_ADMIN_GUIDE_URL: &str =
+    "https://github.com/Ps3udoDev/qapture/blob/main/docs/usuario/github-admin.md";
 const IMAGE_WIDTH: std::ops::RangeInclusive<u32> = 400..=1600;
 
 #[derive(Debug, Clone, Copy, Deserialize)]
@@ -28,6 +30,7 @@ pub enum LinkTarget {
     GithubDevice,
     GithubInstall,
     GithubRevoke,
+    GithubAdminGuide,
 }
 
 impl LinkTarget {
@@ -38,6 +41,7 @@ impl LinkTarget {
             Self::GithubDevice => GITHUB_DEVICE_URL,
             Self::GithubInstall => github::config::INSTALL_URL,
             Self::GithubRevoke => github::config::REVOKE_URL,
+            Self::GithubAdminGuide => GITHUB_ADMIN_GUIDE_URL,
         }
     }
 }
@@ -494,6 +498,10 @@ mod tests {
             (
                 "githubRevoke",
                 "https://github.com/settings/apps/authorizations",
+            ),
+            (
+                "githubAdminGuide",
+                "https://github.com/Ps3udoDev/qapture/blob/main/docs/usuario/github-admin.md",
             ),
         ] {
             let target: LinkTarget = serde_json::from_value(serde_json::json!(raw)).unwrap();

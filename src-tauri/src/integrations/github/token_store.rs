@@ -25,16 +25,31 @@ fn keyring_error() -> AppError {
 }
 
 /// Llavero del sistema (Credential Manager en Windows, Secret Service en Linux).
-#[derive(Default)]
-pub struct KeyringStore;
+pub struct KeyringStore {
+    service: &'static str,
+}
+
+impl Default for KeyringStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl KeyringStore {
     pub fn new() -> Self {
-        Self
+        Self { service: SERVICE }
+    }
+
+    /// Entrada aparte para el test con el llavero real: nunca borra el token de quien lo corre.
+    #[cfg(test)]
+    fn for_tests() -> Self {
+        Self {
+            service: "com.teams4soft.qapture.test",
+        }
     }
 
     fn entry(&self) -> AppResult<keyring::Entry> {
-        keyring::Entry::new(SERVICE, ACCOUNT).map_err(|_| keyring_error())
+        keyring::Entry::new(self.service, ACCOUNT).map_err(|_| keyring_error())
     }
 }
 
@@ -121,6 +136,15 @@ mod tests {
     }
 
     #[test]
+    fn the_test_keyring_entry_is_not_the_real_one() {
+        assert_eq!(KeyringStore::new().service, "com.teams4soft.qapture");
+        assert_eq!(
+            KeyringStore::for_tests().service,
+            "com.teams4soft.qapture.test"
+        );
+    }
+
+    #[test]
     fn memory_store_round_trip() {
         let s = MemoryTokenStore::default();
         assert_eq!(s.get().unwrap(), None);
@@ -146,7 +170,8 @@ mod tests {
     #[test]
     #[ignore = "usa el llavero real del sistema"]
     fn keyring_store_round_trip() {
-        let s = KeyringStore::new();
+        // Entrada propia de los tests: nunca toca el token real del desarrollador.
+        let s = KeyringStore::for_tests();
         s.delete().unwrap();
         assert_eq!(s.get().unwrap(), None);
         s.set("qapture-test-token").unwrap();

@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use reqwest::header::{ACCEPT, AUTHORIZATION, HeaderMap, USER_AGENT};
+use reqwest::header::{ACCEPT, AUTHORIZATION, HeaderMap, HeaderValue, USER_AGENT};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
@@ -12,11 +12,14 @@ use crate::repo::integrations::RepoRef;
 
 const MAX_PAGES: usize = 50;
 const GENERIC_IO: &str = "respuesta inesperada de GitHub";
+const NO_HTTP: &str = "no se pudo preparar la conexión con GitHub";
 
 pub struct GhClient {
     api: String,
     web: String,
-    http: reqwest::Client,
+    /// `None` si el cliente HTTP no se pudo construir: las solicitudes fallan con un error,
+    /// nunca con un pánico (se construye al arrancar la app).
+    http: Option<reqwest::Client>,
 }
 
 fn generic(detail: &str) -> AppError {
@@ -127,12 +130,26 @@ impl GhClient {
         let http = reqwest::Client::builder()
             .timeout(Duration::from_secs(20))
             .build()
-            .unwrap_or_default();
+            .ok();
+        Self::with_http(api_base, web_base, http)
+    }
+
+    fn with_http(api_base: &str, web_base: &str, http: Option<reqwest::Client>) -> Self {
         Self {
             api: api_base.trim_end_matches('/').to_string(),
             web: web_base.trim_end_matches('/').to_string(),
             http,
         }
+    }
+
+    /// Cliente cuyo HTTP no se pudo construir.
+    #[cfg(test)]
+    pub(crate) fn without_http(api_base: &str, web_base: &str) -> Self {
+        Self::with_http(api_base, web_base, None)
+    }
+
+    fn http(&self) -> AppResult<&reqwest::Client> {
+        self.http.as_ref().ok_or_else(|| generic(NO_HTTP))
     }
 
     /// Mismo esquema, host y puerto que el API, y ruta dentro de su base. Sin credenciales.
@@ -173,13 +190,18 @@ impl GhClient {
         Ok((headers, bytes.to_vec()))
     }
 
-    fn api_request(&self, token: &str, url: &str) -> reqwest::RequestBuilder {
-        self.http
+    fn api_request(&self, token: &str, url: &str) -> AppResult<reqwest::RequestBuilder> {
+        // Un token con caracteres no válidos para un header no se manda (ni se muestra).
+        let mut auth =
+            HeaderValue::from_str(&format!("Bearer {token}")).map_err(|_| generic(GENERIC_IO))?;
+        auth.set_sensitive(true);
+        Ok(self
+            .http()?
             .get(url)
-            .header(AUTHORIZATION, format!("Bearer {token}"))
+            .header(AUTHORIZATION, auth)
             .header(ACCEPT, "application/vnd.github+json")
             .header("X-GitHub-Api-Version", config::API_VERSION)
-            .header(USER_AGENT, config::user_agent())
+            .header(USER_AGENT, config::user_agent()))
     }
 
     pub async fn get_json<T: DeserializeOwned>(
@@ -189,7 +211,7 @@ impl GhClient {
         repo: Option<&RepoRef>,
     ) -> AppResult<T> {
         let url = format!("{}{}", self.api, path);
-        let (_, bytes) = self.send(self.api_request(token, &url), repo).await?;
+        let (_, bytes) = self.send(self.api_request(token, &url)?, repo).await?;
         serde_json::from_slice(&bytes).map_err(|_| generic(GENERIC_IO))
     }
 
@@ -204,7 +226,7 @@ impl GhClient {
         let mut out = Vec::new();
         for _ in 0..MAX_PAGES {
             let Some(current) = url.take() else { break };
-            let (headers, bytes) = self.send(self.api_request(token, &current), None).await?;
+            let (headers, bytes) = self.send(self.api_request(token, &current)?, None).await?;
             let value: Value = serde_json::from_slice(&bytes).map_err(|_| generic(GENERIC_IO))?;
             let items = match items_key {
                 Some(key) => value.get(key).cloned().unwrap_or(Value::Null),
@@ -224,7 +246,7 @@ impl GhClient {
         form: &[(&str, &str)],
     ) -> AppResult<T> {
         let request = self
-            .http
+            .http()?
             .post(format!("{}{}", self.web, path))
             .header(ACCEPT, "application/json")
             .header(USER_AGENT, config::user_agent())
@@ -234,7 +256,10 @@ impl GhClient {
     }
 
     pub async fn get_bytes(&self, url: &str) -> AppResult<Vec<u8>> {
-        let request = self.http.get(url).header(USER_AGENT, config::user_agent());
+        let request = self
+            .http()?
+            .get(url)
+            .header(USER_AGENT, config::user_agent());
         Ok(self.send(request, None).await?.1)
     }
 }
@@ -439,6 +464,42 @@ mod tests {
         assert!(!client.is_api_url("http://api.github.com/repos"));
         assert!(!client.is_api_url("https://api.github.com:444/repos"));
         assert!(!client.is_api_url("not a url"));
+    }
+
+    #[tokio::test]
+    async fn a_client_that_failed_to_build_returns_errors_instead_of_panicking() {
+        let client = GhClient::without_http("http://127.0.0.1:9", "http://127.0.0.1:9");
+        let err = client
+            .get_json::<Value>("t0k", "/x", None)
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), "io");
+        assert!(!err.user_message().is_empty());
+        assert_no_token(&err);
+        assert!(
+            client
+                .get_paginated::<Value>("t0k", "/x", None)
+                .await
+                .is_err()
+        );
+        assert!(
+            client
+                .post_form_web::<Value>("/login/device/code", &[])
+                .await
+                .is_err()
+        );
+        assert!(client.get_bytes("http://127.0.0.1:9/a.png").await.is_err());
+    }
+
+    #[test]
+    fn authorization_header_is_marked_sensitive() {
+        let client = GhClient::production();
+        let request = client
+            .api_request("t0k", "https://api.github.com/user")
+            .unwrap()
+            .build()
+            .unwrap();
+        assert!(request.headers()[AUTHORIZATION].is_sensitive());
     }
 
     #[test]

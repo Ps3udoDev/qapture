@@ -142,6 +142,8 @@ pub fn get_project_github(conn: &Connection, project_id: &str) -> AppResult<Proj
     Ok(ProjectGithub {
         repos,
         routing_field_id,
+        // A propósito: un `routing_map` corrupto se lee como vacío para que la config (y el
+        // proyecto) sigan cargando; el usuario lo vuelve a armar en la pestaña GitHub.
         routing_map: serde_json::from_str(&routing_map).unwrap_or_default(),
         evidence_repo: evidence_owner
             .zip(evidence_repo)

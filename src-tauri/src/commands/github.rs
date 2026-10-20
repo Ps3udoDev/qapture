@@ -56,6 +56,35 @@ pub(crate) enum FlowOutcome {
     Failed(String),
 }
 
+/// Token y cuenta guardados antes de conectar, para deshacer un reconectar cancelado.
+struct Previous {
+    token: Option<String>,
+    account: Option<GhAccountRow>,
+}
+
+impl Previous {
+    fn take(github: &GithubState, conn: &Mutex<Connection>) -> Self {
+        let guard = conn.lock().unwrap_or_else(|p| p.into_inner());
+        Self {
+            token: github.tokens.get().ok().flatten(),
+            account: repo::integrations::get_account(&guard).ok().flatten(),
+        }
+    }
+
+    /// Deja token y cuenta como estaban (o sin nada, si no había).
+    fn restore(self, github: &GithubState, conn: &Mutex<Connection>) {
+        let _ = match &self.token {
+            Some(token) => github.tokens.set(token),
+            None => github.tokens.delete(),
+        };
+        let guard = conn.lock().unwrap_or_else(|p| p.into_inner());
+        let _ = match &self.account {
+            Some(row) => repo::integrations::save_account(&guard, row),
+            None => repo::integrations::delete_account(&guard),
+        };
+    }
+}
+
 /// Con el token ya obtenido: si el flujo se canceló se descarta sin guardarlo; si no, se
 /// guarda token y cuenta. Si falla después de guardar el token, se borra (no queda huérfano).
 pub(crate) async fn after_token(
@@ -67,13 +96,13 @@ pub(crate) async fn after_token(
     if cancel.load(Ordering::SeqCst) {
         return None;
     }
+    let previous = Previous::take(github, conn);
     match auth::complete(&github.client, github.tokens.as_ref(), conn, token).await {
         Ok(row) => {
             if cancel.load(Ordering::SeqCst) {
-                // Cancelado mientras se guardaba: se deshace lo guardado y no se avisa.
-                let _ = github.tokens.delete();
-                let guard = conn.lock().unwrap_or_else(|p| p.into_inner());
-                let _ = repo::integrations::delete_account(&guard);
+                // Cancelado mientras se guardaba: vuelve la cuenta anterior (si era un
+                // reconectar) y no se avisa.
+                previous.restore(github, conn);
                 return None;
             }
             github.needs_reconnect.store(false, Ordering::SeqCst);
@@ -123,14 +152,15 @@ pub(crate) fn account(state: &AppState) -> AppResult<Option<GhAccountDto>> {
     Ok(Some(account_dto(row, needs_reconnect)))
 }
 
-/// Borra token y cuenta. Los vínculos de los proyectos se conservan.
+/// Borra token y cuenta. Los vínculos de los proyectos se conservan. La cuenta se borra
+/// aunque el llavero falle; después se devuelve ese error.
 pub(crate) fn disconnect(state: &AppState) -> AppResult<()> {
     let github = state.github();
     github.cancel_flow();
-    github.tokens.delete()?;
+    let tokens = github.tokens.delete();
     repo::integrations::delete_account(&state.db())?;
     github.needs_reconnect.store(false, Ordering::SeqCst);
-    Ok(())
+    tokens
 }
 
 pub(crate) async fn list_repos(state: &AppState) -> AppResult<Vec<GhRepoDto>> {
@@ -251,21 +281,19 @@ mod tests {
     use crate::{
         db,
         dto::LinkedRepoDto,
+        integrations::github::{client::GhClient, token_store::MemoryTokenStore},
         media::storage::TempDir,
         repo::integrations::{get_account, save_account},
     };
 
     fn state_at(api: &str) -> (TempDir, AppState) {
+        state_with(GithubState::for_tests(api, api))
+    }
+
+    fn state_with(github: GithubState) -> (TempDir, AppState) {
         let tmp = TempDir::new();
         let conn = db::open(&tmp.path().join(db::DB_FILE)).unwrap();
-        let state = AppState::new(
-            conn,
-            tmp.files(),
-            tmp.path(),
-            None,
-            false,
-            GithubState::for_tests(api, api),
-        );
+        let state = AppState::new(conn, tmp.files(), tmp.path(), None, false, github);
         (tmp, state)
     }
 
@@ -372,6 +400,23 @@ mod tests {
     }
 
     #[test]
+    fn disconnect_removes_the_account_even_if_the_keyring_fails() {
+        let (_tmp, state) = state_with(GithubState::new(
+            GhClient::new("http://127.0.0.1:9", "http://127.0.0.1:9"),
+            Box::new(MemoryTokenStore::failing()),
+        ));
+        save_account(&state.db(), &row()).unwrap();
+        state.github().needs_reconnect.store(true, Ordering::SeqCst);
+        let flow = state.github().begin_flow();
+
+        let error = disconnect(&state).unwrap_err();
+        assert_eq!(error.code(), "gh_keyring");
+        assert_eq!(get_account(&state.db()).unwrap(), None);
+        assert!(!state.github().needs_reconnect.load(Ordering::SeqCst));
+        assert!(flow.load(Ordering::SeqCst), "el flujo en curso se cancela");
+    }
+
+    #[test]
     fn routing_on_an_archived_field_is_reported_stale() {
         let (_tmp, state) = fresh();
         let (project_id, field_id) = project_with_routing_field(&state);
@@ -453,6 +498,53 @@ mod tests {
         assert_eq!(state.github().tokens.get().unwrap(), None);
         assert_eq!(get_account(&state.db()).unwrap(), None);
         m.assert_async().await;
+    }
+
+    /// `/user` que cancela el flujo justo mientras se guarda la cuenta nueva.
+    async fn user_mock_that_cancels(
+        server: &mut mockito::ServerGuard,
+        cancel: &std::sync::Arc<AtomicBool>,
+    ) -> mockito::Mock {
+        let flag = cancel.clone();
+        server
+            .mock("GET", "/user")
+            .with_body_from_request(move |_| {
+                flag.store(true, Ordering::SeqCst);
+                br#"{"login":"Otra","name":null,"avatar_url":null}"#.to_vec()
+            })
+            .create_async()
+            .await
+    }
+
+    #[tokio::test]
+    async fn cancelling_a_reconnect_while_saving_keeps_the_previous_account() {
+        let mut server = mockito::Server::new_async().await;
+        let cancel = std::sync::Arc::new(AtomicBool::new(false));
+        let _m = user_mock_that_cancels(&mut server, &cancel).await;
+        let (_tmp, state) = state_at(&server.url());
+        save_account(&state.db(), &row()).unwrap();
+        state.github().tokens.set("anterior").unwrap();
+
+        let outcome = after_token(state.github(), state.db_mutex(), "nuevo".into(), &cancel).await;
+        assert!(outcome.is_none());
+        assert_eq!(get_account(&state.db()).unwrap(), Some(row()));
+        assert_eq!(
+            state.github().tokens.get().unwrap().as_deref(),
+            Some("anterior")
+        );
+    }
+
+    #[tokio::test]
+    async fn cancelling_a_first_connect_while_saving_leaves_nothing() {
+        let mut server = mockito::Server::new_async().await;
+        let cancel = std::sync::Arc::new(AtomicBool::new(false));
+        let _m = user_mock_that_cancels(&mut server, &cancel).await;
+        let (_tmp, state) = state_at(&server.url());
+
+        let outcome = after_token(state.github(), state.db_mutex(), "nuevo".into(), &cancel).await;
+        assert!(outcome.is_none());
+        assert_eq!(get_account(&state.db()).unwrap(), None);
+        assert_eq!(state.github().tokens.get().unwrap(), None);
     }
 
     #[tokio::test]
