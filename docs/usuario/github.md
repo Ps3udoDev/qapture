@@ -18,7 +18,7 @@ Necesitas una cuenta de GitHub y que la App **Qapture QA** (`qapture-qa`) esté 
 3. Pega el código en GitHub y autoriza a Qapture QA.
 4. Vuelve a Qapture: en unos segundos aparece tu avatar y **@tu-usuario**.
 
-El código vence en pocos minutos; la pantalla muestra la cuenta regresiva. Si vence, pulsa **Conectar con GitHub** otra vez. **Cancelar** detiene el proceso.
+El código vence en pocos minutos; la pantalla muestra la cuenta regresiva. Si vence, Qapture avisa «El código venció. Vuelve a pulsar «Conectar con GitHub».»: pulsa **Conectar con GitHub** otra vez. **Cancelar** detiene el proceso. Si se corta la red un momento mientras esperas, Qapture sigue intentando hasta que el código vence.
 
 Tu sesión de GitHub se guarda en el **llavero del sistema** (Administrador de credenciales de Windows, o Secret Service en Linux). Nunca queda en un archivo, ni en los respaldos ni en los paquetes `.qapture`.
 
@@ -28,7 +28,7 @@ Con la cuenta conectada, en **Ajustes › GitHub** verás:
 
 - **Instalar o configurar Qapture en una cuenta u organización:** abre la página de GitHub para elegir en qué repos funciona Qapture.
 - **Revocar acceso en GitHub:** abre la página donde GitHub lista las apps autorizadas y puedes quitar a Qapture QA.
-- **Desconectar:** pide confirmación, borra la sesión del llavero y quita tu cuenta de Qapture. Los repos vinculados a tus proyectos **se conservan**.
+- **Desconectar:** pide confirmación, borra la sesión del llavero y quita tu cuenta de Qapture. Los repos vinculados a tus proyectos **se conservan**. Si el llavero no responde, Qapture quita igual tu cuenta y te avisa del error del llavero.
 
 ## Reconectar
 
@@ -36,10 +36,10 @@ Si revocaste el acceso en GitHub, o la sesión dejó de ser válida, Qapture lo 
 
 ## Vincular repos a un proyecto
 
-Abre el proyecto y entra a **Configurar proyecto › GitHub**.
+Abre el proyecto y entra a **Configurar proyecto › GitHub**. Los controles se activan cuando termina de cargar la configuración guardada; si no carga, la pestaña lo avisa y no deja guardar (así no se pierde lo guardado). Cierra y vuelve a abrir la pestaña para intentarlo de nuevo.
 
 - **Repositorios vinculados:** pulsa **Agregar repositorio** y elige de la lista (solo aparecen los repos donde Qapture QA está instalada y tú tienes acceso). Uno debe quedar marcado como **Predeterminado**. Cada repo lleva sus **etiquetas** por defecto (por ejemplo `bug, qapture`) y se quita con **Quitar**.
-- **¿No ves tu repo?** Copia el enlace de instalación para abrirlo tú o mandárselo al administrador. Cuando esté instalada, vuelve a abrir la lista.
+- **¿No ves tu repo?** Copia el enlace de instalación para abrirlo tú o mandárselo al administrador, y abre la [guía para el admin](github-admin.md) en el navegador. Cuando esté instalada, vuelve a abrir la lista.
 - **Ruteo por columna (opcional):** elige una columna de tipo **Lista** de tu proyecto (por ejemplo «Módulo») y asigna a cada opción el repo que le corresponde. Cuando reportar issues esté disponible, sugerirá el repo según esa columna. Si más adelante archivas la columna o cambias su tipo, la pestaña te avisa y el proyecto sigue abriendo normal.
 - **Repo de evidencias (opcional):** un repo dedicado donde se guardarán las capturas de los reportes. Si eliges **Ninguno: pegar capturas a mano**, tú pegarás las imágenes en el issue.
 

@@ -28,7 +28,7 @@ Qapture vive en la bandeja del sistema y se invoca con atajos globales configura
   - el teclado en el menú Datos.
 
 ## Interfaces producidas
-- Comandos (Task 4): `get_settings() -> SettingsDto`, `save_settings({ settings }) -> SettingsDto`, `pick_export_folder() -> string | null`, `open_data_folder() -> null`, `hide_main_window() -> null`, `open_link({ target: "releases" | "docs" }) -> null` (F8a añadió `githubDevice | githubInstall | githubRevoke`; ver [F8a](F8a-github-conexion.md)).
+- Comandos (Task 4): `get_settings() -> SettingsDto`, `save_settings({ settings }) -> SettingsDto`, `pick_export_folder() -> string | null`, `open_data_folder() -> null`, `hide_main_window() -> null`, `open_link({ target: "releases" | "docs" }) -> null` (F8a añadió `githubDevice | githubInstall | githubRevoke | githubAdminGuide`; ver [F8a](F8a-github-conexion.md)).
 - `SettingsDto { settings, shortcutFailures: ShortcutFailureDto[], appVersion, dataDir }`; `ShortcutFailureDto { action: "toggle"|"capture"|"paste"|"newCase", accelerator }`.
 - Evento `shortcut:new-case`: sin payload, hacia la ventana `main`; lo emite el atajo «Nuevo caso».
 

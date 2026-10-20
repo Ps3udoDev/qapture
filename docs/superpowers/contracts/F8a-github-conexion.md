@@ -30,9 +30,21 @@ El tester conecta su cuenta de GitHub desde Ajustes con Device Flow (sin backend
 - **El token nunca sale de Rust:** no va en ningún DTO, evento, `AppError.detail`, log, tabla, respaldo ni paquete.
 - **Llavero:** servicio `com.teams4soft.qapture`, cuenta `github`.
 - **CSP sin cambios:** el avatar llega como `data:` URL.
+- **Revisión final (fixes):**
+  - El cliente HTTP nunca entra en pánico al construirse: si falla, cada solicitud devuelve un error.
+  - El header `Authorization` va marcado como sensible.
+  - El sondeo reintenta tras un fallo pasajero (sin red o 5xx) hasta que vence el código.
+  - Un `error` desconocido del Device Flow se muestra como «GitHub rechazó la autorización (código: <error>).».
+  - Cancelar mientras se guarda un **reconectar** restaura la cuenta y el token anteriores.
+  - `gh_disconnect` borra la cuenta aunque el llavero falle y después devuelve ese error.
+- **Front:**
+  - Al llegar la cuenta regresiva a 0, el front cancela y muestra el aviso «El código venció. Vuelve a pulsar «Conectar con GitHub».» (Rust ya no emite nada porque el flujo se canceló).
+  - La pestaña del proyecto no deja editar ni guardar hasta cargar la config guardada; si no carga, lo avisa.
+  - «¿No ves tu repo?» copia el enlace de instalación y abre la guía para el admin (`open_link` con `githubAdminGuide`).
 
 ## Interfaces producidas
 - Repositorio Rust `repo::integrations` (Task 1): `GhAccountRow`, `get_account`/`save_account`/`delete_account`, `RepoRef` (`full_name`, `parse`), `LinkedRepo`, `ProjectGithub`, `get_project_github`/`save_project_github`.
+- `open_link({ target })` acepta además `githubDevice | githubInstall | githubRevoke | githubAdminGuide`.
 - Comandos (Task 5): `gh_connect_start() -> DeviceCodeDto`, `gh_connect_cancel()`, `gh_account() -> GhAccountDto | null`, `gh_disconnect()`, `gh_list_repos() -> GhRepoDto[]`, `gh_project_github_get({ projectId }) -> ProjectGithubDto`, `gh_project_github_set({ projectId, config }) -> ProjectGithubDto`.
 - Eventos hacia `main`: `gh:connected` (con `GhAccountDto`) y `gh:connect-failed` (con `{ message }`).
 - Errores nuevos `AppError::GitHub { kind, message }` con códigos `gh_auth`, `gh_forbidden`, `gh_not_found`, `gh_rate_limited`, `gh_offline`, `gh_keyring`, `gh_validation` y `gh_conflict`.

@@ -70,7 +70,7 @@ Reglas: `ui → application → domain`; `infrastructure` implementa `ports`; `d
 | `transfer/` | Importar Bitácora v1 y exportar/importar paquetes `.qapture` |
 | `backup.rs` | Respaldos diarios, manuales y de seguridad |
 | `system/` | Bandeja, atajos globales, modo portable, updater, respaldo diario, pegado del portapapeles |
-| `integrations/github/` | Conexión con GitHub ([ADR 0005](adr/0005-integracion-github.md)): `config`, `client` (reqwest + rustls, errores a `AppError::GitHub`), `token_store` (llavero), `auth` (Device Flow), `repos`, `project_config`. Comandos `gh_*` en `commands/integrations.rs` |
+| `integrations/github/` | Conexión con GitHub ([ADR 0005](adr/0005-integracion-github.md)): `config`, `client` (reqwest + rustls, errores a `AppError::GitHub`), `token_store` (llavero), `auth` (Device Flow), `repos`, `project_config`. Comandos `gh_*` en `commands/github.rs` |
 | `settings.rs`, `state.rs`, `error.rs`, `dto.rs` | Ajustes, estado compartido, `AppError` tipado y DTO serializables |
 
 Los plugins de Tauri (single-instance, dialog, opener, global-shortcut, clipboard, notification, updater, autostart) se usan **solo desde Rust**; el WebView no recibe permisos de plugins que no necesite.
@@ -110,7 +110,7 @@ Todas las llamadas a `api.github.com` salen de Rust; el WebView solo invoca coma
 | `gh_list_repos` | Repos donde la App está instalada, con permisos del usuario; un 401 activa «Reconectar» |
 | `gh_project_github_get` / `gh_project_github_set` | Repos vinculados, ruteo y repo de evidencias del proyecto |
 
-Los datos están en la migración `0005_integrations.sql` (`gh_account`, `project_repo_link`, `project_gh_settings`, `case_issue_link`). El comando `open_link` acepta además los destinos `githubDevice`, `githubInstall` y `githubRevoke`.
+Los datos están en la migración `0005_integrations.sql` (`gh_account`, `project_repo_link`, `project_gh_settings`, `case_issue_link`). El comando `open_link` acepta además los destinos `githubDevice`, `githubInstall`, `githubRevoke` y `githubAdminGuide` (la guía para el admin, `docs/usuario/github-admin.md` en GitHub), siempre con URL fijas en Rust.
 
 ## Dónde viven los datos
 
