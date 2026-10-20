@@ -54,6 +54,8 @@ export function ReportIssueDialog({ caseRecord, onClose, onOpenAccountSettings, 
   const [preview, setPreview] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Selección (ids) y cuerpo de la última vez que se armó la descripción. */
+  const [composed, setComposed] = useState<{ key: string; body: string } | null>(null);
   const sending = useRef(false);
 
   const existing = useMemo(() => (repo ? links?.find((l) => l.caseId === caseRecord.id && sameRepo(l.fullName, repo)) : undefined), [links, caseRecord.id, repo]);
@@ -103,6 +105,25 @@ export function ReportIssueDialog({ caseRecord, onClose, onOpenAccountSettings, 
     },
     [existing, caseRecord, project, tester, role, appVersion],
   );
+  const keyOf = (picked: Evidence[]) => picked.map((e) => e.id).join("|");
+  /** Arma el cuerpo para `picked` y recuerda con qué selección se armó. */
+  const applyBody = (picked: Evidence[]) => {
+    const built = compose(picked);
+    setBody(built.body);
+    setComposed({ key: keyOf(picked), body: built.body });
+    return built;
+  };
+  const stale = composed !== null && composed.key !== keyOf(chosen);
+
+  // Sin regeneración automática si el tester editó el cuerpo (avisa `stale`); si no lo tocó
+  // desde el último armado, se rearma para que las leyendas coincidan con las capturas.
+  const toggle = (id: string, on: boolean) => {
+    const next = new Set(selected);
+    if (on) next.add(id);
+    else next.delete(id);
+    setSelected(next);
+    if (composed && body === composed.body) applyBody(evidence.filter((e) => next.has(e.id)));
+  };
 
   // Al cambiar de repo (o de modo crear/comentar) se recargan los metadatos y se rearma el texto.
   const mode = existing ? `${existing.fullName}#${existing.issueNumber}` : "new";
@@ -113,9 +134,7 @@ export function ReportIssueDialog({ caseRecord, onClose, onOpenAccountSettings, 
     void loadRepoMeta(repo).then((m) => {
       if (active) setMeta(m);
     });
-    const built = compose(chosen);
-    setBody(built.body);
-    setTitle(built.title);
+    setTitle(applyBody(chosen).title);
     // Milestones y asignados son de cada repo: no se arrastran al cambiar.
     setMilestone(null);
     setAssignees([]);
@@ -125,7 +144,7 @@ export function ReportIssueDialog({ caseRecord, onClose, onOpenAccountSettings, 
     return () => {
       active = false;
     };
-    // El cambio de selección no regenera el texto (se hace con «Regenerar descripción»).
+    // El cambio de selección se maneja en `toggle`, no aquí.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, repo, mode]);
 
@@ -243,16 +262,10 @@ export function ReportIssueDialog({ caseRecord, onClose, onOpenAccountSettings, 
           evidence={evidence}
           selected={selected}
           sizes={sizes}
+          stale={stale}
           urlFor={(e) => imageUrl(e.renderedPath, e.updatedAt)}
-          onToggle={(id, on) =>
-            setSelected((s) => {
-              const next = new Set(s);
-              if (on) next.add(id);
-              else next.delete(id);
-              return next;
-            })
-          }
-          onRegenerate={() => setBody(compose(chosen).body)}
+          onToggle={toggle}
+          onRegenerate={() => applyBody(chosen)}
         />
         <p className="text-sm text-t4s-gray">
           {existing ? `Se comentará en ${existing.fullName}#${existing.issueNumber} como @${login}.` : `Se creará en ${repo} como @${login}.`}

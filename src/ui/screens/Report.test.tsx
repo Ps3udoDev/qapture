@@ -202,6 +202,52 @@ describe("reportar en GitHub", () => {
     await user.click(screen.getByRole("button", { name: "Reportar en GitHub" }));
     const again = await screen.findByRole("dialog", { name: "Reportar en GitHub" });
     expect(await within(again).findByText("La captura 2 pesa más de 10 MB; GitHub podría rechazarla.")).toBeInTheDocument();
+    expect(within(again).getByRole("checkbox", { name: "Captura 2 · Segunda" })).toBeChecked();
+    // Sin la primera, la grande pasa a ser la 1 en el aviso y en su miniatura ({{img:1}}).
+    await user.click(within(again).getByRole("checkbox", { name: "Captura 1 · Primera" }));
+    expect(await within(again).findByText("La captura 1 pesa más de 10 MB; GitHub podría rechazarla.")).toBeInTheDocument();
+    expect(within(again).getByRole("checkbox", { name: "Captura 1 · Segunda" })).toBeChecked();
+    expect(within(again).getByRole("checkbox", { name: "Primera · no se incluye" })).not.toBeChecked();
+  });
+
+  const STALE = "Cambiaste las capturas: regenera la descripción para que coincidan.";
+
+  it("si la descripción no se editó, cambiar las capturas la rearma sola", async () => {
+    const { user } = await openReport();
+    const dialog = await screen.findByRole("dialog", { name: "Reportar en GitHub" });
+    await waitFor(() => expect(within(dialog).getByLabelText("Repositorio")).toHaveValue(TESTING));
+    const body = () => (within(dialog).getByLabelText("Descripción") as HTMLTextAreaElement).value;
+    await waitFor(() => expect(body()).toContain("{{img:2}}"));
+    await user.click(within(dialog).getByRole("checkbox", { name: "Captura 1 · Primera" }));
+    expect(body()).not.toContain("{{img:2}}");
+    expect(body()).toContain("**1.** Segunda\n{{img:1}}");
+    expect(within(dialog).queryByText(STALE)).not.toBeInTheDocument();
+  });
+
+  it("si la descripción se editó, avisa que las capturas cambiaron hasta regenerarla", async () => {
+    const { user, repos } = await openReport();
+    const create = vi.spyOn(repos.github, "createIssue");
+    const dialog = await screen.findByRole("dialog", { name: "Reportar en GitHub" });
+    await waitFor(() => expect(within(dialog).getByLabelText("Repositorio")).toHaveValue(TESTING));
+    const body = () => (within(dialog).getByLabelText("Descripción") as HTMLTextAreaElement).value;
+    await waitFor(() => expect(body()).toContain("{{img:2}}"));
+    await user.type(within(dialog).getByLabelText("Descripción"), " Nota del tester");
+    await user.click(within(dialog).getByRole("checkbox", { name: "Captura 1 · Primera" }));
+    expect(within(dialog).getByText(STALE)).toBeInTheDocument();
+    expect(body()).toContain("Nota del tester");
+    expect(body()).toContain("{{img:2}}");
+    // Volver a la selección original quita el aviso.
+    await user.click(within(dialog).getByRole("checkbox", { name: "Primera · no se incluye" }));
+    expect(within(dialog).queryByText(STALE)).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("checkbox", { name: "Captura 1 · Primera" }));
+    expect(within(dialog).getByText(STALE)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Regenerar descripción" }));
+    expect(within(dialog).queryByText(STALE)).not.toBeInTheDocument();
+    expect(body()).not.toContain("{{img:2}}");
+    expect(body()).not.toContain("Nota del tester");
+    await user.click(within(dialog).getByRole("button", { name: "Crear issue" }));
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+    expect(create.mock.calls[0][0].body).toContain("**1.** Segunda\n{{img:1}}");
   });
 
   it("la lista marca los casos con issues", async () => {

@@ -64,40 +64,57 @@ export function IssueMetaFields({ meta, labels, assignees, milestone, onLabels, 
   );
 }
 
-/** Capturas elegibles con miniatura; el aviso de 10 MB usa la posición dentro de las elegidas. */
-export function EvidencePicker({ evidence, selected, sizes, urlFor, onToggle, onRegenerate }: {
+/** Aviso inline cuando la selección ya no coincide con la última descripción armada. */
+const STALE_NOTICE = "Cambiaste las capturas: regenera la descripción para que coincidan.";
+
+/**
+ * Capturas elegibles con miniatura. Cada elegida lleva el número `n` de su `{{img:n}}` (posición
+ * dentro de las elegidas), el mismo que usa el aviso de 10 MB.
+ */
+export function EvidencePicker({ evidence, selected, sizes, stale, urlFor, onToggle, onRegenerate }: {
   evidence: Evidence[];
   selected: Set<string>;
   sizes: Record<string, number>;
+  /** La selección cambió desde la última vez que se armó la descripción. */
+  stale: boolean;
   urlFor: (e: Evidence) => string;
   onToggle: (id: string, on: boolean) => void;
   onRegenerate: () => void;
 }) {
   const chosen = evidence.filter((e) => selected.has(e.id));
+  const numberOf = new Map(chosen.map((e, i) => [e.id, i + 1]));
   const heavy = chosen.map((e, i) => ((sizes[e.id] ?? 0) > TEN_MB ? i + 1 : null)).filter((n): n is number => n !== null);
   return (
     <fieldset>
-      <div className="mb-1 flex items-center justify-between">
+      <div className="mb-1 flex items-center justify-between gap-2">
         <legend className="text-sm font-medium">Capturas</legend>
-        <button type="button" className={btn.ghost} onClick={onRegenerate}>
-          <RefreshCw size={14} /> Regenerar descripción
-        </button>
+        <span className="flex items-center gap-2">
+          {stale && <span className="text-xs text-amber-700">{STALE_NOTICE}</span>}
+          <button type="button" className={btn.ghost} onClick={onRegenerate}>
+            <RefreshCw size={14} /> Regenerar descripción
+          </button>
+        </span>
       </div>
       {evidence.length === 0 ? (
         <p className="text-sm text-t4s-gray">El caso no tiene capturas.</p>
       ) : (
         <ul className="grid grid-cols-3 gap-2">
-          {evidence.map((e, index) => (
-            <li key={e.id}>
-              <label className="flex cursor-pointer flex-col gap-1 rounded-md border border-t4s-line p-1.5 text-xs">
-                <img src={urlFor(e)} alt="" className="h-20 w-full rounded object-cover" />
-                <span className="flex items-center gap-1.5">
-                  <input type="checkbox" aria-label={`Captura ${index + 1}`} checked={selected.has(e.id)} onChange={(ev) => onToggle(e.id, ev.target.checked)} />
-                  <span className="truncate">{e.description || `Captura ${index + 1}`}</span>
-                </span>
-              </label>
-            </li>
-          ))}
+          {evidence.map((e) => {
+            const n = numberOf.get(e.id);
+            const label = n ? (e.description ? `Captura ${n} · ${e.description}` : `Captura ${n}`) : `${e.description || "Sin descripción"} · no se incluye`;
+            return (
+              <li key={e.id}>
+                <label className="flex cursor-pointer flex-col gap-1 rounded-md border border-t4s-line p-1.5 text-xs">
+                  <img src={urlFor(e)} alt="" className="h-20 w-full rounded object-cover" />
+                  <span className="flex items-center gap-1.5">
+                    <input type="checkbox" aria-label={label} checked={n !== undefined} onChange={(ev) => onToggle(e.id, ev.target.checked)} />
+                    {n && <span className="shrink-0 font-medium">Captura {n}</span>}
+                    {e.description && <span className="truncate text-t4s-gray">{e.description}</span>}
+                  </span>
+                </label>
+              </li>
+            );
+          })}
         </ul>
       )}
       {heavy.map((n) => (
