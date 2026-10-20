@@ -5,6 +5,7 @@ import type { FieldInput, NewProjectInput, Project, ProjectMeta, ProjectSummary,
 import type { ScreenCapture } from "./capture";
 import type { DataTransfer } from "./data";
 import type { DocVersionRepository, Exporter } from "./export";
+import type { IssueTracker } from "./issue-tracker";
 import type { SettingsStore } from "./settings";
 import type { Updater } from "./updater";
 
@@ -56,4 +57,5 @@ export interface Repositories {
   data: DataTransfer;
   settings: SettingsStore;
   updater: Updater;
+  github: IssueTracker;
 }

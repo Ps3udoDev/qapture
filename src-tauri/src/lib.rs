@@ -6,6 +6,7 @@ mod domain;
 mod dto;
 mod error;
 mod excel;
+mod integrations;
 mod media;
 mod repo;
 mod settings;
@@ -81,6 +82,12 @@ pub fn run() {
                 }
             }
             let files = media::storage::EvidenceFiles::new(&data_dir);
+            let github = || {
+                state::GithubState::new(
+                    integrations::github::client::GhClient::production(),
+                    Box::new(integrations::github::token_store::KeyringStore::new()),
+                )
+            };
             let state = match db::recovery::open_or_recover(&data_dir.join(db::DB_FILE))? {
                 db::recovery::Startup::Ready(conn) => {
                     // Restos de sesiones anteriores: capturas sin guardar y archivos sin fila en la db.
@@ -90,7 +97,7 @@ pub fn run() {
                     if let Err(error) = repo::evidence::sweep_orphans(&conn, &files) {
                         eprintln!("No se pudieron limpiar evidencias huérfanas: {error}");
                     }
-                    state::AppState::new(conn, files, &data_dir, None, portable)
+                    state::AppState::new(conn, files, &data_dir, None, portable, github())
                 }
                 db::recovery::Startup::Recovery(detail) => {
                     // Nada de limpiezas ni respaldos: la base vacía en memoria no refleja los datos reales.
@@ -101,6 +108,7 @@ pub fn run() {
                         &data_dir,
                         Some(detail),
                         portable,
+                        github(),
                     )
                 }
             };
@@ -218,6 +226,13 @@ pub fn run() {
             commands::settings::open_link,
             commands::updater::check_update,
             commands::updater::install_update,
+            commands::github::gh_connect_start,
+            commands::github::gh_connect_cancel,
+            commands::github::gh_account,
+            commands::github::gh_disconnect,
+            commands::github::gh_list_repos,
+            commands::github::gh_project_github_get,
+            commands::github::gh_project_github_set,
         ])
         .run(tauri::generate_context!())
         .expect("no se pudo iniciar Qapture");

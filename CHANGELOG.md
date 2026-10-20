@@ -1,5 +1,12 @@
 # Cambios
 
+## Sin publicar
+
+### Nuevo
+- Conectar tu cuenta de GitHub desde Ajustes › GitHub, sin contraseñas ni tokens manuales: código en pantalla, autorización en el navegador y sesión guardada en el llavero del sistema
+- Vincular repos de GitHub a cada proyecto en Configurar proyecto › GitHub: repo predeterminado, etiquetas, ruteo por columna y repo de evidencias
+- Guías para conectar con GitHub y para que el administrador de una organización instale la App
+
 ## 1.0.2 — 2026-10-19
 
 ### Nuevo

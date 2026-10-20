@@ -56,6 +56,13 @@ pub const APP_COMMANDS: &[&str] = &[
     "open_link",
     "check_update",
     "install_update",
+    "gh_connect_start",
+    "gh_connect_cancel",
+    "gh_account",
+    "gh_disconnect",
+    "gh_list_repos",
+    "gh_project_github_get",
+    "gh_project_github_set",
 ];
 
 /// Lo único que puede invocar una ventana overlay (spec §9). El resto es de la principal.

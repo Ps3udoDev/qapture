@@ -28,7 +28,7 @@ export interface SettingsSnapshot {
   portable: boolean;
 }
 
-export type LinkTarget = "releases" | "docs";
+export type LinkTarget = "releases" | "docs" | "githubDevice" | "githubInstall" | "githubRevoke" | "githubAdminGuide";
 
 export const DEFAULT_SETTINGS: Settings = {
   profile: { tester: "", role: "", email: "" },

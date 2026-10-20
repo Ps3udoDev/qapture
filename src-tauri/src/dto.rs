@@ -325,6 +325,74 @@ pub struct UpdateProgressDto {
     pub total: Option<u64>,
 }
 
+/// Cuenta de GitHub conectada (payload de `gh:connected` y resultado de `gh_account`).
+/// El token nunca viaja al front.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GhAccountDto {
+    pub login: String,
+    pub name: Option<String>,
+    pub avatar_data_url: Option<String>,
+    pub connected_at: String,
+    pub needs_reconnect: bool,
+}
+
+/// Código del Device Flow para mostrar. Sin `device_code`: ese solo lo usa el sondeo en Rust.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceCodeDto {
+    pub user_code: String,
+    pub verification_uri: String,
+    pub expires_in: u64,
+    pub interval: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GhRepoDto {
+    pub owner: String,
+    pub name: String,
+    pub full_name: String,
+    pub private: bool,
+    pub can_write_issues: bool,
+    pub can_write_contents: bool,
+}
+
+/// Repo vinculado a un proyecto. Se usa tanto de salida como dentro de `ProjectGithubInput`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct LinkedRepoDto {
+    pub full_name: String,
+    pub is_default: bool,
+    pub default_labels: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectGithubDto {
+    pub repos: Vec<LinkedRepoDto>,
+    pub routing_field_id: Option<String>,
+    pub routing_map: BTreeMap<String, String>,
+    pub evidence_repo: Option<String>,
+    /// La columna de ruteo se archivó, cambió de tipo o perdió alguna opción del mapa.
+    pub routing_stale: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectGithubInput {
+    pub repos: Vec<LinkedRepoDto>,
+    pub routing_field_id: Option<String>,
+    pub routing_map: BTreeMap<String, String>,
+    pub evidence_repo: Option<String>,
+}
+
+/// Payload de `gh:connect-failed`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct GhConnectFailedDto {
+    pub message: String,
+}
+
 #[cfg(test)]
 mod contract {
     use std::{collections::BTreeMap, path::PathBuf};
@@ -372,7 +440,22 @@ mod contract {
                                  "reviewer": "Luis Gómez", "approver": "", "changes": "Versión inicial" },
             "saveSettings": serde_json::to_value(Settings::default()).unwrap_or_default(),
             "exportOptions": { "tester": "Ana Pérez", "docVersionId": "ver-1", "includeEvidence": true,
-                               "includeSummary": true, "imageMaxWidth": 940 }
+                               "includeSummary": true, "imageMaxWidth": 940 },
+            "projectGithubInput": project_github_input_json()
+        })
+    }
+
+    /// F8a: el spec §5.2 los llama `gh_project_repos_get/set`; aquí son `gh_project_github_*`
+    /// porque guardan repos, ruteo y repo de evidencias.
+    fn project_github_input_json() -> Value {
+        json!({
+            "repos": [
+                { "fullName": "TEAMS4SOFT/GMX-frontend", "isDefault": true, "defaultLabels": ["bug", "qapture"] },
+                { "fullName": "TEAMS4SOFT/GMX-backend", "isDefault": false, "defaultLabels": [] }
+            ],
+            "routingFieldId": "fld-1",
+            "routingMap": { "QA": "TEAMS4SOFT/GMX-frontend" },
+            "evidenceRepo": "TEAMS4SOFT/qa-evidencias"
         })
     }
 
@@ -439,10 +522,55 @@ mod contract {
         })
     }
 
+    /// F8a: cuenta, Device Flow, repos y configuración GitHub del proyecto.
+    fn github_samples() -> Value {
+        let linked = LinkedRepoDto {
+            full_name: "TEAMS4SOFT/GMX-frontend".into(),
+            is_default: true,
+            default_labels: vec!["bug".into(), "qapture".into()],
+        };
+        json!({
+            "ghAccount": GhAccountDto {
+                login: "Ps3udoDev".into(),
+                name: Some("Pseudo Dev".into()),
+                avatar_data_url: Some("data:image/png;base64,UE5HREFUQQ==".into()),
+                connected_at: "2026-10-19T12:00:00+00:00".into(),
+                needs_reconnect: false,
+            },
+            "deviceCode": DeviceCodeDto {
+                user_code: "ABCD-1234".into(),
+                verification_uri: "https://github.com/login/device".into(),
+                expires_in: 900,
+                interval: 5,
+            },
+            "ghRepo": GhRepoDto {
+                owner: "TEAMS4SOFT".into(),
+                name: "GMX-frontend".into(),
+                full_name: "TEAMS4SOFT/GMX-frontend".into(),
+                private: true,
+                can_write_issues: true,
+                can_write_contents: false,
+            },
+            "linkedRepo": linked.clone(),
+            "projectGithub": ProjectGithubDto {
+                repos: vec![linked],
+                routing_field_id: Some("fld-1".into()),
+                routing_map: BTreeMap::from([("QA".to_string(), "TEAMS4SOFT/GMX-frontend".to_string())]),
+                evidence_repo: Some("TEAMS4SOFT/qa-evidencias".into()),
+                routing_stale: false,
+            },
+            "ghConnectFailed": GhConnectFailedDto { message: "Se canceló la autorización en GitHub.".into() },
+            "ghAuthError": crate::error::gh(
+                crate::error::GhErrorKind::Auth,
+                "Tu cuenta de GitHub no está conectada o la sesión venció. Conéctala en Ajustes › GitHub.",
+            ),
+        })
+    }
+
     fn sample() -> Value {
         let mut sample = base_sample();
         if let Some(target) = sample.as_object_mut() {
-            for extra in [export_samples(), data_samples()] {
+            for extra in [export_samples(), data_samples(), github_samples()] {
                 if let Value::Object(extra) = extra {
                     target.extend(extra);
                 }
@@ -496,6 +624,7 @@ mod contract {
         serde_json::from_value::<DocVersionInput>(i["docVersionInput"].clone()).unwrap();
         serde_json::from_value::<ExportOptionsInput>(i["exportOptions"].clone()).unwrap();
         serde_json::from_value::<Settings>(i["saveSettings"].clone()).unwrap();
+        serde_json::from_value::<ProjectGithubInput>(i["projectGithubInput"].clone()).unwrap();
     }
 
     #[test]
@@ -503,6 +632,12 @@ mod contract {
         let mut case = inputs_json()["caseInput"].clone();
         case["extra"] = json!(1);
         assert!(serde_json::from_value::<CaseInput>(case).is_err());
+        let mut github = inputs_json()["projectGithubInput"].clone();
+        github["routingStale"] = json!(false);
+        assert!(serde_json::from_value::<ProjectGithubInput>(github).is_err());
+        let mut linked = inputs_json()["projectGithubInput"].clone();
+        linked["repos"][0]["extra"] = json!(1);
+        assert!(serde_json::from_value::<ProjectGithubInput>(linked).is_err());
     }
 
     /// Regenerar: `UPDATE_CONTRACTS=1 cargo test contract`

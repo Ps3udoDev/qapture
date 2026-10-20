@@ -62,7 +62,8 @@ export const caseSchema = z.strictObject({
 });
 
 export const appErrorSchema = z.strictObject({
-  code: z.enum(["validation", "not_found", "db", "io", "capture", "file_locked", "export", "corrupt", "internal"]),
+  code: z.enum(["validation", "not_found", "db", "io", "capture", "file_locked", "export", "corrupt", "internal",
+    "gh_auth", "gh_forbidden", "gh_not_found", "gh_rate_limited", "gh_offline", "gh_keyring", "gh_validation", "gh_conflict"]),
   message: z.string(),
   detail: z.string(),
 });
@@ -177,3 +178,46 @@ export const updateProgressSchema = z.strictObject({
   downloaded: z.number().int().nonnegative(),
   total: z.number().int().nonnegative().nullable(),
 });
+
+export const ghAccountSchema = z.strictObject({
+  login: z.string(),
+  name: z.string().nullable(),
+  avatarDataUrl: z.string().nullable(),
+  connectedAt: z.string(),
+  needsReconnect: z.boolean(),
+});
+
+export const deviceCodeSchema = z.strictObject({
+  userCode: z.string(),
+  verificationUri: z.string(),
+  expiresIn: z.number().int().nonnegative(),
+  interval: z.number().int().nonnegative(),
+});
+
+export const ghRepoSchema = z.strictObject({
+  owner: z.string(),
+  name: z.string(),
+  fullName: z.string(),
+  private: z.boolean(),
+  canWriteIssues: z.boolean(),
+  canWriteContents: z.boolean(),
+});
+
+export const linkedRepoSchema = z.strictObject({
+  fullName: z.string(),
+  isDefault: z.boolean(),
+  defaultLabels: z.array(z.string()),
+});
+
+export const projectGithubSchema = z.strictObject({
+  repos: z.array(linkedRepoSchema),
+  routingFieldId: z.string().nullable(),
+  routingMap: z.record(z.string(), z.string()),
+  evidenceRepo: z.string().nullable(),
+  routingStale: z.boolean(),
+});
+
+/** Lo que acepta `gh_project_github_set`: igual que `projectGithubSchema` sin `routingStale`. */
+export const projectGithubInputSchema = projectGithubSchema.omit({ routingStale: true });
+
+export const ghConnectFailedSchema = z.strictObject({ message: z.string() });

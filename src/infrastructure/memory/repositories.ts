@@ -9,6 +9,7 @@ import { createMemoryData, type MemoryData } from "./data";
 import { createMemoryEvidence, type MemoryEvidence } from "./evidence";
 import { createMemoryDocVersions, createMemoryExporter, type MemoryDocVersions, type MemoryExporter } from "./export";
 import { builtinTemplates } from "./fixtures";
+import { createMemoryGithub, type MemoryGithub } from "./github";
 import { createMemorySettings, type MemorySettings } from "./settings";
 import { createMemoryUpdater, type MemoryUpdater } from "./updater";
 
@@ -20,6 +21,7 @@ export interface MemoryRepositories extends Repositories {
   data: MemoryData;
   settings: MemorySettings;
   updater: MemoryUpdater;
+  github: MemoryGithub;
 }
 
 /** Implementación en memoria para tests de la aplicación y de la UI. Replica las reglas principales de Rust. */
@@ -250,6 +252,7 @@ export function createMemoryRepositories(): MemoryRepositories {
     }),
     settings: createMemorySettings(),
     updater: createMemoryUpdater(),
+    github: createMemoryGithub((projectId) => projects.get(projectId)?.fields ?? []),
   };
   return repos;
 }

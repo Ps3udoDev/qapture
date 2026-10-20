@@ -8,6 +8,7 @@ use tauri_plugin_opener::OpenerExt;
 use crate::{
     dto::{SettingsDto, ShortcutFailureDto},
     error::{AppError, AppResult, validation},
+    integrations::github,
     repo,
     settings::{self, Settings},
     state::AppState,
@@ -16,13 +17,20 @@ use crate::{
 
 const RELEASES_URL: &str = "https://github.com/Ps3udoDev/qapture/releases";
 const DOCS_URL: &str = "https://github.com/Ps3udoDev/qapture#readme";
+const GITHUB_DEVICE_URL: &str = "https://github.com/login/device";
+const GITHUB_ADMIN_GUIDE_URL: &str =
+    "https://github.com/Ps3udoDev/qapture/blob/main/docs/usuario/github-admin.md";
 const IMAGE_WIDTH: std::ops::RangeInclusive<u32> = 400..=1600;
 
 #[derive(Debug, Clone, Copy, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub enum LinkTarget {
     Releases,
     Docs,
+    GithubDevice,
+    GithubInstall,
+    GithubRevoke,
+    GithubAdminGuide,
 }
 
 impl LinkTarget {
@@ -30,6 +38,10 @@ impl LinkTarget {
         match self {
             Self::Releases => RELEASES_URL,
             Self::Docs => DOCS_URL,
+            Self::GithubDevice => GITHUB_DEVICE_URL,
+            Self::GithubInstall => github::config::INSTALL_URL,
+            Self::GithubRevoke => github::config::REVOKE_URL,
+            Self::GithubAdminGuide => GITHUB_ADMIN_GUIDE_URL,
         }
     }
 }
@@ -218,7 +230,14 @@ mod tests {
     fn state_with(recovery: Option<String>) -> (TempDir, AppState, FakeRegistrar) {
         let tmp = TempDir::new();
         let conn = db::open(&tmp.path().join(db::DB_FILE)).unwrap();
-        let state = AppState::new(conn, tmp.files(), tmp.path(), recovery, false);
+        let state = AppState::new(
+            conn,
+            tmp.files(),
+            tmp.path(),
+            recovery,
+            false,
+            crate::state::GithubState::for_tests("http://127.0.0.1:9", "http://127.0.0.1:9"),
+        );
         let fake = FakeRegistrar::default();
         let mut boot = fake.clone();
         shortcuts::register_all(&mut boot, &state.settings().shortcuts);
@@ -305,7 +324,14 @@ mod tests {
 
         let tmp = TempDir::new();
         let conn = db::open(&tmp.path().join(db::DB_FILE)).unwrap();
-        let portable = AppState::new(conn, tmp.files(), tmp.path(), None, true);
+        let portable = AppState::new(
+            conn,
+            tmp.files(),
+            tmp.path(),
+            None,
+            true,
+            crate::state::GithubState::for_tests("http://127.0.0.1:9", "http://127.0.0.1:9"),
+        );
         portable.install_registrar(Box::new(FakeRegistrar::default()));
         let dto = save(&portable, with(|s| s.system.autostart = true), "0.5.0").unwrap();
         assert!(dto.portable);
@@ -326,7 +352,14 @@ mod tests {
         let tmp = TempDir::new();
         let conn = db::open(&tmp.path().join(db::DB_FILE)).unwrap();
         repo::settings::save(&conn, &with(|s| s.system.autostart = true)).unwrap();
-        let portable = AppState::new(conn, tmp.files(), tmp.path(), None, true);
+        let portable = AppState::new(
+            conn,
+            tmp.files(),
+            tmp.path(),
+            None,
+            true,
+            crate::state::GithubState::for_tests("http://127.0.0.1:9", "http://127.0.0.1:9"),
+        );
         let stored = repo::settings::load(&portable.db()).unwrap();
         assert!(stored.system.autostart, "la base copiada lo tiene activo");
         assert!(!dto(&portable, stored, "0.5.0").settings.system.autostart);
@@ -455,10 +488,34 @@ mod tests {
     }
 
     #[test]
+    fn github_links_open_fixed_urls() {
+        for (raw, url) in [
+            ("githubDevice", "https://github.com/login/device"),
+            (
+                "githubInstall",
+                "https://github.com/apps/qapture-qa/installations/new",
+            ),
+            (
+                "githubRevoke",
+                "https://github.com/settings/apps/authorizations",
+            ),
+            (
+                "githubAdminGuide",
+                "https://github.com/Ps3udoDev/qapture/blob/main/docs/usuario/github-admin.md",
+            ),
+        ] {
+            let target: LinkTarget = serde_json::from_value(serde_json::json!(raw)).unwrap();
+            assert_eq!(target.url(), url, "{raw}");
+        }
+    }
+
+    #[test]
     fn link_target_and_action_wire_names() {
         for (raw, ok) in [
             ("releases", true),
             ("docs", true),
+            ("githubDevice", true),
+            ("githubdevice", false),
             ("other", false),
             ("Docs", false),
         ] {

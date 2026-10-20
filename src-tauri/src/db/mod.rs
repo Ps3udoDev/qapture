@@ -29,6 +29,7 @@ pub(crate) const MIGRATIONS: &[&str] = &[
     include_str!("migrations/0002_evidence.sql"),
     include_str!("migrations/0003_doc_version.sql"),
     include_str!("migrations/0004_setting.sql"),
+    include_str!("migrations/0005_integrations.sql"),
 ];
 
 pub fn open(path: &Path) -> AppResult<Connection> {

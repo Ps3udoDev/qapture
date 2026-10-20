@@ -7,6 +7,7 @@ Si es tu primera vez, lee las guías en este orden:
 1. [Instalación](instalacion.md): qué descargar, el aviso de Windows (SmartScreen) y cómo se actualiza.
 2. [Uso](uso.md): el recorrido completo, desde crear un proyecto hasta entregar el Excel.
 3. [Atajos de teclado](atajos.md): los cuatro atajos y cómo cambiarlos.
-4. [Preguntas frecuentes](faq.md): atajo ocupado, la app «desaparece», respaldos y cambio de equipo.
+4. [Preguntas frecuentes](faq.md): atajo ocupado, la app «desaparece», respaldos, cambio de equipo y GitHub.
+5. [Conectar con GitHub](github.md): conectar tu cuenta y vincular repos a un proyecto. Si administras una organización, lee la [guía para administradores](github-admin.md).
 
-Qapture funciona sin conexión. La única vez que usa internet es para buscar actualizaciones.
+Qapture funciona sin conexión. Solo usa internet para buscar actualizaciones y, si la conectas, para hablar con GitHub.

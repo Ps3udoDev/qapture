@@ -8,9 +8,10 @@ import { FormField } from "../components/FormField";
 import { btn, inputCls } from "../components/styles";
 import { useWorkspace } from "../store/context";
 import { BackupsDialog } from "./BackupsDialog";
+import { GithubAccountPanel } from "./GithubAccountPanel";
 import { ShortcutRecorder } from "./ShortcutRecorder";
 
-const TABS = ["Perfil", "Atajos", "Sistema", "Exportación", "Datos", "Acerca de"] as const;
+const TABS = ["Perfil", "Atajos", "Sistema", "Exportación", "Datos", "GitHub", "Acerca de"] as const;
 type Tab = (typeof TABS)[number];
 
 const tabOf = (key: string): Tab => {
@@ -29,7 +30,7 @@ function Check({ label, checked, onChange, disabled, note }: { label: string; ch
 }
 
 /** Ajustes de la aplicación (F6): un solo «Guardar» para todas las pestañas. */
-export function AppSettingsDialog({ onClose }: { onClose: () => void }) {
+export function AppSettingsDialog({ onClose, initialTab = "Perfil" }: { onClose: () => void; initialTab?: Tab }) {
   const snapshot = useWorkspace((s) => s.settings);
   const saveSettings = useWorkspace((s) => s.saveSettings);
   const pickExportFolder = useWorkspace((s) => s.pickExportFolder);
@@ -42,7 +43,7 @@ export function AppSettingsDialog({ onClose }: { onClose: () => void }) {
   const importLegacy = useWorkspace((s) => s.importLegacy);
   const busyData = useWorkspace((s) => s.dataBusy);
   const [draft, setDraft] = useState<Settings>(() => structuredClone(snapshot?.settings ?? DEFAULT_SETTINGS));
-  const [tab, setTab] = useState<Tab>("Perfil");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [errors, setErrors] = useState<FormErrors>({});
   const [busy, setBusy] = useState(false);
   const [backups, setBackups] = useState(false);
@@ -197,6 +198,8 @@ export function AppSettingsDialog({ onClose }: { onClose: () => void }) {
               </div>
             </>
           )}
+
+          {tab === "GitHub" && <GithubAccountPanel />}
 
           {tab === "Acerca de" && (
             <>
