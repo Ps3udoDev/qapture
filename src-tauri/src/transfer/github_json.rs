@@ -2,7 +2,7 @@
 //! Entrada opcional del ZIP: `project.json` y `FORMAT_VERSION` no cambian, y un lector que no
 //! la conoce (v1.0) la ignora. Un archivo inválido se descarta entero al importar.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
@@ -22,6 +22,9 @@ use crate::{
 pub const GITHUB_JSON: &str = "github.json";
 pub const VERSION: i64 = 1;
 /// Aviso fijo cuando el `github.json` no se pudo leer o aplicar.
+/// Aviso cuando el paquete traía un repo de evidencias (no se restaura).
+pub const EVIDENCE_REPO_WARNING: &str =
+    "El paquete traía un repo de evidencias; confírmalo en Configurar proyecto › GitHub.";
 pub const GITHUB_WARNING: &str =
     "No se pudieron leer los datos de GitHub del paquete; el proyecto se importó sin ellos.";
 
@@ -155,7 +158,8 @@ pub fn to_bytes(json: &GithubJson) -> AppResult<Vec<u8>> {
     Ok(out)
 }
 
-/// Aplica los datos al proyecto ya importado. Los vínculos se reasignan por código (los de
+/// Aplica los datos al proyecto ya importado (sin repo de evidencias; un vínculo repetido para
+/// el mismo caso y repo falla por la UNIQUE y descarta todo en `apply_imported`). Los vínculos se reasignan por código (los de
 /// códigos desconocidos se descartan) y la columna de ruteo se busca por `key`.
 /// No abre una transacción propia: `save_project_github` e `insert_link` ya usan las suyas.
 pub fn apply(
@@ -165,6 +169,12 @@ pub fn apply(
     code_to_case: &HashMap<String, String>,
     key_to_field: &HashMap<String, String>,
 ) -> AppResult<()> {
+    let routing_field_id = json
+        .routing_field_key
+        .as_ref()
+        .and_then(|k| key_to_field.get(k))
+        .cloned();
+    let has_field = routing_field_id.is_some();
     let config = ProjectGithub {
         repos: json
             .repos
@@ -177,28 +187,22 @@ pub fn apply(
                 })
             })
             .collect(),
-        routing_field_id: json
-            .routing_field_key
-            .as_ref()
-            .and_then(|k| key_to_field.get(k))
-            .cloned(),
-        routing_map: json.routing_map.clone(),
-        evidence_repo: json.evidence_repo.as_deref().and_then(RepoRef::parse),
+        routing_field_id,
+        // Un mapa sin columna de ruteo no tiene sentido: se descarta con ella.
+        routing_map: if has_field {
+            json.routing_map.clone()
+        } else {
+            BTreeMap::new()
+        },
+        // Un paquete ajeno no decide adónde suben capturas: el repo de evidencias
+        // se confirma a mano (ver el aviso en `bundle::insert`).
+        evidence_repo: None,
     };
     save_project_github(conn, project_id, &config)?;
-    let mut seen = HashSet::new();
     for l in &json.links {
         let Some(case_id) = code_to_case.get(&l.case_code) else {
             continue;
         };
-        let key = (
-            case_id.clone(),
-            l.owner.to_lowercase(),
-            l.repo.to_lowercase(),
-        );
-        if !seen.insert(key) {
-            continue;
-        }
         insert_link(
             conn,
             &CaseIssueLink {

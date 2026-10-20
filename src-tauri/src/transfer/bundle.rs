@@ -365,12 +365,17 @@ pub fn insert(
     // Los datos de GitHub se aplican con la importación ya confirmada (sus helpers abren
     // transacciones propias): si fallan, el proyecto queda sin ellos y se avisa.
     let mut github_failed = false;
+    let mut evidence_repo_dropped = false;
     for b in &bundles {
         match &b.github {
             GithubPayload::Absent => {}
             GithubPayload::Invalid => github_failed = true,
             GithubPayload::Valid(json) => {
-                github_failed |= !github_json::apply_imported(conn, &b.id, json);
+                if github_json::apply_imported(conn, &b.id, json) {
+                    evidence_repo_dropped |= json.evidence_repo.is_some();
+                } else {
+                    github_failed = true;
+                }
             }
         }
     }
@@ -378,6 +383,11 @@ pub fn insert(
         summary
             .warnings
             .push(github_json::GITHUB_WARNING.to_string());
+    }
+    if evidence_repo_dropped {
+        summary
+            .warnings
+            .push(github_json::EVIDENCE_REPO_WARNING.to_string());
     }
     Ok(summary)
 }

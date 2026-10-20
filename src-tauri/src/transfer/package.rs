@@ -1328,12 +1328,19 @@ pub(crate) mod tests {
         write(&collect(&conn, &files, &p.id).unwrap(), &path).unwrap();
 
         let summary = import(&conn, &files, &path).unwrap();
-        assert!(summary.warnings.is_empty());
+        assert_eq!(
+            summary.warnings,
+            vec![github_json::EVIDENCE_REPO_WARNING.to_string()]
+        );
         let new = projects::get(&conn, &summary.projects[0].id).unwrap();
         let config = get_project_github(&conn, &new.id).unwrap();
         let original = get_project_github(&conn, &p.id).unwrap();
         assert_eq!(config.repos, original.repos);
-        assert_eq!(config.evidence_repo, original.evidence_repo);
+        assert_eq!(original.evidence_repo, Some(repo("o/evidencias")));
+        assert_eq!(
+            config.evidence_repo, None,
+            "no se restaura desde el paquete"
+        );
         assert_eq!(config.routing_map, original.routing_map);
         assert_eq!(
             config.routing_field_id,
@@ -1367,7 +1374,11 @@ pub(crate) mod tests {
         });
 
         let summary = import(&conn, &files, &edited).unwrap();
-        assert!(summary.warnings.is_empty(), "descartar vínculos no avisa");
+        assert_eq!(
+            summary.warnings,
+            vec![github_json::EVIDENCE_REPO_WARNING.to_string()],
+            "descartar vínculos no avisa; solo el repo de evidencias"
+        );
         let links = links_for_project(&conn, &summary.projects[0].id).unwrap();
         assert_eq!(links.len(), 1);
         assert_eq!(links[0].issue_number, 45);
@@ -1411,6 +1422,67 @@ pub(crate) mod tests {
                 ProjectGithub::default()
             );
         }
+    }
+
+    #[test]
+    fn a_failure_while_applying_leaves_no_github_rows_and_warns() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let p = with_github(&conn, &files);
+        let path = tmp.path().join("gh.qapture");
+        write(&collect(&conn, &files, &p.id).unwrap(), &path).unwrap();
+        let edited = tmp.path().join("dup.qapture");
+        // Mismo caso y repo dos veces: el primero se guarda y el segundo choca con la UNIQUE.
+        with_github_json(&path, &edited, |v| {
+            let mut again = v["links"][0].clone();
+            again["issueNumber"] = json!(46);
+            v["links"].as_array_mut().unwrap().push(again);
+        });
+
+        let summary = import(&conn, &files, &edited).unwrap();
+        assert_eq!(
+            summary.warnings,
+            vec![github_json::GITHUB_WARNING.to_string()]
+        );
+        assert_eq!(summary.cases, 2, "el proyecto se importó");
+        let id = &summary.projects[0].id;
+        let count = |sql: &str| -> i64 { conn.query_row(sql, [id], |r| r.get(0)).unwrap() };
+        assert_eq!(
+            count(
+                "SELECT COUNT(*) FROM case_issue_link WHERE case_id IN
+                 (SELECT id FROM test_case WHERE project_id = ?1)"
+            ),
+            0
+        );
+        assert_eq!(
+            count("SELECT COUNT(*) FROM project_repo_link WHERE project_id = ?1"),
+            0
+        );
+        assert_eq!(
+            count("SELECT COUNT(*) FROM project_gh_settings WHERE project_id = ?1"),
+            0
+        );
+    }
+
+    #[test]
+    fn an_unmatched_routing_key_drops_the_routing_map_too() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let p = with_github(&conn, &files);
+        let path = tmp.path().join("gh.qapture");
+        write(&collect(&conn, &files, &p.id).unwrap(), &path).unwrap();
+        let edited = tmp.path().join("nokey.qapture");
+        with_github_json(&path, &edited, |v| {
+            v["routingFieldKey"] = json!("no_existe")
+        });
+
+        let summary = import(&conn, &files, &edited).unwrap();
+        let config = get_project_github(&conn, &summary.projects[0].id).unwrap();
+        assert_eq!(config.routing_field_id, None);
+        assert!(config.routing_map.is_empty());
+        assert_eq!(config.repos.len(), 2, "lo demás se conserva");
     }
 
     #[test]
