@@ -50,6 +50,7 @@ export function createDataSlice(repos: Repositories, set: Set, get: Get, h: Slic
         if (!summary) return;
         await h.reload(summary.projects[0]?.id ?? null);
         get().pushToast("success", importSummaryMessage(summary));
+        for (const warning of summary.warnings) get().pushToast("error", warning);
       } catch (error) {
         if (isValidationError(error)) set({ importIssues: parseImportIssues(error.message) });
         else h.report(error);

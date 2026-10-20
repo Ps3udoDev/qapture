@@ -9,6 +9,8 @@ export interface ImportSummary {
   projects: ImportedProject[];
   cases: number;
   evidence: number;
+  /** Avisos no bloqueantes de la importación (se muestran como avisos). */
+  warnings: string[];
 }
 
 export interface PackageExportResult {

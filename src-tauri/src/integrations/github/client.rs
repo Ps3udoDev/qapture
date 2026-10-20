@@ -3,6 +3,7 @@
 use std::time::Duration;
 
 use reqwest::header::{ACCEPT, AUTHORIZATION, HeaderMap, HeaderValue, USER_AGENT};
+use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
@@ -13,6 +14,10 @@ use crate::repo::integrations::RepoRef;
 const MAX_PAGES: usize = 50;
 const GENERIC_IO: &str = "respuesta inesperada de GitHub";
 const NO_HTTP: &str = "no se pudo preparar la conexión con GitHub";
+/// Plazo de cada solicitud, salvo los blobs.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
+/// Plazo de un `POST` de blob: un PNG de varios MB en base64 con una red lenta.
+pub const BLOB_TIMEOUT: Duration = Duration::from_secs(120);
 
 pub struct GhClient {
     api: String,
@@ -128,7 +133,7 @@ impl GhClient {
             let _ = rustls::crypto::ring::default_provider().install_default();
         }
         let http = reqwest::Client::builder()
-            .timeout(Duration::from_secs(20))
+            .timeout(REQUEST_TIMEOUT)
             .build()
             .ok();
         Self::with_http(api_base, web_base, http)
@@ -169,6 +174,11 @@ impl GhClient {
             && (base_path.is_empty() || url.path().starts_with(&format!("{base_path}/")))
     }
 
+    /// Base web (`https://github.com` en producción) para armar enlaces como los de las capturas.
+    pub fn web_base(&self) -> &str {
+        &self.web
+    }
+
     pub fn production() -> Self {
         Self::new(config::API_BASE, config::WEB_BASE)
     }
@@ -191,13 +201,22 @@ impl GhClient {
     }
 
     fn api_request(&self, token: &str, url: &str) -> AppResult<reqwest::RequestBuilder> {
+        self.api_request_with(reqwest::Method::GET, token, url)
+    }
+
+    fn api_request_with(
+        &self,
+        method: reqwest::Method,
+        token: &str,
+        url: &str,
+    ) -> AppResult<reqwest::RequestBuilder> {
         // Un token con caracteres no válidos para un header no se manda (ni se muestra).
         let mut auth =
             HeaderValue::from_str(&format!("Bearer {token}")).map_err(|_| generic(GENERIC_IO))?;
         auth.set_sensitive(true);
         Ok(self
             .http()?
-            .get(url)
+            .request(method, url)
             .header(AUTHORIZATION, auth)
             .header(ACCEPT, "application/vnd.github+json")
             .header("X-GitHub-Api-Version", config::API_VERSION)
@@ -213,6 +232,85 @@ impl GhClient {
         let url = format!("{}{}", self.api, path);
         let (_, bytes) = self.send(self.api_request(token, &url)?, repo).await?;
         serde_json::from_slice(&bytes).map_err(|_| generic(GENERIC_IO))
+    }
+
+    /// Escritura al API con el plazo del cliente (20 s).
+    fn write_request<B: Serialize>(
+        &self,
+        method: reqwest::Method,
+        token: &str,
+        path: &str,
+        body: &B,
+    ) -> AppResult<reqwest::RequestBuilder> {
+        let url = format!("{}{}", self.api, path);
+        Ok(self.api_request_with(method, token, &url)?.json(body))
+    }
+
+    /// `POST` de un blob de Git Data (un PNG en base64): lleva su propio plazo, `BLOB_TIMEOUT`.
+    fn blob_request<B: Serialize>(
+        &self,
+        token: &str,
+        path: &str,
+        body: &B,
+    ) -> AppResult<reqwest::RequestBuilder> {
+        Ok(self
+            .write_request(reqwest::Method::POST, token, path, body)?
+            .timeout(BLOB_TIMEOUT))
+    }
+
+    async fn read_json<T: DeserializeOwned>(
+        &self,
+        request: reqwest::RequestBuilder,
+        repo: Option<&RepoRef>,
+    ) -> AppResult<T> {
+        let (_, bytes) = self.send(request, repo).await?;
+        serde_json::from_slice(&bytes).map_err(|_| generic(GENERIC_IO))
+    }
+
+    async fn write_json<B: Serialize, T: DeserializeOwned>(
+        &self,
+        method: reqwest::Method,
+        token: &str,
+        path: &str,
+        body: &B,
+        repo: Option<&RepoRef>,
+    ) -> AppResult<T> {
+        let request = self.write_request(method, token, path, body)?;
+        self.read_json(request, repo).await
+    }
+
+    pub async fn post_json<B: Serialize, T: DeserializeOwned>(
+        &self,
+        token: &str,
+        path: &str,
+        body: &B,
+        repo: Option<&RepoRef>,
+    ) -> AppResult<T> {
+        self.write_json(reqwest::Method::POST, token, path, body, repo)
+            .await
+    }
+
+    /// Como `post_json`, con el plazo largo de los blobs.
+    pub async fn post_blob_json<B: Serialize, T: DeserializeOwned>(
+        &self,
+        token: &str,
+        path: &str,
+        body: &B,
+        repo: Option<&RepoRef>,
+    ) -> AppResult<T> {
+        let request = self.blob_request(token, path, body)?;
+        self.read_json(request, repo).await
+    }
+
+    pub async fn patch_json<B: Serialize, T: DeserializeOwned>(
+        &self,
+        token: &str,
+        path: &str,
+        body: &B,
+        repo: Option<&RepoRef>,
+    ) -> AppResult<T> {
+        self.write_json(reqwest::Method::PATCH, token, path, body, repo)
+            .await
     }
 
     pub async fn get_paginated<T: DeserializeOwned>(
@@ -273,6 +371,32 @@ mod tests {
 
     fn assert_no_token(err: &AppError) {
         assert!(!serde_json::to_string(err).unwrap().contains("t0k"));
+    }
+
+    /// Un PNG de varios MB con una red lenta no cabe en los 20 s del cliente: los blobs
+    /// llevan su propio plazo y el resto de las escrituras se queda con el del cliente.
+    #[test]
+    fn blob_posts_get_their_own_longer_timeout() {
+        let client = GhClient::new("https://api.example", "https://web.example");
+        let body = json!({ "content": "", "encoding": "base64" });
+        let blob = client
+            .blob_request("t0k", "/repos/o/r/git/blobs", &body)
+            .unwrap()
+            .build()
+            .unwrap();
+        assert_eq!(blob.timeout(), Some(&BLOB_TIMEOUT));
+        assert_eq!(BLOB_TIMEOUT, Duration::from_secs(120));
+        assert_eq!(blob.method(), reqwest::Method::POST);
+        assert_eq!(
+            blob.url().as_str(),
+            "https://api.example/repos/o/r/git/blobs"
+        );
+        let other = client
+            .write_request(reqwest::Method::POST, "t0k", "/repos/o/r/git/trees", &body)
+            .unwrap()
+            .build()
+            .unwrap();
+        assert_eq!(other.timeout(), None, "usa el plazo de 20 s del cliente");
     }
 
     async fn get_with(status: usize, headers: &[(&str, &str)], body: &str) -> AppError {
@@ -549,6 +673,83 @@ mod tests {
             .unwrap();
         assert_eq!(v["device_code"], "d");
         m.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn post_json_sends_body_and_headers() {
+        let mut server = mockito::Server::new_async().await;
+        let m = server
+            .mock("POST", "/x")
+            .match_header("authorization", "Bearer t0k")
+            .match_header("x-github-api-version", "2022-11-28")
+            .match_header("accept", "application/vnd.github+json")
+            .match_header("content-type", "application/json")
+            .match_body(mockito::Matcher::Json(json!({ "a": 1 })))
+            .with_status(201)
+            .with_body(r#"{"ok":true}"#)
+            .create_async()
+            .await;
+        let client = GhClient::new(&server.url(), &server.url());
+        let v: Value = client
+            .post_json("t0k", "/x", &json!({ "a": 1 }), None)
+            .await
+            .unwrap();
+        assert_eq!(v["ok"], true);
+        m.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn patch_json_maps_422_to_validation() {
+        let mut server = mockito::Server::new_async().await;
+        let _m = server
+            .mock("PATCH", "/x")
+            .with_status(422)
+            .with_body(r#"{"message":"Update is not a fast forward"}"#)
+            .create_async()
+            .await;
+        let client = GhClient::new(&server.url(), &server.url());
+        let err = client
+            .patch_json::<_, Value>("t0k", "/x", &json!({}), None)
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), "gh_validation");
+        assert_eq!(
+            err.user_message(),
+            "GitHub rechazó la solicitud: Update is not a fast forward."
+        );
+        assert_no_token(&err);
+    }
+
+    #[tokio::test]
+    async fn write_errors_never_contain_the_token() {
+        for status in [401usize, 403, 404, 422, 502] {
+            let mut server = mockito::Server::new_async().await;
+            let _m = server
+                .mock("POST", "/x")
+                .with_status(status)
+                .with_body("t0k")
+                .create_async()
+                .await;
+            let client = GhClient::new(&server.url(), &server.url());
+            let repo = RepoRef::parse("o/r").unwrap();
+            let err = client
+                .post_json::<_, Value>("t0k", "/x", &json!({}), Some(&repo))
+                .await
+                .unwrap_err();
+            assert_no_token(&err);
+        }
+        let offline = GhClient::new("http://127.0.0.1:9", "http://127.0.0.1:9");
+        let err = offline
+            .patch_json::<_, Value>("t0k", "/x", &json!({}), None)
+            .await
+            .unwrap_err();
+        assert_no_token(&err);
+        let broken = GhClient::without_http("http://127.0.0.1:9", "http://127.0.0.1:9");
+        let err = broken
+            .post_json::<_, Value>("t0k", "/x", &json!({}), None)
+            .await
+            .unwrap_err();
+        assert_no_token(&err);
     }
 
     #[tokio::test]

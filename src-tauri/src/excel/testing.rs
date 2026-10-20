@@ -106,6 +106,7 @@ pub fn case(project: &ProjectDto, code: &str, status: &str, values: &[(&str, &st
             updated_at: String::new(),
         },
         evidence: Vec::new(),
+        issues: Vec::new(),
     }
 }
 

@@ -15,6 +15,8 @@ export type MemoryDataMode = "ok" | "cancel" | "invalid";
 export interface MemoryData extends DataTransfer {
   mode: MemoryDataMode;
   invalidMessage: string;
+  /** Avisos que devuelve la próxima importación. */
+  warnings: string[];
   status: StartupStatus;
   backups: Backup[];
   /** Operaciones pedidas, en orden (`importLegacy`, `restore:<archivo>`, `recover:vacía`…). */
@@ -34,11 +36,12 @@ export function createMemoryData(deps: MemoryDataDeps): MemoryData {
     data.calls.push(call);
     if (data.mode === "cancel") return null;
     if (data.mode === "invalid") throw new AppError("validation", data.invalidMessage);
-    return { projects: [await deps.importProject(name)], ...counts };
+    return { projects: [await deps.importProject(name)], ...counts, warnings: [...data.warnings] };
   };
   const data: MemoryData = {
     mode: "ok",
     invalidMessage: MEMORY_INVALID_IMPORT,
+    warnings: [],
     status: { recovery: false, detail: "" },
     backups: [backup("qapture-diario-20261016.db", "daily", "2026-10-16T09:00:00"), backup("qapture-diario-20261015.db", "daily", "2026-10-15T09:00:00")],
     calls: [],

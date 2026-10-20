@@ -39,8 +39,6 @@ pub enum GhErrorKind {
     Offline,
     Keyring,
     Validation,
-    // Lo usa F8b; quitar el allow entonces.
-    #[allow(dead_code)]
     Conflict,
 }
 

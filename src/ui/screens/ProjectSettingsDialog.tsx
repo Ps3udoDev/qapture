@@ -14,11 +14,11 @@ import { TemplatesPanel } from "./TemplatesPanel";
 const TABS = ["Datos", "Columnas", "GitHub", "Versiones", "Plantillas"] as const;
 type Tab = (typeof TABS)[number];
 
-export function ProjectSettingsDialog({ onClose, onOpenAccountSettings }: { onClose: () => void; onOpenAccountSettings: () => void }) {
+export function ProjectSettingsDialog({ onClose, onOpenAccountSettings, initialTab = "Datos" }: { onClose: () => void; onOpenAccountSettings: () => void; initialTab?: Tab }) {
   const project = useWorkspace((s) => s.project);
   const updateMeta = useWorkspace((s) => s.updateProjectMeta);
   const deleteProject = useWorkspace((s) => s.deleteProject);
-  const [tab, setTab] = useState<Tab>("Datos");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [meta, setMeta] = useState<ProjectMeta>(() => projectToMeta(project!));
   const [errors, setErrors] = useState<FormErrors>({});
   const [confirming, setConfirming] = useState(false);

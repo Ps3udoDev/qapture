@@ -60,6 +60,12 @@
     "allow-gh-disconnect",
     "allow-gh-list-repos",
     "allow-gh-project-github-get",
-    "allow-gh-project-github-set"
+    "allow-gh-project-github-set",
+    "allow-gh-repo-meta",
+    "allow-gh-project-links",
+    "allow-gh-create-issue",
+    "allow-gh-comment-issue",
+    "allow-gh-copy-evidence",
+    "allow-gh-open-issue"
   ]
 }

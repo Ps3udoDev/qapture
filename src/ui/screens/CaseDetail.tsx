@@ -1,5 +1,5 @@
-import { Copy, Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Bug, Copy, Pencil, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { activeFields } from "../../domain/fields";
 import { EvidenceGallery } from "../gallery/EvidenceGallery";
 import { filesFrom, hasFiles } from "../gallery/files";
@@ -9,8 +9,16 @@ import { displayValue } from "../components/FieldControl";
 import { StatusBadge } from "../components/StatusBadge";
 import { btn } from "../components/styles";
 import { useWorkspace } from "../store/context";
+import { AssistedPastePanel } from "./AssistedPastePanel";
+import { IssueChips } from "./IssueChips";
+import { ReportIssueDialog } from "./ReportIssueDialog";
 
-export function CaseDetail({ onEdit }: { onEdit: (caseId: string) => void }) {
+export interface GithubNav {
+  onOpenAccountSettings: () => void;
+  onOpenProjectGithub: () => void;
+}
+
+export function CaseDetail({ onEdit, onOpenAccountSettings, onOpenProjectGithub }: { onEdit: (caseId: string) => void } & GithubNav) {
   const project = useWorkspace((s) => s.project);
   const cases = useWorkspace((s) => s.cases);
   const pushToast = useWorkspace((s) => s.pushToast);
@@ -21,7 +29,14 @@ export function CaseDetail({ onEdit }: { onEdit: (caseId: string) => void }) {
   const [busy, setBusy] = useState(false);
   const intake = useEvidenceIntake();
   const [dropping, setDropping] = useState(false);
+  const [reporting, setReporting] = useState(false);
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
   const current = cases.find((c) => c.id === selectedId);
+  useEffect(() => {
+    setReporting(false);
+    setPendingKey(null);
+  }, [selectedId]);
+  const closePanel = useCallback(() => setPendingKey(null), []);
 
   if (!project) return null;
   if (!current) {
@@ -68,6 +83,7 @@ export function CaseDetail({ onEdit }: { onEdit: (caseId: string) => void }) {
             <div className="mt-2">
               <StatusBadge status={current.status} />
             </div>
+            <IssueChips caseId={current.id} onOpenPending={setPendingKey} />
           </div>
           <div className="flex gap-2">
             <button type="button" className={btn.secondary} onClick={() => onEdit(current.id)}>
@@ -88,6 +104,9 @@ export function CaseDetail({ onEdit }: { onEdit: (caseId: string) => void }) {
             >
               <Copy size={16} /> Duplicar
             </button>
+            <button type="button" className={btn.secondary} onClick={() => setReporting(true)}>
+              <Bug size={16} /> Reportar en GitHub
+            </button>
             <button type="button" aria-label="Eliminar caso" className={btn.ghost} onClick={() => setConfirming(true)}>
               <Trash2 size={16} />
             </button>
@@ -103,6 +122,16 @@ export function CaseDetail({ onEdit }: { onEdit: (caseId: string) => void }) {
         </dl>
         <EvidenceGallery caseRecord={current} />
       </div>
+      {reporting && (
+        <ReportIssueDialog
+          caseRecord={current}
+          onClose={() => setReporting(false)}
+          onOpenAccountSettings={onOpenAccountSettings}
+          onOpenProjectGithub={onOpenProjectGithub}
+          onAssisted={setPendingKey}
+        />
+      )}
+      {pendingKey && <AssistedPastePanel pendingKey={pendingKey} onClose={closePanel} />}
       {confirming && (
         <ConfirmDialog
           title={`Eliminar ${current.code}`}

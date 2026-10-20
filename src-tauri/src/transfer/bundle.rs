@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use rusqlite::{Connection, params};
 
+use super::github_json::{self, GithubPayload};
 use crate::{
     db::new_id,
     domain::fields::FieldType,
@@ -73,6 +74,7 @@ pub struct ProjectBundle {
     pub fields: Vec<BundleField>,
     pub cases: Vec<BundleCase>,
     pub versions: Vec<BundleVersion>,
+    pub github: GithubPayload,
 }
 
 /// Problemas de validación con su ubicación; se informan los primeros 10 (spec §8).
@@ -341,6 +343,7 @@ pub fn insert(
         projects: Vec::new(),
         cases: 0,
         evidence: 0,
+        warnings: Vec::new(),
     };
     for b in &bundles {
         let name = unique_name(&tx, &b.meta.name)?;
@@ -359,6 +362,33 @@ pub fn insert(
     }
     tx.commit()?;
     files.commit();
+    // Los datos de GitHub se aplican con la importación ya confirmada (sus helpers abren
+    // transacciones propias): si fallan, el proyecto queda sin ellos y se avisa.
+    let mut github_failed = false;
+    let mut evidence_repo_dropped = false;
+    for b in &bundles {
+        match &b.github {
+            GithubPayload::Absent => {}
+            GithubPayload::Invalid => github_failed = true,
+            GithubPayload::Valid(json) => {
+                if github_json::apply_imported(conn, &b.id, json) {
+                    evidence_repo_dropped |= json.evidence_repo.is_some();
+                } else {
+                    github_failed = true;
+                }
+            }
+        }
+    }
+    if github_failed {
+        summary
+            .warnings
+            .push(github_json::GITHUB_WARNING.to_string());
+    }
+    if evidence_repo_dropped {
+        summary
+            .warnings
+            .push(github_json::EVIDENCE_REPO_WARNING.to_string());
+    }
     Ok(summary)
 }
 
@@ -439,6 +469,7 @@ pub(crate) mod tests {
                     updated_at: TS.into(),
                 }],
             }],
+            github: GithubPayload::Absent,
             versions: vec![BundleVersion {
                 input: DocVersionInput {
                     version: "1.0".into(),

@@ -3,17 +3,24 @@ import { isAcceptedImage } from "../../domain/evidence";
 import { useWorkspace } from "../store/context";
 import { filesFrom, hasFiles } from "../gallery/files";
 import { useEvidenceIntake } from "../gallery/useEvidenceIntake";
-import { CaseDetail } from "./CaseDetail";
+import { CaseDetail, type GithubNav } from "./CaseDetail";
 import { CaseFormDialog } from "./CaseFormDialog";
 import { CaseListPane } from "./CaseListPane";
 import { EvidenceEditorHost } from "./EvidenceEditorHost";
 
-export function Workspace() {
+export function Workspace({ onOpenAccountSettings, onOpenProjectGithub }: GithubNav) {
+  const projectId = useWorkspace((s) => s.project?.id);
+  const loadProjectLinks = useWorkspace((s) => s.loadProjectLinks);
   const request = useWorkspace((s) => s.caseFormRequest);
   const editorOpen = useWorkspace((s) => s.editor !== null);
   const openCaseForm = useWorkspace((s) => s.openCaseForm);
   const closeCaseForm = useWorkspace((s) => s.closeCaseForm);
   const intake = useEvidenceIntake();
+
+  // Vínculos caso-issue del proyecto: alimentan el ícono de la lista y los chips del caso.
+  useEffect(() => {
+    if (projectId) void loadProjectLinks(projectId);
+  }, [projectId, loadProjectLinks]);
 
   useEffect(() => {
     // Soltar un archivo fuera de una zona de drop haría que WebView2 navegue al archivo y la app desaparecería.
@@ -48,7 +55,7 @@ export function Workspace() {
   return (
     <main className="flex min-h-0 flex-1">
       <CaseListPane onNewCase={() => openCaseForm()} />
-      <CaseDetail onEdit={(caseId) => openCaseForm(caseId)} />
+      <CaseDetail onEdit={(caseId) => openCaseForm(caseId)} onOpenAccountSettings={onOpenAccountSettings} onOpenProjectGithub={onOpenProjectGithub} />
       {request && !editorOpen && <CaseFormDialog key={request.caseId ?? "new"} caseId={request.caseId ?? undefined} onClose={closeCaseForm} />}
       <EvidenceEditorHost />
     </main>
