@@ -152,7 +152,7 @@ mod tests {
             .unwrap();
         }
         let conn = db::open(&path).unwrap();
-        assert_eq!(db::schema_version(&conn).unwrap(), 4);
+        assert_eq!(db::schema_version(&conn).unwrap(), db::latest_version());
         let kept: i64 = conn
             .query_row("SELECT COUNT(*) FROM project WHERE id = 'p-old'", [], |r| {
                 r.get(0)
