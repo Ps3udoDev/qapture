@@ -124,6 +124,28 @@ describe("reportar en GitHub", () => {
     expect(repos.github.opened).toEqual([{ caseId: seeded.caseId, repo: TESTING }]);
   });
 
+  it("al cambiar de repo no arrastra el milestone ni los asignados", async () => {
+    const { user, repos } = await openReport({
+      repos: [
+        { fullName: TESTING, isDefault: true, defaultLabels: [] },
+        { fullName: BACKEND, isDefault: false, defaultLabels: [] },
+      ],
+    });
+    repos.github.metas[BACKEND] = { labels: [], milestones: [], assignees: ["luis"] };
+    const create = vi.spyOn(repos.github, "createIssue");
+    const dialog = await screen.findByRole("dialog", { name: "Reportar en GitHub" });
+    await waitFor(() => expect(within(dialog).getByLabelText("Repositorio")).toHaveValue(TESTING));
+    await user.selectOptions(within(dialog).getByLabelText("Milestone"), await within(dialog).findByRole("option", { name: "Sprint 3" }));
+    await user.click(within(dialog).getByRole("checkbox", { name: "ana" }));
+    await user.selectOptions(within(dialog).getByLabelText("Repositorio"), BACKEND);
+    expect(await within(dialog).findByRole("checkbox", { name: "luis" })).not.toBeChecked();
+    expect(within(dialog).queryByRole("checkbox", { name: "ana" })).not.toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Milestone")).toHaveValue("");
+    await user.click(within(dialog).getByRole("button", { name: "Crear issue" }));
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+    expect(create.mock.calls[0][0]).toMatchObject({ repo: BACKEND, milestone: null, assignees: [] });
+  });
+
   it("con vínculo existente cambia a «Comentar en Ps3udoDev/testing#1»", async () => {
     const { user, repos, seeded } = await openReport({ links: (s) => [link(s.caseId)] });
     const comment = vi.spyOn(repos.github, "commentIssue");

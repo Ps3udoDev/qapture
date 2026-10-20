@@ -116,6 +116,9 @@ export function ReportIssueDialog({ caseRecord, onClose, onOpenAccountSettings, 
     const built = compose(chosen);
     setBody(built.body);
     setTitle(built.title);
+    // Milestones y asignados son de cada repo: no se arrastran al cambiar.
+    setMilestone(null);
+    setAssignees([]);
     if (!existing) {
       setLabels(config?.repos.find((r) => sameRepo(r.fullName, repo))?.defaultLabels ?? []);
     }
