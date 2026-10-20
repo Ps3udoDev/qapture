@@ -1,7 +1,8 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { GhAccount } from "../../domain/github";
-import { renderApp } from "../test-utils";
+import type { GhAccount, GhRepo } from "../../domain/github";
+import type { MemoryRepositories } from "../../infrastructure/memory/repositories";
+import { renderApp, seedProject } from "../test-utils";
 
 const account = (over: Partial<GhAccount> = {}): GhAccount => ({ login: "ana", name: "Ana Pérez", avatarDataUrl: null, connectedAt: "2026-10-19T10:00:00Z", needsReconnect: false, ...over });
 
@@ -91,5 +92,126 @@ describe("pestaña GitHub de Ajustes", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+const ghRepo = (fullName: string, over: Partial<GhRepo> = {}): GhRepo => {
+  const [owner, name] = fullName.split("/");
+  return { owner, name, fullName, private: false, canWriteIssues: true, canWriteContents: true, ...over };
+};
+
+/** Proyecto con una columna de tipo Lista, que la plantilla no trae. */
+async function seedWithList(r: MemoryRepositories) {
+  const p = await seedProject(r);
+  const inputs = p.fields.map((f) => ({ ...f, id: f.id as string | null }));
+  const saved = await r.projects.saveFields(p.id, [
+    ...inputs,
+    { id: null, label: "Severidad", type: "list", options: ["Caja", "Reportes"], required: false, clearOnDuplicate: false, width: 20, archived: false },
+  ]);
+  return { id: p.id, fields: saved };
+}
+
+async function openProjectGithub(repoList: GhRepo[] = [ghRepo("acme/web"), ghRepo("acme/api", { private: true })], withAccount = true) {
+  const ctx = await renderApp({
+    setup: async (r) => {
+      await seedWithList(r);
+      r.github.repos = repoList;
+      if (withAccount) r.github.accountValue = account();
+    },
+  });
+  await ctx.user.click(screen.getByRole("button", { name: /Configurar/ }));
+  const dialog = screen.getByRole("dialog", { name: "Configurar proyecto" });
+  await ctx.user.click(within(dialog).getByRole("tab", { name: "GitHub" }));
+  return { ...ctx, dialog };
+}
+
+describe("pestaña GitHub de Configurar proyecto", () => {
+  it("vincular dos repos y marcar el predeterminado guarda la config", async () => {
+    const { user, repos, store, dialog } = await openProjectGithub();
+    const add = await within(dialog).findByLabelText("Agregar repositorio");
+    await waitFor(() => expect(within(add).getByRole("option", { name: /acme\/web/ })).toBeInTheDocument());
+    await user.selectOptions(add, "acme/web");
+    await user.selectOptions(within(dialog).getByLabelText("Agregar repositorio"), "acme/api");
+    expect(within(dialog).getByRole("radio", { name: "Predeterminado acme/web" })).toBeChecked();
+    await user.click(within(dialog).getByRole("radio", { name: "Predeterminado acme/api" }));
+    const labels = within(dialog).getByLabelText("Etiquetas de acme/api");
+    expect(labels).toHaveValue("bug, qapture");
+    await user.clear(labels);
+    await user.type(labels, "bug, ui");
+    await user.click(within(dialog).getByRole("button", { name: "Guardar" }));
+    expect(await screen.findByText("Configuración de GitHub guardada.")).toBeInTheDocument();
+    const projectId = store.getState().project!.id;
+    const saved = await repos.github.getProjectGithub(projectId);
+    expect(saved.repos).toEqual([
+      { fullName: "acme/web", isDefault: false, defaultLabels: ["bug", "qapture"] },
+      { fullName: "acme/api", isDefault: true, defaultLabels: ["bug", "ui"] },
+    ]);
+  });
+
+  it("sin predeterminado muestra «Marca un repositorio como predeterminado.» y no guarda", async () => {
+    const { user, repos, store, dialog } = await openProjectGithub();
+    const add = await within(dialog).findByLabelText("Agregar repositorio");
+    await waitFor(() => expect(within(add).getByRole("option", { name: /acme\/web/ })).toBeInTheDocument());
+    await user.selectOptions(add, "acme/web");
+    await user.selectOptions(within(dialog).getByLabelText("Agregar repositorio"), "acme/api");
+    await user.click(within(dialog).getByRole("button", { name: "Quitar acme/web" }));
+    await user.click(within(dialog).getByRole("button", { name: "Guardar" }));
+    expect(await within(dialog).findByText("Marca un repositorio como predeterminado.")).toBeInTheDocument();
+    expect((await repos.github.getProjectGithub(store.getState().project!.id)).repos).toEqual([]);
+  });
+
+  it("el ruteo solo ofrece columnas de tipo Lista", async () => {
+    const { dialog, store } = await openProjectGithub();
+    const select = within(dialog).getByLabelText("Columna de ruteo");
+    const fields = store.getState().project!.fields.filter((f) => !f.archived);
+    const lists = fields.filter((f) => f.type === "list").map((f) => f.label);
+    expect(lists.length).toBeGreaterThan(0);
+    expect(fields.some((f) => f.type !== "list")).toBe(true);
+    const names = within(select).getAllByRole("option").map((o) => o.textContent);
+    expect(names).toEqual(["Sin ruteo", ...lists]);
+  });
+
+  it("routingStale muestra el aviso", async () => {
+    const ctx = await renderApp({
+      setup: async (r) => {
+        const p = await seedWithList(r);
+        r.github.repos = [ghRepo("acme/web")];
+        r.github.accountValue = account();
+        const field = p.fields.find((f) => f.type === "list")!;
+        await r.github.setProjectGithub(p.id, {
+          repos: [{ fullName: "acme/web", isDefault: true, defaultLabels: ["bug"] }],
+          routingFieldId: field.id,
+          routingMap: { [field.options[0]]: "acme/web" },
+          evidenceRepo: null,
+        });
+        // Se renombra la opción enrutada: la config guardada queda obsoleta.
+        await r.projects.saveFields(
+          p.id,
+          p.fields.map((f) => (f.id === field.id ? { ...f, options: f.options.map((o, i) => (i === 0 ? `${o} (renombrada)` : o)) } : f)),
+        );
+      },
+    });
+    await ctx.user.click(screen.getByRole("button", { name: /Configurar/ }));
+    const dialog = screen.getByRole("dialog", { name: "Configurar proyecto" });
+    await ctx.user.click(within(dialog).getByRole("tab", { name: "GitHub" }));
+    expect(await within(dialog).findByText("La columna o alguna opción del ruteo cambió; revísalo.")).toBeInTheDocument();
+  });
+
+  it("sin cuenta muestra el enlace a Ajustes", async () => {
+    const { user, dialog } = await openProjectGithub([], false);
+    expect(within(dialog).getByText("Conecta tu cuenta de GitHub en Ajustes › GitHub para vincular repositorios.")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Abrir Ajustes" }));
+    const settings = await screen.findByRole("dialog", { name: "Ajustes" });
+    expect(within(settings).getByRole("tab", { name: "GitHub", selected: true })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Configurar proyecto" })).not.toBeInTheDocument();
+  });
+
+  it("¿No ves tu repo? copia el enlace de instalación", async () => {
+    const { user, dialog } = await openProjectGithub();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    await user.click(await within(dialog).findByRole("button", { name: "¿No ves tu repo?" }));
+    expect(writeText).toHaveBeenCalledWith("https://github.com/apps/qapture-qa/installations/new");
+    expect(await screen.findByText("Pide a un owner de la organización que instale Qapture en ese repositorio. Enlace copiado.")).toBeInTheDocument();
   });
 });

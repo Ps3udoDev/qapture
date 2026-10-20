@@ -30,7 +30,7 @@ function Check({ label, checked, onChange, disabled, note }: { label: string; ch
 }
 
 /** Ajustes de la aplicación (F6): un solo «Guardar» para todas las pestañas. */
-export function AppSettingsDialog({ onClose }: { onClose: () => void }) {
+export function AppSettingsDialog({ onClose, initialTab = "Perfil" }: { onClose: () => void; initialTab?: Tab }) {
   const snapshot = useWorkspace((s) => s.settings);
   const saveSettings = useWorkspace((s) => s.saveSettings);
   const pickExportFolder = useWorkspace((s) => s.pickExportFolder);
@@ -43,7 +43,7 @@ export function AppSettingsDialog({ onClose }: { onClose: () => void }) {
   const importLegacy = useWorkspace((s) => s.importLegacy);
   const busyData = useWorkspace((s) => s.dataBusy);
   const [draft, setDraft] = useState<Settings>(() => structuredClone(snapshot?.settings ?? DEFAULT_SETTINGS));
-  const [tab, setTab] = useState<Tab>("Perfil");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [errors, setErrors] = useState<FormErrors>({});
   const [busy, setBusy] = useState(false);
   const [backups, setBackups] = useState(false);

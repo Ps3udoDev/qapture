@@ -19,7 +19,7 @@ export function AppShell() {
   const ready = useWorkspace((s) => s.ready);
   const project = useWorkspace((s) => s.project);
   const recovery = useWorkspace((s) => s.recovery);
-  const [dialog, setDialog] = useState<"new-project" | "settings" | "app-settings" | "export" | "backups" | null>(null);
+  const [dialog, setDialog] = useState<"new-project" | "settings" | "app-settings" | "github-settings" | "export" | "backups" | null>(null);
 
   const listenCaptures = useWorkspace((s) => s.listenCaptures);
   const listenNewCase = useWorkspace((s) => s.listenNewCase);
@@ -135,8 +135,9 @@ export function AppShell() {
       <TopBar onNewProject={() => setDialog("new-project")} onSettings={() => setDialog("settings")} onAppSettings={() => setDialog("app-settings")} onExport={() => setDialog("export")} onBackups={() => setDialog("backups")} />
       {project ? <Workspace /> : <EmptyState onCreate={() => setDialog("new-project")} />}
       {dialog === "new-project" && <NewProjectDialog onClose={() => setDialog(null)} />}
-      {dialog === "settings" && project && <ProjectSettingsDialog onClose={() => setDialog(null)} />}
+      {dialog === "settings" && project && <ProjectSettingsDialog onClose={() => setDialog(null)} onOpenAccountSettings={() => setDialog("github-settings")} />}
       {dialog === "app-settings" && <AppSettingsDialog onClose={() => setDialog(null)} />}
+      {dialog === "github-settings" && <AppSettingsDialog initialTab="GitHub" onClose={() => setDialog(null)} />}
       {dialog === "export" && project && <ExportDialog onClose={() => setDialog(null)} />}
       {dialog === "backups" && <BackupsDialog onClose={() => setDialog(null)} />}
       {updatePrompt && <UpdateDialog />}
