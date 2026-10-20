@@ -1,4 +1,4 @@
- ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |# F8b — Reportar casos como issues · `v1.1.0`
+# F8b — Reportar casos como issues · `v1.1.0`
 
 **Depende de:** F8a (conexión con GitHub) · **Plan:** [2026-10-20-f8b-reportar-issues](../plans/2026-10-20-f8b-reportar-issues.md) · **Spec:** [2026-10-19-integracion-github-design](../specs/2026-10-19-integracion-github-design.md).
 
@@ -48,7 +48,7 @@ El tester reporta un caso de prueba como issue de GitHub (o comenta un re-test e
 
 ## Mensajes fijos
 - Validación del reporte: `Se permiten hasta 10 etiquetas.`, `Se permiten hasta 10 asignados.`, `Una de las capturas elegidas no pertenece al caso.`, `«Título» es obligatorio.` y `«Título» supera 256 caracteres.`
-- `El caso no tiene un issue en <o/r>.` (comentar sin vínculo).
+- Comentar sin vínculo: `El caso no tiene un issue en <o/r>.` (`gh_comment_issue`, lo que ve el usuario). Abrir un issue sin vínculo (`gh_open_issue`) responde `El caso no tiene un issue en ese repo.`; es un camino que la UI no alcanza porque solo muestra chips de vínculos existentes.
 - `Ya se está creando un issue de este caso en <o/r>.` y `Ya se está comentando este caso en <o/r>.` (envío duplicado en curso).
 - `El caso ya tiene un issue en <o/r> (#<n>).` (`gh_conflict`).
 - `El repo de evidencias <o/r> está vacío: crea un primer archivo (por ejemplo, un README) y vuelve a intentar.`

@@ -53,7 +53,6 @@ Qapture guarda tu sesión de GitHub en el llavero del sistema (Secret Service). 
 
 Tienes dos caminos: **Ajustes › GitHub › Desconectar** (borra la sesión de este equipo) y, para quitar la autorización del lado de GitHub, **Revocar acceso en GitHub** (<https://github.com/settings/apps/authorizations>). Si revocas en GitHub, Qapture te mostrará **Reconectar** la próxima vez. Más detalles en [Conectar con GitHub](github.md).
 
-
 ### Las imágenes del issue salen rotas
 
 Las capturas viven en el repo de evidencias del proyecto, y solo las ve quien tenga acceso de **lectura** a ese repo. Pide al administrador que dé **Read** a tu usuario o a tu equipo en el repo de evidencias (ver la [guía para administradores](github-admin.md)).

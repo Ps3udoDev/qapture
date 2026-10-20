@@ -107,7 +107,7 @@ En el issue, cada captura queda como «📎 Evidencia n: pendiente de pegar», y
 
 - «El caso ya tiene un issue en o/r (#n).»: ya reportaste ese caso en ese repo; usa el chip o comenta el re-test.
 - «Ya se está creando un issue de este caso en o/r.» / «Ya se está comentando este caso en o/r.»: hay otro envío en curso; espera a que termine.
-- «El caso no tiene un issue en o/r.»: quisiste comentar donde aún no hay issue.
+- «El caso no tiene un issue en o/r.»: quisiste comentar en un repo donde el caso aún no tiene issue; reporta primero y comenta después.
 
 ## Qué todavía no hace
 
