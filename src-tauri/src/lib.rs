@@ -6,6 +6,7 @@ mod domain;
 mod dto;
 mod error;
 mod excel;
+mod integrations;
 mod media;
 mod repo;
 mod settings;

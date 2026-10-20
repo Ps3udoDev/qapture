@@ -20,6 +20,8 @@ pub enum AppError {
     Export(String),
     #[error("base dañada: {0}")]
     Corrupt(String),
+    #[error("github: {message}")]
+    GitHub { kind: GhErrorKind, message: String },
 }
 
 impl From<rust_xlsxwriter::XlsxError> for AppError {
@@ -28,6 +30,41 @@ impl From<rust_xlsxwriter::XlsxError> for AppError {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+// Keyring y Conflict los usan las Tasks 3 y F8b; quitar el allow entonces.
+#[allow(dead_code)]
+pub enum GhErrorKind {
+    Auth,
+    Forbidden,
+    NotFound,
+    RateLimited,
+    Offline,
+    Keyring,
+    Validation,
+    Conflict,
+}
+
+impl GhErrorKind {
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::Auth => "gh_auth",
+            Self::Forbidden => "gh_forbidden",
+            Self::NotFound => "gh_not_found",
+            Self::RateLimited => "gh_rate_limited",
+            Self::Offline => "gh_offline",
+            Self::Keyring => "gh_keyring",
+            Self::Validation => "gh_validation",
+            Self::Conflict => "gh_conflict",
+        }
+    }
+}
+
+pub fn gh(kind: GhErrorKind, message: impl Into<String>) -> AppError {
+    AppError::GitHub {
+        kind,
+        message: message.into(),
+    }
+}
 pub type AppResult<T> = Result<T, AppError>;
 
 pub fn validation(message: impl Into<String>) -> AppError {
@@ -46,12 +83,14 @@ impl AppError {
             Self::FileLocked(_) => "file_locked",
             Self::Export(_) => "export",
             Self::Corrupt(_) => "corrupt",
+            Self::GitHub { kind, .. } => kind.code(),
         }
     }
 
     pub fn user_message(&self) -> String {
         match self {
             Self::Validation(m) | Self::NotFound(m) => m.clone(),
+            Self::GitHub { message, .. } => message.clone(),
             Self::Capture(_) => "No se pudo capturar la pantalla. Inténtalo nuevamente.".into(),
             Self::FileLocked(_) => "Cierra el archivo en Excel y vuelve a intentar.".into(),
             Self::Export(_) => "No se pudo generar el Excel. Inténtalo nuevamente.".into(),
@@ -109,5 +148,14 @@ mod tests {
             export["message"],
             "No se pudo generar el Excel. Inténtalo nuevamente."
         );
+    }
+
+    #[test]
+    fn github_errors_use_their_code_and_message() {
+        let error = gh(GhErrorKind::Offline, "No hay conexión con GitHub.");
+        let json = serde_json::to_value(&error).unwrap();
+        assert_eq!(json["code"], "gh_offline");
+        assert_eq!(json["message"], "No hay conexión con GitHub.");
+        assert_eq!(json["detail"], "github: No hay conexión con GitHub.");
     }
 }
