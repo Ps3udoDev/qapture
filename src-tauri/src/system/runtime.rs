@@ -305,6 +305,7 @@ mod tests {
             tmp.path(),
             None,
             false,
+            crate::state::GithubState::for_tests("http://127.0.0.1:9", "http://127.0.0.1:9"),
         );
         state.install_registrar(Box::new(FakeRegistrar::default()));
         assert!(!Settings::default().system.autostart);
@@ -352,6 +353,7 @@ mod tests {
             tmp.path(),
             None,
             false,
+            crate::state::GithubState::for_tests("http://127.0.0.1:9", "http://127.0.0.1:9"),
         );
         let fake = FakeRegistrar::default();
         state.install_registrar(Box::new(fake.clone()));

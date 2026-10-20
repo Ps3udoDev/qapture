@@ -1,6 +1,9 @@
 use std::{
     path::{Path, PathBuf},
-    sync::{Mutex, MutexGuard, RwLock},
+    sync::{
+        Arc, Mutex, MutexGuard, RwLock,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use rusqlite::Connection;
@@ -10,8 +13,9 @@ use crate::{
     capture::session::{CaptureController, HIDE_DELAY, READY_TIMEOUT},
     db::DB_FILE,
     dto::{ShortcutFailureDto, UpdateInfoDto},
-    error::{AppResult, validation},
+    error::{AppResult, GhErrorKind, gh, validation},
     excel::save::RecentExports,
+    integrations::github::{client::GhClient, token_store::TokenStore},
     media::storage::EvidenceFiles,
     settings::Settings,
     system::shortcuts::ShortcutRegistrar,
@@ -28,6 +32,69 @@ impl ShortcutRegistrar for NullRegistrar {
         Ok(())
     }
     fn unregister(&mut self, _accel: &str) {}
+}
+
+// Lo consumen los comandos de GitHub de la Task 5; quitar este allow entonces.
+#[allow(dead_code)]
+/// Conexión con GitHub: cliente HTTP, token en el llavero y el sondeo del Device Flow en curso.
+pub struct GithubState {
+    pub client: GhClient,
+    pub tokens: Box<dyn TokenStore>,
+    /// Se activa con cualquier 401 y se apaga al conectar.
+    pub needs_reconnect: AtomicBool,
+    pending: Mutex<Option<Arc<AtomicBool>>>,
+}
+
+#[allow(dead_code)]
+impl GithubState {
+    pub fn new(client: GhClient, tokens: Box<dyn TokenStore>) -> Self {
+        Self {
+            client,
+            tokens,
+            needs_reconnect: AtomicBool::new(false),
+            pending: Mutex::new(None),
+        }
+    }
+
+    #[cfg(test)]
+    pub fn for_tests(api: &str, web: &str) -> Self {
+        Self::new(
+            GhClient::new(api, web),
+            Box::new(crate::integrations::github::token_store::MemoryTokenStore::default()),
+        )
+    }
+
+    /// Cancela el sondeo anterior (si lo hay) y devuelve la bandera del nuevo.
+    pub fn begin_flow(&self) -> Arc<AtomicBool> {
+        let flag = Arc::new(AtomicBool::new(false));
+        let mut pending = self
+            .pending
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(previous) = pending.replace(flag.clone()) {
+            previous.store(true, Ordering::SeqCst);
+        }
+        flag
+    }
+
+    pub fn cancel_flow(&self) {
+        let mut pending = self
+            .pending
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(previous) = pending.take() {
+            previous.store(true, Ordering::SeqCst);
+        }
+    }
+
+    pub fn token(&self) -> AppResult<String> {
+        self.tokens.get()?.ok_or_else(|| {
+            gh(
+                GhErrorKind::Auth,
+                "Tu cuenta de GitHub no está conectada o la sesión venció. Conéctala en Ajustes › GitHub.",
+            )
+        })
+    }
 }
 
 pub struct AppState {
@@ -47,6 +114,8 @@ pub struct AppState {
     on_saved: Mutex<Option<SavedHook>>,
     /// Última versión nueva encontrada (la muestra la bandeja hasta instalarla).
     pending_update: Mutex<Option<UpdateInfoDto>>,
+    #[allow(dead_code)]
+    github: GithubState,
 }
 
 impl AppState {
@@ -56,6 +125,7 @@ impl AppState {
         data_dir: &Path,
         recovery: Option<String>,
         portable: bool,
+        github: GithubState,
     ) -> Self {
         Self {
             db: Mutex::new(conn),
@@ -71,7 +141,13 @@ impl AppState {
             registrar: Mutex::new(Box::new(NullRegistrar)),
             on_saved: Mutex::new(None),
             pending_update: Mutex::new(None),
+            github,
         }
+    }
+
+    #[allow(dead_code)]
+    pub fn github(&self) -> &GithubState {
+        &self.github
     }
 
     /// Una sola conexión serializada: SQLite + WAL es suficiente para una app de escritorio de un usuario.
@@ -219,6 +295,7 @@ mod tests {
             tmp.path(),
             Some("base dañada".into()),
             false,
+            GithubState::for_tests("http://127.0.0.1:9", "http://127.0.0.1:9"),
         );
         assert_eq!(state.recovery().as_deref(), Some("base dañada"));
         assert_eq!(

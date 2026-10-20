@@ -45,6 +45,7 @@ mod tests {
             tmp.path(),
             Some("base dañada".into()),
             false,
+            crate::state::GithubState::for_tests("http://127.0.0.1:9", "http://127.0.0.1:9"),
         );
         run_once(&state);
         assert!(state.backups().list().unwrap().is_empty());

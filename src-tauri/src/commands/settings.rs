@@ -218,7 +218,14 @@ mod tests {
     fn state_with(recovery: Option<String>) -> (TempDir, AppState, FakeRegistrar) {
         let tmp = TempDir::new();
         let conn = db::open(&tmp.path().join(db::DB_FILE)).unwrap();
-        let state = AppState::new(conn, tmp.files(), tmp.path(), recovery, false);
+        let state = AppState::new(
+            conn,
+            tmp.files(),
+            tmp.path(),
+            recovery,
+            false,
+            crate::state::GithubState::for_tests("http://127.0.0.1:9", "http://127.0.0.1:9"),
+        );
         let fake = FakeRegistrar::default();
         let mut boot = fake.clone();
         shortcuts::register_all(&mut boot, &state.settings().shortcuts);
@@ -305,7 +312,14 @@ mod tests {
 
         let tmp = TempDir::new();
         let conn = db::open(&tmp.path().join(db::DB_FILE)).unwrap();
-        let portable = AppState::new(conn, tmp.files(), tmp.path(), None, true);
+        let portable = AppState::new(
+            conn,
+            tmp.files(),
+            tmp.path(),
+            None,
+            true,
+            crate::state::GithubState::for_tests("http://127.0.0.1:9", "http://127.0.0.1:9"),
+        );
         portable.install_registrar(Box::new(FakeRegistrar::default()));
         let dto = save(&portable, with(|s| s.system.autostart = true), "0.5.0").unwrap();
         assert!(dto.portable);
@@ -326,7 +340,14 @@ mod tests {
         let tmp = TempDir::new();
         let conn = db::open(&tmp.path().join(db::DB_FILE)).unwrap();
         repo::settings::save(&conn, &with(|s| s.system.autostart = true)).unwrap();
-        let portable = AppState::new(conn, tmp.files(), tmp.path(), None, true);
+        let portable = AppState::new(
+            conn,
+            tmp.files(),
+            tmp.path(),
+            None,
+            true,
+            crate::state::GithubState::for_tests("http://127.0.0.1:9", "http://127.0.0.1:9"),
+        );
         let stored = repo::settings::load(&portable.db()).unwrap();
         assert!(stored.system.autostart, "la base copiada lo tiene activo");
         assert!(!dto(&portable, stored, "0.5.0").settings.system.autostart);
