@@ -31,8 +31,6 @@ impl From<rust_xlsxwriter::XlsxError> for AppError {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-// Keyring y Conflict los usan las Tasks 3 y F8b; quitar el allow entonces.
-#[allow(dead_code)]
 pub enum GhErrorKind {
     Auth,
     Forbidden,
@@ -41,6 +39,8 @@ pub enum GhErrorKind {
     Offline,
     Keyring,
     Validation,
+    // Lo usa F8b; quitar el allow entonces.
+    #[allow(dead_code)]
     Conflict,
 }
 
