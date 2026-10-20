@@ -55,7 +55,9 @@ El diálogo trae:
 - **Título:** `[código] título del caso`.
 - **Descripción:** texto generado con proyecto, estado, quién reporta y los campos del caso. Tiene las pestañas **Editar** y **Vista previa** (la vista previa se muestra como texto plano). **Regenerar descripción** vuelve a armarla desde el caso.
 - **Etiquetas**, **Asignados** y **Milestone** (puede quedar en «Sin milestone»), tomados del repo elegido. Hasta 10 etiquetas y 10 asignados.
-- **Capturas:** todas vienen marcadas, con miniaturas; desmarca las que no quieras. Se envían **ya renderizadas**, con el difuminado y las anotaciones. Si una pesa más de 10 MB, Qapture avisa «La captura n pesa más de 10 MB; GitHub podría rechazarla.», pero no te lo impide.
+- **Capturas:** todas vienen marcadas, con miniaturas; desmarca las que no quieras. Cada captura marcada muestra su número («Captura 1», «Captura 2»…), que es el de su marca `{{img:n}}` en la descripción. Se envían **ya renderizadas**, con el difuminado y las anotaciones. Si una pesa más de 10 MB, Qapture avisa «La captura n pesa más de 10 MB; GitHub podría rechazarla.» (con ese mismo número), pero no te lo impide.
+
+  Al marcar o desmarcar capturas, si no tocaste la descripción, Qapture la vuelve a armar sola para que las leyendas coincidan. Si ya la editaste, no la cambia: muestra «Cambiaste las capturas: regenera la descripción para que coincidan.» junto a **Regenerar descripción** (al regenerarla se pierden tus cambios al texto).
 
 Debajo, una línea indica el destino: «Se creará en o/r como @tu-usuario.». Pulsa **Crear issue**. Qapture muestra «Subiendo capturas…» y luego «Creando issue…», y al terminar avisa «Issue #n creado en o/r.».
 
@@ -99,8 +101,8 @@ En el issue, cada captura queda como «📎 Evidencia n: pendiente de pegar», y
 
 ## Excel y paquetes
 
-- **Excel:** si algún caso del proyecto tiene issues, el archivo agrega la columna **Issue** después de **Evidencias**. Con un issue, la celda es un hipervínculo `repo#n`; con varios, muestra `repo#n, repo#m` y una nota de celda con una dirección por línea.
-- **Paquetes `.qapture`:** el paquete lleva los datos de GitHub (repos, ruteo y vínculos con sus issues) en un archivo opcional `github.json`. Al importarlo en otra instalación se conservan los vínculos. Una versión 1.0 de Qapture abre el paquete igual, sin los datos de GitHub. Si el archivo está dañado, el proyecto se importa sin ellos y Qapture avisa «No se pudieron leer los datos de GitHub del paquete; el proyecto se importó sin ellos.».
+- **Excel:** si algún caso del proyecto tiene issues, el archivo agrega la columna **Issue** después de **Evidencias**. Con un issue, la celda es un hipervínculo `repo#n` (si la dirección guardada no es de `https://github.com`, queda solo el texto, sin enlace); con varios, muestra `repo#n, repo#m` y una nota de celda con una dirección por línea.
+- **Paquetes `.qapture`:** el paquete lleva los datos de GitHub (repos, ruteo y vínculos con sus issues) en un archivo opcional `github.json`. Al importarlo en otra instalación se conservan los vínculos. Una versión 1.0 de Qapture abre el paquete igual, sin los datos de GitHub. Si el archivo está dañado, o algún vínculo no apunta a su issue en `https://github.com/dueño/repo/issues/n`, el proyecto se importa sin ellos y Qapture avisa «No se pudieron leer los datos de GitHub del paquete; el proyecto se importó sin ellos.».
 - **El repo de evidencias no se importa:** lo confirma cada equipo. Si el paquete traía uno, Qapture avisa «El paquete traía un repo de evidencias; confírmalo en Configurar proyecto › GitHub.».
 
 ## Mensajes frecuentes
