@@ -73,12 +73,12 @@ El tester conecta su cuenta de GitHub desde Ajustes con Device Flow (sin backend
 ## Checklist de pruebas locales
 | # | Prueba | Esperado | OK |
 |---|---|---|---|
-| 1 | Conectar con `Ps3udoDev` | Aparece «Conectado como @Ps3udoDev» con su avatar | ☐ |
-| 2 | Ver los repos personales | Aparece `Ps3udoDev/booknow-mcp-service` | ☐ |
-| 3 | Vincular `booknow-mcp-service` como predeterminado | Se guarda y sigue ahí al reiniciar la app | ☐ |
+| 1 | Conectar con `Ps3udoDev` | Aparece «Conectado como @Ps3udoDev» con su avatar | ✅ 2026-10-20 (instalador local) |
+| 2 | Ver los repos personales | Aparece `Ps3udoDev/booknow-mcp-service` | ✅ 2026-10-20 |
+| 3 | Vincular `booknow-mcp-service` como predeterminado | Se guarda y sigue ahí al reiniciar la app | ✅ 2026-10-20 |
 | 4 | Configurar un repo de evidencias | Se guarda en la pestaña GitHub del proyecto | ☐ |
 | 5 | Desconectar y reconectar | La cuenta se borra; los vínculos del proyecto se conservan | ☐ |
-| 6 | Revocar en `https://github.com/settings/apps/authorizations` | Al listar repos aparece «Reconectar» | ☐ |
+| 6 | Revocar en `https://github.com/settings/apps/authorizations` | Al listar repos aparece «Reconectar» | ✅ 2026-10-20 (y reconexión OK) |
 | 7 | Linux AppImage: conectar | Conecta, o muestra el mensaje del llavero antes de abrir el navegador | ☐ (llavero real de Linux pendiente; el de Windows pasó en el test ignorado de la Task 3) |
 | 8 | Cuando el owner apruebe la instalación: ver los repos de TEAMS4SOFT | Aparecen en la lista | ☐ |
 | 9 | Spike de la Task 0 (imágenes entre repos privados) | Resultado anotado: `blob?raw` / `raw` / ❌ | ☐ |
