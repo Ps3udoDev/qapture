@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { btn } from "../components/styles";
 import { useWorkspace } from "../store/context";
@@ -8,14 +8,20 @@ const linkCls = "w-fit text-left text-sm text-t4s-blue underline hover:text-t4s-
 /** Segundos que le quedan al código; se calcula con la hora de inicio, no acumulando ticks. */
 const remaining = (startedAt: number, expiresIn: number) => Math.max(0, expiresIn - Math.floor((Date.now() - startedAt) / 1000));
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+/** El front corta el flujo al llegar a 0 (antes que Rust), así que el aviso lo da el front. */
+const MSG_EXPIRED = "El código venció. Vuelve a pulsar «Conectar con GitHub».";
 
 function Countdown({ startedAt, expiresIn, onExpired }: { startedAt: number; expiresIn: number; onExpired: () => void }) {
   const [left, setLeft] = useState(() => remaining(startedAt, expiresIn));
+  const fired = useRef(false);
   useEffect(() => {
     const tick = () => {
       const next = remaining(startedAt, expiresIn);
       setLeft(next);
-      if (next === 0) onExpired();
+      if (next === 0 && !fired.current) {
+        fired.current = true;
+        onExpired();
+      }
     };
     tick();
     const id = setInterval(tick, 1000);
@@ -50,6 +56,11 @@ export function GithubAccountPanel() {
     void loadAccount();
   }, [loadAccount]);
 
+  const expire = useCallback(() => {
+    void cancel();
+    pushToast("error", MSG_EXPIRED);
+  }, [cancel, pushToast]);
+
   const copyCode = async () => {
     if (!flow) return;
     if (await copy(flow.code.userCode)) pushToast("success", "Código copiado.");
@@ -71,7 +82,7 @@ export function GithubAccountPanel() {
             Abrir GitHub
           </button>
         </div>
-        <Countdown startedAt={flow.startedAt} expiresIn={flow.code.expiresIn} onExpired={() => void cancel()} />
+        <Countdown startedAt={flow.startedAt} expiresIn={flow.code.expiresIn} onExpired={expire} />
         <div>
           <button type="button" className={btn.secondary} onClick={() => void cancel()}>
             Cancelar

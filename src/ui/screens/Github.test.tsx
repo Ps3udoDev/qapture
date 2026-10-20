@@ -1,7 +1,8 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { GhAccount, GhRepo } from "../../domain/github";
+import type { GhAccount, GhRepo, ProjectGithub } from "../../domain/github";
 import type { MemoryRepositories } from "../../infrastructure/memory/repositories";
+import { AppError } from "../../ports/errors";
 import { renderApp, seedProject } from "../test-utils";
 
 const account = (over: Partial<GhAccount> = {}): GhAccount => ({ login: "ana", name: "Ana Pérez", avatarDataUrl: null, connectedAt: "2026-10-19T10:00:00Z", needsReconnect: false, ...over });
@@ -78,7 +79,7 @@ describe("pestaña GitHub de Ajustes", () => {
     expect(await screen.findByRole("button", { name: "Conectar con GitHub" })).toBeInTheDocument();
   });
 
-  it("al agotarse la cuenta regresiva muestra de nuevo «Conectar con GitHub»", async () => {
+  it("al agotarse la cuenta regresiva avisa que el código venció y muestra de nuevo «Conectar con GitHub»", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       const { user, repos } = await openGithub();
@@ -89,6 +90,8 @@ describe("pestaña GitHub de Ajustes", () => {
         await vi.advanceTimersByTimeAsync(3000);
       });
       expect(await screen.findByRole("button", { name: "Conectar con GitHub" })).toBeInTheDocument();
+      expect(screen.getByText("El código venció. Vuelve a pulsar «Conectar con GitHub».")).toBeInTheDocument();
+      expect(repos.github.cancels).toBe(1);
     } finally {
       vi.useRealTimers();
     }
@@ -111,12 +114,17 @@ async function seedWithList(r: MemoryRepositories) {
   return { id: p.id, fields: saved };
 }
 
-async function openProjectGithub(repoList: GhRepo[] = [ghRepo("acme/web"), ghRepo("acme/api", { private: true })], withAccount = true) {
+async function openProjectGithub(
+  repoList: GhRepo[] = [ghRepo("acme/web"), ghRepo("acme/api", { private: true })],
+  withAccount = true,
+  extra?: (r: MemoryRepositories) => void,
+) {
   const ctx = await renderApp({
     setup: async (r) => {
       await seedWithList(r);
       r.github.repos = repoList;
       if (withAccount) r.github.accountValue = account();
+      extra?.(r);
     },
   });
   await ctx.user.click(screen.getByRole("button", { name: /Configurar/ }));
@@ -206,12 +214,52 @@ describe("pestaña GitHub de Configurar proyecto", () => {
     expect(screen.queryByRole("dialog", { name: "Configurar proyecto" })).not.toBeInTheDocument();
   });
 
-  it("¿No ves tu repo? copia el enlace de instalación", async () => {
-    const { user, dialog } = await openProjectGithub();
+  it("¿No ves tu repo? copia el enlace de instalación y abre la guía para el admin", async () => {
+    const { user, dialog, repos } = await openProjectGithub();
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
-    await user.click(await within(dialog).findByRole("button", { name: "¿No ves tu repo?" }));
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "¿No ves tu repo?" })).toBeEnabled());
+    await user.click(within(dialog).getByRole("button", { name: "¿No ves tu repo?" }));
     expect(writeText).toHaveBeenCalledWith("https://github.com/apps/qapture-qa/installations/new");
     expect(await screen.findByText("Pide a un owner de la organización que instale Qapture en ese repositorio. Enlace copiado.")).toBeInTheDocument();
+    await waitFor(() => expect(repos.settings.calls).toContain("openLink:githubAdminGuide"));
+  });
+
+  it("no se puede editar ni guardar hasta que la config carga", async () => {
+    let resolve: (config: ProjectGithub) => void = () => {};
+    const { user, dialog, repos, store } = await openProjectGithub(undefined, true, (r) => {
+      const real = r.github.getProjectGithub.bind(r.github);
+      vi.spyOn(r.github, "getProjectGithub").mockImplementation(
+        (id) =>
+          new Promise<ProjectGithub>((ok) => {
+            resolve = (config) => ok(config);
+            void real(id);
+          }),
+      );
+    });
+    const save = within(dialog).getByRole("button", { name: "Guardar" });
+    expect(save).toBeDisabled();
+    expect(within(dialog).getByLabelText("Agregar repositorio")).toBeDisabled();
+    const projectId = store.getState().project!.id;
+    await act(async () => {
+      resolve({ repos: [{ fullName: "acme/web", isDefault: true, defaultLabels: ["bug"] }], routingFieldId: null, routingMap: {}, evidenceRepo: null, routingStale: false });
+    });
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: "Guardar" })).toBeEnabled());
+    expect(within(dialog).getByText("acme/web", { selector: "span" })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Guardar" }));
+    expect(await screen.findByText("Configuración de GitHub guardada.")).toBeInTheDocument();
+    vi.restoreAllMocks();
+    expect((await repos.github.getProjectGithub(projectId)).repos).toHaveLength(1);
+  });
+
+  it("si la config no carga, avisa y no deja guardar", async () => {
+    const { dialog, repos, store } = await openProjectGithub(undefined, true, (r) => {
+      vi.spyOn(r.github, "getProjectGithub").mockRejectedValue(new AppError("io", "No se pudo leer la configuración."));
+    });
+    expect(await within(dialog).findByText("No se pudo cargar la configuración de GitHub del proyecto. Cierra y vuelve a abrir esta pestaña.")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Guardar" })).toBeDisabled();
+    expect(within(dialog).getByLabelText("Agregar repositorio")).toBeDisabled();
+    vi.restoreAllMocks();
+    expect((await repos.github.getProjectGithub(store.getState().project!.id)).repos).toEqual([]);
   });
 });

@@ -47,8 +47,11 @@ export function ProjectGithubPanel({ onOpenAccountSettings }: { onOpenAccountSet
   const loadProject = useWorkspace((s) => s.loadProjectGithub);
   const save = useWorkspace((s) => s.saveProjectGithub);
   const pushToast = useWorkspace((s) => s.pushToast);
+  const openLink = useWorkspace((s) => s.openLink);
 
   const [loaded, setLoaded] = useState<ProjectGithub | null>(null);
+  /** Hasta cargar la config guardada no se edita ni se guarda: no se pisa lo guardado. */
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "failed">("loading");
   const [rows, setRows] = useState<Row[]>([]);
   const [routingFieldId, setRoutingFieldId] = useState<string | null>(null);
   const [routingMap, setRoutingMap] = useState<Record<string, string>>({});
@@ -73,8 +76,10 @@ export function ProjectGithubPanel({ onOpenAccountSettings }: { onOpenAccountSet
   useEffect(() => {
     if (!projectId) return;
     let cancelled = false;
+    setLoadState("loading");
     void loadProject(projectId).then((config) => {
-      if (cancelled || !config) return;
+      if (cancelled) return;
+      if (!config) return setLoadState("failed");
       setLoaded(config);
       setRows(config.repos.map((r) => ({ fullName: r.fullName, isDefault: r.isDefault, labels: r.defaultLabels.join(", ") })));
       // Una columna que ya no sirve se descarta; en una Lista vigente solo se conservan las opciones que existen.
@@ -82,6 +87,7 @@ export function ProjectGithubPanel({ onOpenAccountSettings }: { onOpenAccountSet
       setRoutingFieldId(field ? field.id : null);
       setRoutingMap(field ? Object.fromEntries(Object.entries(config.routingMap).filter(([option]) => field.options.includes(option))) : {});
       setEvidenceRepo(config.evidenceRepo);
+      setLoadState("ready");
     });
     return () => {
       cancelled = true;
@@ -135,9 +141,11 @@ export function ProjectGithubPanel({ onOpenAccountSettings }: { onOpenAccountSet
   const notFound = async () => {
     if (await copy(INSTALL_URL)) pushToast("success", "Pide a un owner de la organización que instale Qapture en ese repositorio. Enlace copiado.");
     else pushToast("error", "No se pudo copiar el enlace.");
+    await openLink("githubAdminGuide");
   };
 
   async function submit() {
+    if (loadState !== "ready") return;
     const input: ProjectGithubInput = {
       repos: rows.map((r) => ({ fullName: r.fullName, isDefault: r.isDefault, defaultLabels: splitLabels(r.labels) })),
       routingFieldId,
@@ -157,8 +165,15 @@ export function ProjectGithubPanel({ onOpenAccountSettings }: { onOpenAccountSet
 
   const evidence = evidenceRepo ? find(evidenceRepo) : undefined;
 
+  const ready = loadState === "ready";
+
   return (
-    <div className="grid gap-4">
+    <fieldset disabled={!ready} aria-busy={loadState === "loading"} className="m-0 grid min-w-0 gap-4 border-0 p-0">
+      {loadState === "failed" && (
+        <p role="alert" className="text-sm text-red-700">
+          No se pudo cargar la configuración de GitHub del proyecto. Cierra y vuelve a abrir esta pestaña.
+        </p>
+      )}
       <section className={sectionCls} aria-label="Repositorios vinculados">
         <h3 className="text-sm font-semibold">Repositorios vinculados</h3>
         {rows.length === 0 && <p className="text-sm text-t4s-gray">Aún no hay repositorios vinculados.</p>}
@@ -267,10 +282,10 @@ export function ProjectGithubPanel({ onOpenAccountSettings }: { onOpenAccountSet
         </p>
       )}
       <div className="flex justify-end border-t border-t4s-line pt-4">
-        <button type="button" className={btn.primary} disabled={busy} onClick={() => void submit()}>
+        <button type="button" className={btn.primary} disabled={busy || !ready} onClick={() => void submit()}>
           Guardar
         </button>
       </div>
-    </div>
+    </fieldset>
   );
 }
