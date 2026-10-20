@@ -70,6 +70,7 @@ Reglas: `ui → application → domain`; `infrastructure` implementa `ports`; `d
 | `transfer/` | Importar Bitácora v1 y exportar/importar paquetes `.qapture` |
 | `backup.rs` | Respaldos diarios, manuales y de seguridad |
 | `system/` | Bandeja, atajos globales, modo portable, updater, respaldo diario, pegado del portapapeles |
+| `integrations/github/` | Conexión con GitHub ([ADR 0005](adr/0005-integracion-github.md)): `config`, `client` (reqwest + rustls, errores a `AppError::GitHub`), `token_store` (llavero), `auth` (Device Flow), `repos`, `project_config`. Comandos `gh_*` en `commands/integrations.rs` |
 | `settings.rs`, `state.rs`, `error.rs`, `dto.rs` | Ajustes, estado compartido, `AppError` tipado y DTO serializables |
 
 Los plugins de Tauri (single-instance, dialog, opener, global-shortcut, clipboard, notification, updater, autostart) se usan **solo desde Rust**; el WebView no recibe permisos de plugins que no necesite.
@@ -95,6 +96,21 @@ Rust avisa al WebView con eventos (no hay sondeo):
 | `update:available` | Updater (al iniciar, cada 6 h o revisión manual) | Hay una versión nueva; la UI abre el diálogo y muestra el indicador |
 | `update:show` | Bandeja («Buscar actualizaciones» / «Instalar actualización») | Pedido explícito: la UI abre el diálogo aunque la versión se haya pospuesto |
 | `update:progress` | Updater durante la descarga | Avance «Descargando actualización… n %» |
+| `gh:connected` | Device Flow de GitHub, al autorizar | La cuenta quedó conectada; lleva la cuenta (login, nombre, avatar) y nunca el token |
+| `gh:connect-failed` | Device Flow de GitHub | El código venció, se canceló o falló; lleva `{ message }` en español |
+
+## Integración con GitHub
+
+Todas las llamadas a `api.github.com` salen de Rust; el WebView solo invoca comandos. El token vive en el llavero del sistema (servicio `com.teams4soft.qapture`, cuenta `github`) y no aparece en DTO, eventos, logs, base de datos, respaldos ni paquetes.
+
+| Comando | Qué hace |
+|---|---|
+| `gh_connect_start` / `gh_connect_cancel` | Inicia o cancela el Device Flow; un segundo inicio cancela el sondeo anterior |
+| `gh_account` / `gh_disconnect` | Lee la cuenta conectada (o `null`) / borra token y cuenta |
+| `gh_list_repos` | Repos donde la App está instalada, con permisos del usuario; un 401 activa «Reconectar» |
+| `gh_project_github_get` / `gh_project_github_set` | Repos vinculados, ruteo y repo de evidencias del proyecto |
+
+Los datos están en la migración `0005_integrations.sql` (`gh_account`, `project_repo_link`, `project_gh_settings`, `case_issue_link`). El comando `open_link` acepta además los destinos `githubDevice`, `githubInstall` y `githubRevoke`.
 
 ## Dónde viven los datos
 

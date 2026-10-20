@@ -41,22 +41,22 @@ El tester conecta su cuenta de GitHub desde Ajustes con Device Flow (sin backend
 | ID | Task | Estado |
 |---|---|---|
 | F8a-T0 | Spike manual de imágenes entre repos privados (no bloquea el resto) | ☐ |
-| F8a-T1 | Migración `0005` y repositorio de integraciones | 🚧 |
-| F8a-T2 | Errores de GitHub y cliente HTTP | ☐ |
-| F8a-T3 | Almacén del token (llavero) | ☐ |
-| F8a-T4 | Device Flow y cuenta | ☐ |
-| F8a-T5 | Repos, configuración del proyecto y comandos | ☐ |
-| F8a-T6 | Dominio, puerto y adaptadores TS | ☐ |
-| F8a-T7 | Slice y pestaña «GitHub» de Ajustes | ☐ |
-| F8a-T8 | Pestaña «GitHub» de Configurar proyecto | ☐ |
-| F8a-T9 | Documentación y prueba real | ☐ |
+| F8a-T1 | Migración `0005` y repositorio de integraciones | ✅ |
+| F8a-T2 | Errores de GitHub y cliente HTTP | ✅ |
+| F8a-T3 | Almacén del token (llavero) | ✅ |
+| F8a-T4 | Device Flow y cuenta | ✅ |
+| F8a-T5 | Repos, configuración del proyecto y comandos | ✅ |
+| F8a-T6 | Dominio, puerto y adaptadores TS | ✅ |
+| F8a-T7 | Slice y pestaña «GitHub» de Ajustes | ✅ |
+| F8a-T8 | Pestaña «GitHub» de Configurar proyecto | ✅ |
+| F8a-T9 | Documentación y prueba real | 🚧 |
 
 ## Criterios de aceptación
 - [x] La migración crea las cuatro tablas y deja `user_version = 5`: `repo::integrations::tests::migration_0005_creates_the_github_tables`.
 - [x] La config del proyecto se guarda y se lee igual, y conserva los ajustes de importación: `project_github_round_trips` y `saving_keeps_import_settings_of_repos_that_stay_linked`.
 - [x] Borrar un proyecto borra su config de GitHub: `deleting_a_project_removes_its_github_config`.
 - [x] Solo hay una cuenta; el formato de repo se valida: `account_is_a_single_row` y `repo_ref_parse`.
-- [ ] Device Flow, llavero, «Reconectar» y ruteo obsoleto: tests de las Tasks 2–5 (`a_second_start_cancels_the_first_poll`, `keyring_failure_leaves_no_account_row`, `a_401_marks_the_account_for_reconnect`, `routing_on_an_archived_field_is_reported_stale`, `html_body_maps_to_a_friendly_error`, `connection_refused_maps_to_offline`).
+- [x] Device Flow, llavero, «Reconectar» y ruteo obsoleto: tests de las Tasks 2–5 (`a_second_start_cancels_the_first_poll`, `keyring_failure_leaves_no_account_row`, `a_401_marks_the_account_for_reconnect`, `routing_on_an_archived_field_is_reported_stale`, `html_body_maps_to_a_friendly_error`, `connection_refused_maps_to_offline`).
 
 ## Checklist de pruebas locales
 | # | Prueba | Esperado | OK |
@@ -67,7 +67,7 @@ El tester conecta su cuenta de GitHub desde Ajustes con Device Flow (sin backend
 | 4 | Configurar un repo de evidencias | Se guarda en la pestaña GitHub del proyecto | ☐ |
 | 5 | Desconectar y reconectar | La cuenta se borra; los vínculos del proyecto se conservan | ☐ |
 | 6 | Revocar en `https://github.com/settings/apps/authorizations` | Al listar repos aparece «Reconectar» | ☐ |
-| 7 | Linux AppImage: conectar | Conecta, o muestra el mensaje del llavero antes de abrir el navegador | ☐ |
+| 7 | Linux AppImage: conectar | Conecta, o muestra el mensaje del llavero antes de abrir el navegador | ☐ (llavero real de Linux pendiente; el de Windows pasó en el test ignorado de la Task 3) |
 | 8 | Cuando el owner apruebe la instalación: ver los repos de TEAMS4SOFT | Aparecen en la lista | ☐ |
 | 9 | Spike de la Task 0 (imágenes entre repos privados) | Resultado anotado: `blob?raw` / `raw` / ❌ | ☐ |
 

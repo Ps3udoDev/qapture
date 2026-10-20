@@ -33,8 +33,22 @@ Elige la opción que te sirva:
 
 ## ¿Qué pasa si no tengo internet?
 
-Todo funciona igual. Solo la búsqueda de actualizaciones necesita conexión.
+Todo funciona igual. Solo la búsqueda de actualizaciones y las acciones de GitHub necesitan conexión.
 
 ## Windows me muestra «Windows protegió su PC»
 
 Es el aviso de SmartScreen. Mira los pasos en [Instalación](instalacion.md#el-aviso-de-smartscreen).
+
+## GitHub
+
+### No veo mi repo en la lista
+
+Qapture solo muestra los repos donde la App **Qapture QA** está instalada y tú tienes acceso. En **Configurar proyecto › GitHub** pulsa **¿No ves tu repo?** para copiar el enlace de instalación. En un repo personal la instalas tú; en una organización la instala o aprueba un owner (pásale la [guía para administradores](github-admin.md)). Si eres *member* y GitHub muestra **Request**, espera la aprobación y vuelve a abrir la lista.
+
+### Error de llavero en Linux
+
+Qapture guarda tu sesión de GitHub en el llavero del sistema (Secret Service). Si ves «No se encontró un llavero del sistema», instala y desbloquea **gnome-keyring** o **KWallet** (en escritorios mínimos no vienen) y vuelve a pulsar **Conectar con GitHub**. Qapture no guarda la sesión en un archivo como alternativa. En Windows el mensaje equivalente habla del Administrador de credenciales.
+
+### Cómo revoco el acceso
+
+Tienes dos caminos: **Ajustes › GitHub › Desconectar** (borra la sesión de este equipo) y, para quitar la autorización del lado de GitHub, **Revocar acceso en GitHub** (<https://github.com/settings/apps/authorizations>). Si revocas en GitHub, Qapture te mostrará **Reconectar** la próxima vez. Más detalles en [Conectar con GitHub](github.md).
