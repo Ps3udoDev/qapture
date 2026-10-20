@@ -1,8 +1,5 @@
 //! Operaciones de issues sobre la API de GitHub: info del repo, crear, comentar y metadatos.
 
-// Se usa desde la Task 3/4 (comandos de reporte).
-#![allow(dead_code)]
-
 use serde::{Deserialize, Serialize};
 
 use super::client::GhClient;
@@ -117,6 +114,8 @@ pub async fn comment(
     Ok(payload.html_url)
 }
 
+// Lo consume `gh_repo_meta` (Task 4).
+#[allow(dead_code)]
 pub async fn repo_meta(client: &GhClient, token: &str, repo: &RepoRef) -> AppResult<RepoMeta> {
     let root = base(repo);
     let labels: Vec<Label> = client

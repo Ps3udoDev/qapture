@@ -170,6 +170,11 @@ impl GhClient {
             && (base_path.is_empty() || url.path().starts_with(&format!("{base_path}/")))
     }
 
+    /// Base web (`https://github.com` en producción) para armar enlaces como los de las capturas.
+    pub fn web_base(&self) -> &str {
+        &self.web
+    }
+
     pub fn production() -> Self {
         Self::new(config::API_BASE, config::WEB_BASE)
     }

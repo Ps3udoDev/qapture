@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult, GhErrorKind, gh};
 
 /// Fila única (`id = 1`) con la cuenta de GitHub conectada. El token vive en el llavero.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -219,16 +219,199 @@ pub fn save_project_github(
     Ok(())
 }
 
+/// Vínculo caso ↔ issue (como máximo uno por caso y repo).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CaseIssueLink {
+    pub case_id: String,
+    pub owner: String,
+    pub repo: String,
+    pub issue_number: u64,
+    pub node_id: String,
+    pub html_url: String,
+    /// `exported` o `imported`.
+    pub direction: String,
+    pub issue_state: String,
+}
+
+impl CaseIssueLink {
+    pub fn repo_ref(&self) -> RepoRef {
+        RepoRef {
+            owner: self.owner.clone(),
+            repo: self.repo.clone(),
+        }
+    }
+}
+
+/// `gh_conflict`: el caso ya tiene un issue en ese repo.
+pub fn conflict(existing: &CaseIssueLink) -> AppError {
+    gh(
+        GhErrorKind::Conflict,
+        format!(
+            "El caso ya tiene un issue en {} (#{}).",
+            existing.repo_ref().full_name(),
+            existing.issue_number
+        ),
+    )
+}
+
+const LINK_COLUMNS: &str =
+    "l.case_id, l.owner, l.repo, l.issue_number, l.node_id, l.html_url, l.direction, l.issue_state";
+
+fn link_from_row(r: &rusqlite::Row) -> rusqlite::Result<CaseIssueLink> {
+    Ok(CaseIssueLink {
+        case_id: r.get(0)?,
+        owner: r.get(1)?,
+        repo: r.get(2)?,
+        issue_number: r.get::<_, i64>(3)? as u64,
+        node_id: r.get::<_, Option<String>>(4)?.unwrap_or_default(),
+        html_url: r.get(5)?,
+        direction: r.get(6)?,
+        issue_state: r.get(7)?,
+    })
+}
+
+/// Inserta el vínculo. Si el caso ya tiene uno en ese repo (sin distinguir mayúsculas, o por
+/// la UNIQUE de 0005 en una carrera), devuelve `gh_conflict` con el número existente.
+pub fn insert_link(conn: &Connection, link: &CaseIssueLink) -> AppResult<()> {
+    let tx = conn.unchecked_transaction()?;
+    if let Some(existing) = find_link(&tx, &link.case_id, &link.repo_ref())? {
+        return Err(conflict(&existing));
+    }
+    let inserted = tx.execute(
+        "INSERT INTO case_issue_link
+           (case_id, owner, repo, issue_number, node_id, html_url, direction, issue_state)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![
+            link.case_id,
+            link.owner,
+            link.repo,
+            link.issue_number as i64,
+            link.node_id,
+            link.html_url,
+            link.direction,
+            link.issue_state,
+        ],
+    );
+    match inserted {
+        Ok(_) => {
+            tx.commit()?;
+            Ok(())
+        }
+        Err(rusqlite::Error::SqliteFailure(e, _))
+            if e.extended_code == rusqlite::ffi::SQLITE_CONSTRAINT_UNIQUE =>
+        {
+            match find_link(&tx, &link.case_id, &link.repo_ref())? {
+                Some(existing) => Err(conflict(&existing)),
+                None => Err(conflict(link)),
+            }
+        }
+        Err(e) => Err(e.into()),
+    }
+}
+
+/// Dueño y repo se comparan sin distinguir mayúsculas, como en GitHub.
+pub fn find_link(
+    conn: &Connection,
+    case_id: &str,
+    repo: &RepoRef,
+) -> AppResult<Option<CaseIssueLink>> {
+    Ok(conn
+        .query_row(
+            &format!(
+                "SELECT {LINK_COLUMNS} FROM case_issue_link l
+                 WHERE l.case_id = ?1 AND lower(l.owner) = lower(?2) AND lower(l.repo) = lower(?3)"
+            ),
+            params![case_id, repo.owner, repo.repo],
+            link_from_row,
+        )
+        .optional()?)
+}
+
+// Lo consume `gh_project_links` (Task 4).
+#[allow(dead_code)]
+pub fn links_for_project(conn: &Connection, project_id: &str) -> AppResult<Vec<CaseIssueLink>> {
+    let mut stmt = conn.prepare(&format!(
+        "SELECT {LINK_COLUMNS} FROM case_issue_link l JOIN test_case c ON c.id = l.case_id
+         WHERE c.project_id = ?1 ORDER BY c.rowid, l.rowid"
+    ))?;
+    let links = stmt
+        .query_map([project_id], link_from_row)?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(links)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
         db,
-        repo::test_support::{conn, project},
+        repo::test_support::{case, conn, other_project, project},
     };
 
     fn repo(s: &str) -> RepoRef {
         RepoRef::parse(s).unwrap()
+    }
+
+    fn link(case_id: &str, number: u64) -> CaseIssueLink {
+        CaseIssueLink {
+            case_id: case_id.into(),
+            owner: "Ps3udoDev".into(),
+            repo: "testing".into(),
+            issue_number: number,
+            node_id: format!("I_{number}"),
+            html_url: format!("https://github.com/Ps3udoDev/testing/issues/{number}"),
+            direction: "exported".into(),
+            issue_state: "open".into(),
+        }
+    }
+
+    #[test]
+    fn links_round_trip_and_are_listed_by_project() {
+        let conn = conn();
+        let p = project(&conn);
+        let c = case(&conn, &p);
+        let other = other_project(&conn);
+        let oc = case(&conn, &other);
+        insert_link(&conn, &link(&c.id, 45)).unwrap();
+        insert_link(&conn, &link(&oc.id, 46)).unwrap();
+        assert_eq!(
+            find_link(&conn, &c.id, &repo("Ps3udoDev/testing")).unwrap(),
+            Some(link(&c.id, 45))
+        );
+        assert_eq!(
+            find_link(&conn, &c.id, &repo("ps3udodev/TESTING")).unwrap(),
+            Some(link(&c.id, 45)),
+            "dueño y repo no distinguen mayúsculas"
+        );
+        assert_eq!(
+            find_link(&conn, &c.id, &repo("Ps3udoDev/otro")).unwrap(),
+            None
+        );
+        assert_eq!(
+            links_for_project(&conn, &p.id).unwrap(),
+            vec![link(&c.id, 45)]
+        );
+    }
+
+    #[test]
+    fn links_conflict_on_the_same_case_and_repo() {
+        let conn = conn();
+        let p = project(&conn);
+        let c = case(&conn, &p);
+        insert_link(&conn, &link(&c.id, 45)).unwrap();
+        let err = insert_link(&conn, &link(&c.id, 99)).unwrap_err();
+        assert_eq!(err.code(), "gh_conflict");
+        assert_eq!(
+            err.user_message(),
+            "El caso ya tiene un issue en Ps3udoDev/testing (#45)."
+        );
+        let mut upper = link(&c.id, 99);
+        upper.owner = "PS3UDODEV".into();
+        assert_eq!(
+            insert_link(&conn, &upper).unwrap_err().code(),
+            "gh_conflict",
+            "otra capitalización del mismo repo también choca"
+        );
     }
 
     fn sample() -> ProjectGithub {

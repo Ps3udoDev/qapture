@@ -1,7 +1,5 @@
 //! Subida de capturas al repo de evidencias: todas las imágenes en un solo commit
 //! (Git Data API: blobs -> tree -> commit -> ref). La ruta solo se genera aquí.
-// Se usa desde la Task 3/4 (comandos de reporte).
-#![allow(dead_code)]
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
@@ -130,7 +128,7 @@ fn empty_repo(repo: &RepoRef) -> AppError {
 fn is_missing_ref(err: &AppError) -> bool {
     match err {
         AppError::GitHub { kind, .. } => *kind == GhErrorKind::NotFound,
-        AppError::Io(e) => e.to_string().contains("409"),
+        AppError::Io(e) => e.to_string() == "GitHub respondió 409",
         _ => false,
     }
 }
