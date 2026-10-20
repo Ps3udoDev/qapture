@@ -122,6 +122,7 @@ export const importSummarySchema = z.strictObject({
   projects: z.array(z.strictObject({ id: z.string(), name: z.string() })),
   cases: z.number().int(),
   evidence: z.number().int(),
+  warnings: z.array(z.string()),
 });
 
 export const packageExportResultSchema = z.strictObject({

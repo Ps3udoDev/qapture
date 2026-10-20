@@ -155,7 +155,8 @@
         "id": "prj-2",
         "name": "Aplicación de recibos"
       }
-    ]
+    ],
+    "warnings": []
   },
   "inputs": {
     "caseInput": {

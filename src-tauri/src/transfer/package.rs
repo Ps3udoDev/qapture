@@ -20,6 +20,7 @@ use super::bundle::{
     BundleCase, BundleEvidence, BundleField, BundleVersion, IMPORT_FAILED, ImportFiles, Problems,
     ProjectBundle, code_number, is_case_code,
 };
+use super::github_json::{self, GITHUB_JSON, GithubJson, GithubPayload};
 #[cfg(test)]
 use crate::dto::ImportSummaryDto;
 use crate::{
@@ -124,6 +125,8 @@ pub struct PackageExport {
     pub images: Vec<(String, PathBuf)>,
     /// Capturas omitidas porque falta su original o su render.
     pub missing_images: i64,
+    /// Entrada opcional `github.json`: solo si el proyecto tiene datos de GitHub.
+    pub github: Option<GithubJson>,
 }
 
 impl PackageExport {
@@ -279,6 +282,7 @@ pub fn collect(
         doc,
         images,
         missing_images,
+        github: github_json::collect(conn, project_id)?,
     })
 }
 
@@ -299,6 +303,10 @@ fn write_zip(export: &PackageExport, path: &Path) -> AppResult<()> {
     let stored = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
     zip.start_file(PROJECT_JSON, json).map_err(zip_error)?;
     zip.write_all(&project_json(&export.doc)?)?;
+    if let Some(github) = &export.github {
+        zip.start_file(GITHUB_JSON, json).map_err(zip_error)?;
+        zip.write_all(&github_json::to_bytes(github)?)?;
+    }
     for (name, source) in &export.images {
         zip.start_file(name.as_str(), stored).map_err(zip_error)?;
         io::copy(&mut File::open(source)?, &mut zip)?;
@@ -596,6 +604,7 @@ fn to_bundle<R: Read + Seek>(
     doc: PackageDoc,
     reader: &mut Reader<R>,
     out: &mut ImportFiles,
+    github: GithubPayload,
 ) -> AppResult<ProjectBundle> {
     let id = new_id();
     let meta = projects::validate_meta(&meta_of(&doc.project))?;
@@ -660,7 +669,24 @@ fn to_bundle<R: Read + Seek>(
                 created_at: v.created_at.clone(),
             })
             .collect(),
+        github,
     })
+}
+
+/// `github.json` es opcional y nunca bloquea la importación: ilegible, demasiado grande o
+/// inválido se ignora entero (el llamador avisa).
+fn read_github<R: Read + Seek>(reader: &mut Reader<R>) -> GithubPayload {
+    if !reader.has(GITHUB_JSON) {
+        return GithubPayload::Absent;
+    }
+    match reader
+        .read(GITHUB_JSON, MAX_JSON_BYTES)
+        .ok()
+        .and_then(|bytes| GithubJson::parse(&bytes))
+    {
+        Some(json) => GithubPayload::Valid(json),
+        None => GithubPayload::Invalid,
+    }
 }
 
 /// Parte de UC-18 que no necesita la base: lee, valida y escribe las capturas.
@@ -679,7 +705,8 @@ pub fn prepare<'a>(
     let doc = read_doc(&mut reader)?;
     validate(&doc)?;
     let mut out = ImportFiles::new(files);
-    let bundle = to_bundle(doc, &mut reader, &mut out)?;
+    let github = read_github(&mut reader);
+    let bundle = to_bundle(doc, &mut reader, &mut out, github)?;
     Ok((bundle, out))
 }
 
@@ -1194,5 +1221,257 @@ pub(crate) mod tests {
             import(&conn, &tmp.files(), &path).unwrap_err().to_string(),
             TOO_BIG
         );
+    }
+
+    // ---- F8b: github.json ----
+
+    use crate::repo::integrations::{
+        CaseIssueLink, LinkedRepo, ProjectGithub, RepoRef, get_project_github, insert_link,
+        links_for_project, save_project_github,
+    };
+
+    fn repo(text: &str) -> RepoRef {
+        RepoRef::parse(text).unwrap()
+    }
+
+    fn link(case_id: &str, number: u64) -> CaseIssueLink {
+        CaseIssueLink {
+            case_id: case_id.into(),
+            owner: "o".into(),
+            repo: "r".into(),
+            issue_number: number,
+            node_id: "N1".into(),
+            html_url: format!("https://github.com/o/r/issues/{number}"),
+            direction: "exported".into(),
+            issue_state: "open".into(),
+        }
+    }
+
+    /// Proyecto sembrado con repos, ruteo por «severidad», repo de evidencias y un vínculo.
+    fn with_github(conn: &Connection, files: &EvidenceFiles) -> ProjectDto {
+        let p = seeded(conn, files);
+        let field = test_support::field_id(&p, "severidad");
+        save_project_github(
+            conn,
+            &p.id,
+            &ProjectGithub {
+                repos: vec![
+                    LinkedRepo {
+                        repo: repo("o/r"),
+                        is_default: true,
+                        default_labels: vec!["bug".into()],
+                    },
+                    LinkedRepo {
+                        repo: repo("o/otro"),
+                        is_default: false,
+                        default_labels: vec![],
+                    },
+                ],
+                routing_field_id: Some(field),
+                routing_map: BTreeMap::from([("Alta".to_string(), "o/otro".to_string())]),
+                evidence_repo: Some(repo("o/evidencias")),
+            },
+        )
+        .unwrap();
+        let first = cases::list(conn, &p.id).unwrap().remove(0);
+        insert_link(conn, &link(&first.id, 45)).unwrap();
+        p
+    }
+
+    fn zip_json(path: &Path, name: &str) -> Option<Vec<u8>> {
+        let mut zip = ZipArchive::new(File::open(path).unwrap()).unwrap();
+        let mut bytes = Vec::new();
+        zip.by_name(name).ok()?.read_to_end(&mut bytes).unwrap();
+        Some(bytes)
+    }
+
+    fn with_github_json(src: &Path, dest: &Path, edit: impl Fn(&mut serde_json::Value)) {
+        rewrite(src, dest, |name, bytes| {
+            if name != GITHUB_JSON {
+                return Some(bytes);
+            }
+            let mut value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            edit(&mut value);
+            Some(serde_json::to_vec(&value).unwrap())
+        });
+    }
+
+    #[test]
+    fn export_writes_github_json_only_when_there_is_github_data() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let (_, plain) = exported(&conn, &files, tmp.path());
+        assert!(!entry_names(&plain).contains(&GITHUB_JSON.to_string()));
+
+        let p = with_github(&conn, &files);
+        let path = tmp.path().join("gh.qapture");
+        write(&collect(&conn, &files, &p.id).unwrap(), &path).unwrap();
+        assert!(entry_names(&path).contains(&GITHUB_JSON.to_string()));
+        let json: serde_json::Value =
+            serde_json::from_slice(&zip_json(&path, GITHUB_JSON).unwrap()).unwrap();
+        assert_eq!(json["version"], 1);
+        assert_eq!(json["routingFieldKey"], "severidad");
+        assert_eq!(json["evidenceRepo"], "o/evidencias");
+        assert_eq!(json["repos"][0]["fullName"], "o/r");
+        assert_eq!(json["links"][0]["caseCode"], "EJ-001");
+        assert_eq!(json["links"][0]["issueNumber"], 45);
+    }
+
+    #[test]
+    fn round_trip_keeps_repos_routing_evidence_repo_and_links() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let p = with_github(&conn, &files);
+        let path = tmp.path().join("gh.qapture");
+        write(&collect(&conn, &files, &p.id).unwrap(), &path).unwrap();
+
+        let summary = import(&conn, &files, &path).unwrap();
+        assert!(summary.warnings.is_empty());
+        let new = projects::get(&conn, &summary.projects[0].id).unwrap();
+        let config = get_project_github(&conn, &new.id).unwrap();
+        let original = get_project_github(&conn, &p.id).unwrap();
+        assert_eq!(config.repos, original.repos);
+        assert_eq!(config.evidence_repo, original.evidence_repo);
+        assert_eq!(config.routing_map, original.routing_map);
+        assert_eq!(
+            config.routing_field_id,
+            Some(test_support::field_id(&new, "severidad")),
+            "la columna de ruteo se resuelve por key a su id nuevo"
+        );
+        let links = links_for_project(&conn, &new.id).unwrap();
+        assert_eq!(links.len(), 1);
+        let case = cases::list(&conn, &new.id)
+            .unwrap()
+            .into_iter()
+            .find(|c| c.code == "EJ-001")
+            .unwrap();
+        assert_eq!(links[0], link(&case.id, 45));
+    }
+
+    #[test]
+    fn links_to_unknown_case_codes_are_dropped() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let p = with_github(&conn, &files);
+        let path = tmp.path().join("gh.qapture");
+        write(&collect(&conn, &files, &p.id).unwrap(), &path).unwrap();
+        let edited = tmp.path().join("edited.qapture");
+        with_github_json(&path, &edited, |v| {
+            let mut extra = v["links"][0].clone();
+            extra["caseCode"] = json!("EJ-999");
+            extra["issueNumber"] = json!(99);
+            v["links"].as_array_mut().unwrap().push(extra);
+        });
+
+        let summary = import(&conn, &files, &edited).unwrap();
+        assert!(summary.warnings.is_empty(), "descartar vínculos no avisa");
+        let links = links_for_project(&conn, &summary.projects[0].id).unwrap();
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].issue_number, 45);
+    }
+
+    #[test]
+    fn a_broken_github_json_imports_without_links() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let p = with_github(&conn, &files);
+        let path = tmp.path().join("gh.qapture");
+        write(&collect(&conn, &files, &p.id).unwrap(), &path).unwrap();
+
+        let garbage = tmp.path().join("garbage.qapture");
+        rewrite(&path, &garbage, |name, b| {
+            Some(if name == GITHUB_JSON {
+                b"{no es json".to_vec()
+            } else {
+                b
+            })
+        });
+        let bad_repo = tmp.path().join("bad-repo.qapture");
+        with_github_json(&path, &bad_repo, |v| {
+            v["repos"][0]["fullName"] = json!("sin-barra")
+        });
+        let newer = tmp.path().join("newer.qapture");
+        with_github_json(&path, &newer, |v| v["version"] = json!(2));
+
+        for broken in [garbage, bad_repo, newer] {
+            let summary = import(&conn, &files, &broken).unwrap();
+            assert_eq!(
+                summary.warnings,
+                vec![github_json::GITHUB_WARNING.to_string()]
+            );
+            assert_eq!(summary.cases, 2, "el proyecto se importó");
+            let id = &summary.projects[0].id;
+            assert!(links_for_project(&conn, id).unwrap().is_empty());
+            assert_eq!(
+                get_project_github(&conn, id).unwrap(),
+                ProjectGithub::default()
+            );
+        }
+    }
+
+    #[test]
+    fn a_package_with_an_unknown_entry_still_imports() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let (_, path) = exported(&conn, &files, tmp.path());
+        let extra = tmp.path().join("extra.qapture");
+        let mut input = ZipArchive::new(File::open(&path).unwrap()).unwrap();
+        let mut output = ZipWriter::new(File::create(&extra).unwrap());
+        for index in 0..input.len() {
+            let entry = input.by_index_raw(index).unwrap();
+            output.raw_copy_file(entry).unwrap();
+        }
+        output
+            .start_file("otro.json", SimpleFileOptions::default())
+            .unwrap();
+        output.write_all(b"{}").unwrap();
+        output.finish().unwrap();
+
+        let summary = import(&conn, &files, &extra).unwrap();
+        assert_eq!((summary.cases, summary.evidence), (2, 2));
+        assert!(summary.warnings.is_empty());
+    }
+
+    #[test]
+    fn project_json_is_unchanged_by_github_data() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let p = seeded(&conn, &files);
+        let before = collect(&conn, &files, &p.id).unwrap();
+        assert!(before.github.is_none());
+        let plain = tmp.path().join("plain.qapture");
+        write(&before, &plain).unwrap();
+
+        let field = test_support::field_id(&p, "severidad");
+        save_project_github(
+            &conn,
+            &p.id,
+            &ProjectGithub {
+                repos: vec![LinkedRepo {
+                    repo: repo("o/r"),
+                    is_default: true,
+                    default_labels: vec![],
+                }],
+                routing_field_id: Some(field),
+                ..ProjectGithub::default()
+            },
+        )
+        .unwrap();
+        let first = cases::list(&conn, &p.id).unwrap().remove(0);
+        insert_link(&conn, &link(&first.id, 7)).unwrap();
+        let with = tmp.path().join("with.qapture");
+        write(&collect(&conn, &files, &p.id).unwrap(), &with).unwrap();
+
+        assert_eq!(
+            zip_json(&plain, PROJECT_JSON),
+            zip_json(&with, PROJECT_JSON)
+        );
+        assert!(zip_json(&with, PROJECT_JSON).is_some());
     }
 }

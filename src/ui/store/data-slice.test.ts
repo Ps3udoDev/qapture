@@ -32,6 +32,13 @@ describe("importar", () => {
     expect(s.dataBusy).toBe(false);
   });
 
+  it("muestra como aviso cada advertencia de la importación", async () => {
+    const warning = "No se pudieron leer los datos de GitHub del paquete; el proyecto se importó sin ellos.";
+    const { store } = await setup((r) => void (r.data.warnings = [warning]));
+    await store.getState().importPackage();
+    expect(store.getState().toasts.map((t) => t.message)).toEqual([expect.stringContaining("Importado"), warning]);
+  });
+
   it("cerrar el diálogo de archivo no cambia nada", async () => {
     const { repos, store } = await setup((r) => void (r.data.mode = "cancel"));
     await store.getState().importPackage();

@@ -237,6 +237,8 @@ pub struct ImportSummaryDto {
     pub projects: Vec<ImportedProjectDto>,
     pub cases: i64,
     pub evidence: i64,
+    /// Avisos no bloqueantes (p. ej. datos de GitHub del paquete que no se pudieron leer).
+    pub warnings: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -556,7 +558,7 @@ mod contract {
         json!({
             "importSummary": ImportSummaryDto {
                 projects: vec![ImportedProjectDto { id: "prj-2".into(), name: "Aplicación de recibos".into() }],
-                cases: 3, evidence: 2,
+                cases: 3, evidence: 2, warnings: vec![],
             },
             "packageExportResult": PackageExportResultDto {
                 path: "C:\\Users\\ana\\Documents\\T4S_ACME_Recibos_20261016.qapture".into(),

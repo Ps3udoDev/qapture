@@ -18,6 +18,7 @@ use super::bundle::{
     BundleCase, BundleEvidence, BundleField, EMPTY_ANNOTATIONS, IMPORT_FAILED, ImportFiles,
     Problems, ProjectBundle, code_number, is_case_code,
 };
+use super::github_json::GithubPayload;
 #[cfg(test)]
 use crate::dto::ImportSummaryDto;
 use crate::{
@@ -495,6 +496,7 @@ fn to_bundles(
             fields,
             cases,
             versions: Vec::new(),
+            github: GithubPayload::Absent,
         });
     }
     Ok(bundles)
