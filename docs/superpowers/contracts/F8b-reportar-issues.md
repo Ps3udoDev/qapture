@@ -73,10 +73,10 @@ El tester reporta un caso de prueba como issue de GitHub (o comenta un re-test e
 ## Checklist de pruebas locales
 | # | Prueba | Esperado | OK |
 |---|---|---|---|
-| 1 | Crear un issue con 2 capturas en `Ps3udoDev/testing`, con evidencias en `Ps3udoDev/qa-evidencias-prueba` | Las imágenes se ven | ☐ |
-| 2 | Comentar un re-test con 1 captura | El comentario aparece con la imagen | ☐ |
-| 3 | Proyecto sin repo de evidencias | Modo asistido, copiar y pegar | ☐ |
+| 1 | Crear un issue con 2 capturas en `Ps3udoDev/testing`, con evidencias en `Ps3udoDev/qa-evidencias-prueba` | Las imágenes se ven | ✅ 2026-10-20 (instalador local) |
+| 2 | Comentar un re-test con 1 captura | El comentario aparece con la imagen | ✅ 2026-10-20 |
+| 3 | Proyecto sin repo de evidencias | Modo asistido, copiar y pegar | ✅ 2026-10-20 |
 | 4 | Mismo caso hacia un segundo repo | Dos chips | ☐ |
-| 5 | Exportar a Excel | Columna `Issue` | ☐ |
+| 5 | Exportar a Excel | Columna `Issue` | ✅ 2026-10-20 |
 | 6 | Exportar el paquete y abrirlo en otra instalación | Vínculos conservados | ☐ |
 | 7 | Cuando el owner apruebe: `TEAMS4SOFT/GMX-frontend` con `TEAMS4SOFT/qa-evidencias` | Un miembro sin acceso a `qa-evidencias` no ve las imágenes | ☐ |
