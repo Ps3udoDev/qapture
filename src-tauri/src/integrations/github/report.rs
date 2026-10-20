@@ -341,16 +341,16 @@ async fn upload(
         return assisted(AssistedReason::NoEvidenceRepo);
     };
     let client = &state.github().client;
-    match issues::repo_info(client, token, repo).await {
+    let branch = match issues::repo_info(client, token, repo).await {
         Ok(info) if !info.can_push => return assisted(AssistedReason::CannotWrite(repo.clone())),
-        Ok(_) => {}
+        Ok(info) => info.default_branch,
         Err(e) => {
             return match assisted_reason(&e, repo) {
                 Some(reason) => assisted(reason),
                 None => Err(e),
             };
         }
-    }
+    };
 
     let tester = tester(state, snap);
     let dir = evidence_upload::evidence_dir(&snap.project_name, &snap.code, now, &tester);
@@ -363,7 +363,7 @@ async fn upload(
     }
     let title: String = snap.case_title.chars().take(MAX_COMMIT_TITLE).collect();
     let message = format!("qapture: {} {} ({tester})", snap.code, title.trim_end());
-    match evidence_upload::commit_files(client, token, repo, &files, &message).await {
+    match evidence_upload::commit_files(client, token, repo, &branch, &files, &message).await {
         Ok(sha) => {
             let web = client.web_base();
             let urls = files
@@ -786,6 +786,8 @@ mod tests {
     async fn mock_evidence_repo(s: &mut ServerGuard, push: bool) -> Mock {
         s.mock("GET", EVID)
             .with_body(json!({"default_branch":"main","permissions":{"push":push}}).to_string())
+            // Una sola lectura: la rama predeterminada se reutiliza para el commit.
+            .expect(1)
             .create_async()
             .await
     }
@@ -876,7 +878,7 @@ mod tests {
     async fn create_uploads_rendered_pngs_and_links_by_sha() {
         let mut s = mockito::Server::new_async().await;
         let f = fixture(&s.url(), Some("Ps3udoDev/evidencias"), 2);
-        let _repo = mock_evidence_repo(&mut s, true).await;
+        let repo_read = mock_evidence_repo(&mut s, true).await;
         let _reads = mock_ref_reads(&mut s).await;
         let upload = mock_upload(&mut s, &f, 2).await;
         let expected_body = uploaded_body(&f, &s.url(), 2);
@@ -885,6 +887,7 @@ mod tests {
         let outcome = create_issue(&f.state, f.input(f.evidence.clone()), now())
             .await
             .unwrap();
+        repo_read.assert_async().await;
         for m in upload {
             m.assert_async().await;
         }

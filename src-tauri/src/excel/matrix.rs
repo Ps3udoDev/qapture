@@ -13,6 +13,7 @@ use crate::{
     domain::{fields::FieldType, status::STATUSES},
     dto::FieldDto,
     error::AppResult,
+    integrations::github::config,
 };
 
 pub const SHEET: &str = "Matriz";
@@ -183,9 +184,14 @@ fn write_case(
                 [] => {
                     ws.write_blank(row, at, &s.text)?;
                 }
-                [(text, url)] => {
+                // Una URL guardada que no sea https de GitHub queda como texto, sin enlace
+                // y sin tumbar la exportación.
+                [(text, url)] if config::is_web_url(url) => {
                     let link = Url::new(url).set_text(text);
                     ws.write_url_with_format(row, at, link, &s.link)?;
+                }
+                [(text, _)] => {
+                    ws.write_string_with_format(row, at, text, &s.text)?;
                 }
                 many => {
                     let text: Vec<&str> = many.iter().map(|(t, _)| t.as_str()).collect();
@@ -361,6 +367,24 @@ mod tests {
         let note = book.part("xl/comments1.xml");
         assert!(note.contains("https://github.com/o/app/issues/7"));
         assert!(note.contains("https://github.com/o/web/issues/2"));
+    }
+
+    /// Una URL guardada que no es https de GitHub no tumba la exportación: queda solo el texto.
+    #[test]
+    fn a_stored_url_outside_github_is_plain_text() {
+        for url in [
+            "file:///C:/x.exe",
+            "no es una url",
+            "https://evil.example/x",
+        ] {
+            let data = with_issues(1, &[("app#7", url)]);
+            let book = render(&data, None, false);
+            assert_eq!(book.text(SHEET, row_of(1), 12), "app#7", "{url}");
+            if book.has_part("xl/worksheets/_rels/sheet1.xml.rels") {
+                let rels = sheet_rels(&book);
+                assert!(!rels.contains("evil") && !rels.contains("file:"), "{url}");
+            }
+        }
     }
 
     #[test]

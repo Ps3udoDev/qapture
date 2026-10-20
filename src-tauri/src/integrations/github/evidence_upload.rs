@@ -7,7 +7,6 @@ use serde::Deserialize;
 use serde_json::json;
 
 use super::client::GhClient;
-use super::issues::repo_info;
 use crate::error::{AppError, AppResult, GhErrorKind, gh};
 use crate::repo::integrations::RepoRef;
 
@@ -103,10 +102,11 @@ struct ShaObject {
     sha: String,
 }
 
+/// `tree` es obligatorio: un `base_tree` vacío reemplazaría todo el árbol del repo de
+/// evidencias, así que una respuesta sin él es un error.
 #[derive(Deserialize)]
 struct CommitPayload {
-    #[serde(default)]
-    tree: Option<ShaObject>,
+    tree: ShaObject,
 }
 
 #[derive(Deserialize)]
@@ -143,17 +143,45 @@ fn is_rejected_update(err: &AppError) -> bool {
     )
 }
 
-/// Crea un único commit con todos los archivos en la rama predeterminada y devuelve su SHA.
-/// Un 422 al mover la ref (otro commit llegó antes) reintenta desde la lectura de la ref.
+/// Sube cada archivo como blob (en serie, para respetar los límites secundarios de GitHub) y
+/// devuelve las entradas del árbol.
+async fn upload_blobs(
+    client: &GhClient,
+    token: &str,
+    repo: &RepoRef,
+    root: &str,
+    files: &[Upload],
+) -> AppResult<Vec<serde_json::Value>> {
+    let mut entries = Vec::with_capacity(files.len());
+    for file in files {
+        let blob: Sha = client
+            .post_blob_json(
+                token,
+                &format!("{root}/blobs"),
+                &json!({ "content": STANDARD.encode(&file.png), "encoding": "base64" }),
+                Some(repo),
+            )
+            .await?;
+        entries.push(json!({
+            "path": file.path, "mode": "100644", "type": "blob", "sha": blob.sha
+        }));
+    }
+    Ok(entries)
+}
+
+/// Crea un único commit con todos los archivos en `branch` (la rama predeterminada, que el
+/// llamador ya leyó con `repo_info`) y devuelve su SHA. Un 422 al mover la ref (otro commit
+/// llegó antes) reintenta desde la lectura de la ref; los blobs se suben una sola vez.
 pub async fn commit_files(
     client: &GhClient,
     token: &str,
     repo: &RepoRef,
+    branch: &str,
     files: &[Upload],
     message: &str,
 ) -> AppResult<String> {
-    let branch = repo_info(client, token, repo).await?.default_branch;
     let root = format!("/repos/{}/{}/git", repo.owner, repo.repo);
+    let mut entries: Option<Vec<serde_json::Value>> = None;
     let mut attempt = 0;
     loop {
         attempt += 1;
@@ -174,28 +202,18 @@ pub async fn commit_files(
                 Some(repo),
             )
             .await?;
-        let base_tree = parent.tree.map(|t| t.sha).unwrap_or_default();
+        let base_tree = parent.tree.sha;
 
-        // En serie, para respetar los límites secundarios de GitHub.
-        let mut entries = Vec::with_capacity(files.len());
-        for file in files {
-            let blob: Sha = client
-                .post_json(
-                    token,
-                    &format!("{root}/blobs"),
-                    &json!({ "content": STANDARD.encode(&file.png), "encoding": "base64" }),
-                    Some(repo),
-                )
-                .await?;
-            entries.push(json!({
-                "path": file.path, "mode": "100644", "type": "blob", "sha": blob.sha
-            }));
+        // Tras la primera lectura de la ref (un repo vacío no llega a subir nada).
+        if entries.is_none() {
+            entries = Some(upload_blobs(client, token, repo, &root, files).await?);
         }
+        let tree_entries = entries.as_deref().unwrap_or_default();
         let tree: Sha = client
             .post_json(
                 token,
                 &format!("{root}/trees"),
-                &json!({ "base_tree": base_tree, "tree": entries }),
+                &json!({ "base_tree": base_tree, "tree": tree_entries }),
                 Some(repo),
             )
             .await?;
@@ -245,9 +263,10 @@ mod tests {
         ]
     }
 
+    /// La rama llega del llamador: `commit_files` no vuelve a leer el repo.
     async fn mock_repo(s: &mut ServerGuard) -> Mock {
         s.mock("GET", "/repos/Ps3udoDev/evidencias")
-            .with_body(r#"{"default_branch":"main","permissions":{"push":true}}"#)
+            .expect(0)
             .create_async()
             .await
     }
@@ -307,7 +326,7 @@ mod tests {
     #[tokio::test]
     async fn commit_files_creates_one_commit_for_all_images() {
         let mut s = mockito::Server::new_async().await;
-        let _r = mock_repo(&mut s).await;
+        let no_repo = mock_repo(&mut s).await;
         let (r, c) = mock_read(&mut s, 1).await;
         let b1 = s
             .mock("POST", format!("{GIT}/blobs").as_str())
@@ -361,11 +380,18 @@ mod tests {
             .create_async()
             .await;
         let client = GhClient::new(&s.url(), &s.url());
-        let sha = commit_files(&client, "t0k", &repo(), &files(), "qapture: EJ-1 t (ana)")
-            .await
-            .unwrap();
+        let sha = commit_files(
+            &client,
+            "t0k",
+            &repo(),
+            "main",
+            &files(),
+            "qapture: EJ-1 t (ana)",
+        )
+        .await
+        .unwrap();
         assert_eq!(sha, "newc");
-        for m in [r, c, b1, b2, t, cm, p] {
+        for m in [no_repo, r, c, b1, b2, t, cm, p] {
             m.assert_async().await;
         }
     }
@@ -388,31 +414,122 @@ mod tests {
         mocks
     }
 
+    /// El 422 reintenta desde la lectura de la ref: el segundo commit cuelga del head nuevo y
+    /// los blobs ya subidos se reutilizan (un POST por archivo en total).
     #[tokio::test]
     async fn a_non_fast_forward_ref_update_is_retried() {
         let mut s = mockito::Server::new_async().await;
-        let _r = mock_repo(&mut s).await;
-        let (r, _c) = mock_read(&mut s, 2).await;
-        let _pipe = pipeline_after_read(&mut s).await;
-        let _p1 = s
-            .mock("PATCH", format!("{GIT}/refs/heads/main").as_str())
-            .with_status(422)
-            .with_body(r#"{"message":"Update is not a fast forward"}"#)
-            .expect(1)
-            .create_async()
-            .await;
-        let _p2 = s
-            .mock("PATCH", format!("{GIT}/refs/heads/main").as_str())
-            .with_body("{}")
-            .expect(1)
-            .create_async()
-            .await;
+        let no_repo = mock_repo(&mut s).await;
+        let mut mocks = Vec::new();
+        for head in ["head1", "head2"] {
+            mocks.push(
+                s.mock("GET", format!("{GIT}/ref/heads/main").as_str())
+                    .with_body(json!({ "object": { "sha": head } }).to_string())
+                    .expect(1)
+                    .create_async()
+                    .await,
+            );
+            mocks.push(
+                s.mock("GET", format!("{GIT}/commits/{head}").as_str())
+                    .with_body(
+                        json!({ "sha": head, "tree": { "sha": format!("tree-{head}") } })
+                            .to_string(),
+                    )
+                    .expect(1)
+                    .create_async()
+                    .await,
+            );
+        }
+        for (i, file) in files().iter().enumerate() {
+            mocks.push(
+                s.mock("POST", format!("{GIT}/blobs").as_str())
+                    .match_body(Matcher::Json(
+                        json!({"content": STANDARD.encode(&file.png), "encoding": "base64"}),
+                    ))
+                    .with_status(201)
+                    .with_body(json!({ "sha": format!("blob{i}") }).to_string())
+                    .expect(1)
+                    .create_async()
+                    .await,
+            );
+        }
+        for head in ["head1", "head2"] {
+            mocks.push(
+                s.mock("POST", format!("{GIT}/trees").as_str())
+                    .match_body(Matcher::Json(json!({
+                        "base_tree": format!("tree-{head}"),
+                        "tree": [
+                            {"path":"p/EJ-1/d/1.png","mode":"100644","type":"blob","sha":"blob0"},
+                            {"path":"p/EJ-1/d/2.png","mode":"100644","type":"blob","sha":"blob1"}
+                        ]
+                    })))
+                    .with_status(201)
+                    .with_body(json!({ "sha": format!("t-{head}") }).to_string())
+                    .expect(1)
+                    .create_async()
+                    .await,
+            );
+            mocks.push(
+                s.mock("POST", format!("{GIT}/commits").as_str())
+                    .match_body(Matcher::Json(
+                        json!({ "message": "m", "tree": format!("t-{head}"), "parents": [head] }),
+                    ))
+                    .with_status(201)
+                    .with_body(json!({ "sha": format!("c-{head}") }).to_string())
+                    .expect(1)
+                    .create_async()
+                    .await,
+            );
+        }
+        mocks.push(
+            s.mock("PATCH", format!("{GIT}/refs/heads/main").as_str())
+                .match_body(Matcher::Json(json!({"sha":"c-head1","force":false})))
+                .with_status(422)
+                .with_body(r#"{"message":"Update is not a fast forward"}"#)
+                .expect(1)
+                .create_async()
+                .await,
+        );
+        mocks.push(
+            s.mock("PATCH", format!("{GIT}/refs/heads/main").as_str())
+                .match_body(Matcher::Json(json!({"sha":"c-head2","force":false})))
+                .with_body("{}")
+                .expect(1)
+                .create_async()
+                .await,
+        );
         let client = GhClient::new(&s.url(), &s.url());
-        let sha = commit_files(&client, "t0k", &repo(), &files(), "m")
+        let sha = commit_files(&client, "t0k", &repo(), "main", &files(), "m")
             .await
             .unwrap();
-        assert_eq!(sha, "newc");
-        r.assert_async().await;
+        assert_eq!(sha, "c-head2");
+        no_repo.assert_async().await;
+        for m in mocks {
+            m.assert_async().await;
+        }
+    }
+
+    /// Sin `tree` en el commit padre, un `base_tree` vacío reemplazaría todo el árbol del repo.
+    #[tokio::test]
+    async fn a_parent_commit_without_a_tree_is_an_error() {
+        let mut s = mockito::Server::new_async().await;
+        let _g = s
+            .mock("GET", format!("{GIT}/ref/heads/main").as_str())
+            .with_body(r#"{"object":{"sha":"head1"}}"#)
+            .create_async()
+            .await;
+        let _c = s
+            .mock("GET", format!("{GIT}/commits/head1").as_str())
+            .with_body(r#"{"sha":"head1"}"#)
+            .create_async()
+            .await;
+        let writes = s.mock("POST", Matcher::Any).expect(0).create_async().await;
+        let client = GhClient::new(&s.url(), &s.url());
+        let err = commit_files(&client, "t0k", &repo(), "main", &files(), "m")
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), "io");
+        writes.assert_async().await;
     }
 
     #[tokio::test]
@@ -429,7 +546,7 @@ mod tests {
             .create_async()
             .await;
         let client = GhClient::new(&s.url(), &s.url());
-        let err = commit_files(&client, "t0k", &repo(), &files(), "m")
+        let err = commit_files(&client, "t0k", &repo(), "main", &files(), "m")
             .await
             .unwrap_err();
         assert_eq!(err.code(), "gh_validation");
@@ -449,7 +566,7 @@ mod tests {
                 .create_async()
                 .await;
             let client = GhClient::new(&s.url(), &s.url());
-            let err = commit_files(&client, "t0k", &repo(), &files(), "m")
+            let err = commit_files(&client, "t0k", &repo(), "main", &files(), "m")
                 .await
                 .unwrap_err();
             assert_eq!(err.code(), "gh_validation");
@@ -472,7 +589,7 @@ mod tests {
             .create_async()
             .await;
         let client = GhClient::new(&s.url(), &s.url());
-        let err = commit_files(&client, "t0k", &repo(), &files(), "m")
+        let err = commit_files(&client, "t0k", &repo(), "main", &files(), "m")
             .await
             .unwrap_err();
         assert!(matches!(

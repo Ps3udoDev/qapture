@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     error::AppResult,
+    integrations::github::config,
     repo::{
         cases,
         integrations::{
@@ -21,10 +22,10 @@ use crate::{
 
 pub const GITHUB_JSON: &str = "github.json";
 pub const VERSION: i64 = 1;
-/// Aviso fijo cuando el `github.json` no se pudo leer o aplicar.
 /// Aviso cuando el paquete traía un repo de evidencias (no se restaura).
 pub const EVIDENCE_REPO_WARNING: &str =
     "El paquete traía un repo de evidencias; confírmalo en Configurar proyecto › GitHub.";
+/// Aviso fijo cuando el `github.json` no se pudo leer o aplicar.
 pub const GITHUB_WARNING: &str =
     "No se pudieron leer los datos de GitHub del paquete; el proyecto se importó sin ellos.";
 
@@ -93,8 +94,10 @@ impl GithubJson {
                 .all(|r| RepoRef::parse(r).is_some())
             && self.links.iter().all(|l| {
                 RepoRef::parse(&format!("{}/{}", l.owner, l.repo)).is_some()
-                    && l.issue_number > 0
-                    && !l.html_url.is_empty()
+                    // Se guarda como INTEGER (i64) de SQLite.
+                    && (1..=i64::MAX as u64).contains(&l.issue_number)
+                    // Un paquete ajeno no decide qué abre Qapture: solo el issue en GitHub.
+                    && config::is_issue_url(&l.html_url, &l.owner, &l.repo, l.issue_number)
                     && matches!(l.direction.as_str(), "exported" | "imported")
             })
     }

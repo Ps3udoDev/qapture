@@ -22,7 +22,7 @@ use crate::{
     error::{AppError, AppResult, GhErrorKind, validation},
     integrations::github::{
         auth::{self, DeviceCode},
-        issues, project_config,
+        config, issues, project_config,
         report::{self, AssistedReason, ReportInput, UploadMode},
         repos,
     },
@@ -373,12 +373,17 @@ pub(crate) fn evidence_rgba(state: &AppState, evidence_id: &str) -> AppResult<(u
     Ok((width, height, image.into_raw()))
 }
 
-/// La `html_url` guardada del vínculo (caso, repo): nunca una URL del WebView.
+/// La `html_url` guardada del vínculo (caso, repo): nunca una URL del WebView. Solo se abre si
+/// es https de GitHub (defensa en profundidad: el opener abriría cualquier protocolo).
 pub(crate) fn stored_issue_url(state: &AppState, case_id: &str, repo: &str) -> AppResult<String> {
     let repo = parse_repo(repo)?;
-    repo::integrations::find_link(&state.db(), case_id, &repo)?
+    let url = repo::integrations::find_link(&state.db(), case_id, &repo)?
         .map(|link| link.html_url)
-        .ok_or_else(|| AppError::NotFound("El caso no tiene un issue en ese repo.".into()))
+        .ok_or_else(|| AppError::NotFound("El caso no tiene un issue en ese repo.".into()))?;
+    if !config::is_web_url(&url) {
+        return Err(validation("El vínculo del issue no apunta a GitHub."));
+    }
+    Ok(url)
 }
 
 /// Pide el código del Device Flow y deja el sondeo corriendo. Un segundo inicio cancela el
@@ -950,6 +955,30 @@ mod tests {
         let links = project_links(&state, &project_id).unwrap();
         assert_eq!(links.len(), 1);
         assert_eq!(links[0].full_name, "Ps3udoDev/testing");
+    }
+
+    /// Defensa en profundidad: una URL guardada que no sea https de GitHub no se abre.
+    #[test]
+    fn open_issue_refuses_a_stored_url_outside_github() {
+        for url in [
+            "file:///C:/x.exe",
+            "http://github.com/Ps3udoDev/testing/issues/45",
+            "https://evil.example/Ps3udoDev/testing/issues/45",
+            "https://user@github.com/Ps3udoDev/testing/issues/45",
+            "no es una url",
+        ] {
+            let (_tmp, state, case_id, _) = report_fixture("http://127.0.0.1:9");
+            let mut link = stored_link(&case_id);
+            link.html_url = url.into();
+            insert_link(&state.db(), &link).unwrap();
+            let err = stored_issue_url(&state, &case_id, "Ps3udoDev/testing").unwrap_err();
+            assert_eq!(err.code(), "validation", "{url}");
+            assert_eq!(
+                err.user_message(),
+                "El vínculo del issue no apunta a GitHub.",
+                "{url}"
+            );
+        }
     }
 
     #[test]

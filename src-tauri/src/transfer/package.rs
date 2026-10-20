@@ -1370,6 +1370,7 @@ pub(crate) mod tests {
             let mut extra = v["links"][0].clone();
             extra["caseCode"] = json!("EJ-999");
             extra["issueNumber"] = json!(99);
+            extra["htmlUrl"] = json!("https://github.com/o/r/issues/99");
             v["links"].as_array_mut().unwrap().push(extra);
         });
 
@@ -1422,6 +1423,73 @@ pub(crate) mod tests {
                 ProjectGithub::default()
             );
         }
+    }
+
+    /// Un paquete ajeno no decide qué abre Qapture: la `htmlUrl` debe ser la del issue en GitHub.
+    #[test]
+    fn a_package_with_a_foreign_issue_url_imports_without_links() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let p = with_github(&conn, &files);
+        let path = tmp.path().join("gh.qapture");
+        write(&collect(&conn, &files, &p.id).unwrap(), &path).unwrap();
+
+        let edits: [(&str, serde_json::Value, serde_json::Value); 5] = [
+            ("file", json!("file:///C:/x.exe"), json!(45)),
+            (
+                "host",
+                json!("https://evil.example/o/r/issues/45"),
+                json!(45),
+            ),
+            (
+                "repo",
+                json!("https://github.com/o/otro/issues/45"),
+                json!(45),
+            ),
+            (
+                "number",
+                json!("https://github.com/o/r/issues/46"),
+                json!(45),
+            ),
+            (
+                "huge",
+                json!(format!("https://github.com/o/r/issues/{}", u64::MAX)),
+                json!(u64::MAX),
+            ),
+        ];
+        for (name, url, number) in edits {
+            let broken = tmp.path().join(format!("{name}.qapture"));
+            with_github_json(&path, &broken, |v| {
+                v["links"][0]["htmlUrl"] = url.clone();
+                v["links"][0]["issueNumber"] = number.clone();
+            });
+            let summary = import(&conn, &files, &broken).unwrap();
+            assert_eq!(
+                summary.warnings,
+                vec![github_json::GITHUB_WARNING.to_string()],
+                "{name}"
+            );
+            let id = &summary.projects[0].id;
+            assert!(links_for_project(&conn, id).unwrap().is_empty(), "{name}");
+        }
+
+        // Mayúsculas distintas en dueño/repo siguen siendo el mismo issue.
+        let cased = tmp.path().join("cased.qapture");
+        with_github_json(&path, &cased, |v| {
+            v["links"][0]["htmlUrl"] = json!("https://github.com/O/R/issues/45");
+        });
+        let summary = import(&conn, &files, &cased).unwrap();
+        assert_eq!(
+            summary.warnings,
+            vec![github_json::EVIDENCE_REPO_WARNING.to_string()]
+        );
+        assert_eq!(
+            links_for_project(&conn, &summary.projects[0].id)
+                .unwrap()
+                .len(),
+            1
+        );
     }
 
     #[test]
