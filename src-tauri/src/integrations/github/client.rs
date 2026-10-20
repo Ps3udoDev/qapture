@@ -3,6 +3,7 @@
 use std::time::Duration;
 
 use reqwest::header::{ACCEPT, AUTHORIZATION, HeaderMap, HeaderValue, USER_AGENT};
+use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
@@ -191,13 +192,22 @@ impl GhClient {
     }
 
     fn api_request(&self, token: &str, url: &str) -> AppResult<reqwest::RequestBuilder> {
+        self.api_request_with(reqwest::Method::GET, token, url)
+    }
+
+    fn api_request_with(
+        &self,
+        method: reqwest::Method,
+        token: &str,
+        url: &str,
+    ) -> AppResult<reqwest::RequestBuilder> {
         // Un token con caracteres no válidos para un header no se manda (ni se muestra).
         let mut auth =
             HeaderValue::from_str(&format!("Bearer {token}")).map_err(|_| generic(GENERIC_IO))?;
         auth.set_sensitive(true);
         Ok(self
             .http()?
-            .get(url)
+            .request(method, url)
             .header(AUTHORIZATION, auth)
             .header(ACCEPT, "application/vnd.github+json")
             .header("X-GitHub-Api-Version", config::API_VERSION)
@@ -213,6 +223,44 @@ impl GhClient {
         let url = format!("{}{}", self.api, path);
         let (_, bytes) = self.send(self.api_request(token, &url)?, repo).await?;
         serde_json::from_slice(&bytes).map_err(|_| generic(GENERIC_IO))
+    }
+
+    async fn write_json<B: Serialize, T: DeserializeOwned>(
+        &self,
+        method: reqwest::Method,
+        token: &str,
+        path: &str,
+        body: &B,
+        repo: Option<&RepoRef>,
+    ) -> AppResult<T> {
+        let url = format!("{}{}", self.api, path);
+        let request = self.api_request_with(method, token, &url)?.json(body);
+        let (_, bytes) = self.send(request, repo).await?;
+        serde_json::from_slice(&bytes).map_err(|_| generic(GENERIC_IO))
+    }
+
+    pub async fn post_json<B: Serialize, T: DeserializeOwned>(
+        &self,
+        token: &str,
+        path: &str,
+        body: &B,
+        repo: Option<&RepoRef>,
+    ) -> AppResult<T> {
+        self.write_json(reqwest::Method::POST, token, path, body, repo)
+            .await
+    }
+
+    // Lo usa la subida de evidencias (Task 2): actualiza la ref de la rama.
+    #[allow(dead_code)]
+    pub async fn patch_json<B: Serialize, T: DeserializeOwned>(
+        &self,
+        token: &str,
+        path: &str,
+        body: &B,
+        repo: Option<&RepoRef>,
+    ) -> AppResult<T> {
+        self.write_json(reqwest::Method::PATCH, token, path, body, repo)
+            .await
     }
 
     pub async fn get_paginated<T: DeserializeOwned>(
@@ -549,6 +597,83 @@ mod tests {
             .unwrap();
         assert_eq!(v["device_code"], "d");
         m.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn post_json_sends_body_and_headers() {
+        let mut server = mockito::Server::new_async().await;
+        let m = server
+            .mock("POST", "/x")
+            .match_header("authorization", "Bearer t0k")
+            .match_header("x-github-api-version", "2022-11-28")
+            .match_header("accept", "application/vnd.github+json")
+            .match_header("content-type", "application/json")
+            .match_body(mockito::Matcher::Json(json!({ "a": 1 })))
+            .with_status(201)
+            .with_body(r#"{"ok":true}"#)
+            .create_async()
+            .await;
+        let client = GhClient::new(&server.url(), &server.url());
+        let v: Value = client
+            .post_json("t0k", "/x", &json!({ "a": 1 }), None)
+            .await
+            .unwrap();
+        assert_eq!(v["ok"], true);
+        m.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn patch_json_maps_422_to_validation() {
+        let mut server = mockito::Server::new_async().await;
+        let _m = server
+            .mock("PATCH", "/x")
+            .with_status(422)
+            .with_body(r#"{"message":"Update is not a fast forward"}"#)
+            .create_async()
+            .await;
+        let client = GhClient::new(&server.url(), &server.url());
+        let err = client
+            .patch_json::<_, Value>("t0k", "/x", &json!({}), None)
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), "gh_validation");
+        assert_eq!(
+            err.user_message(),
+            "GitHub rechazó la solicitud: Update is not a fast forward."
+        );
+        assert_no_token(&err);
+    }
+
+    #[tokio::test]
+    async fn write_errors_never_contain_the_token() {
+        for status in [401usize, 403, 404, 422, 502] {
+            let mut server = mockito::Server::new_async().await;
+            let _m = server
+                .mock("POST", "/x")
+                .with_status(status)
+                .with_body("t0k")
+                .create_async()
+                .await;
+            let client = GhClient::new(&server.url(), &server.url());
+            let repo = RepoRef::parse("o/r").unwrap();
+            let err = client
+                .post_json::<_, Value>("t0k", "/x", &json!({}), Some(&repo))
+                .await
+                .unwrap_err();
+            assert_no_token(&err);
+        }
+        let offline = GhClient::new("http://127.0.0.1:9", "http://127.0.0.1:9");
+        let err = offline
+            .patch_json::<_, Value>("t0k", "/x", &json!({}), None)
+            .await
+            .unwrap_err();
+        assert_no_token(&err);
+        let broken = GhClient::without_http("http://127.0.0.1:9", "http://127.0.0.1:9");
+        let err = broken
+            .post_json::<_, Value>("t0k", "/x", &json!({}), None)
+            .await
+            .unwrap_err();
+        assert_no_token(&err);
     }
 
     #[tokio::test]
