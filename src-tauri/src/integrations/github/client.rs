@@ -120,6 +120,10 @@ fn next_link(headers: &HeaderMap) -> Option<String> {
 
 impl GhClient {
     pub fn new(api_base: &str, web_base: &str) -> Self {
+        // Mismo patrón que tauri-plugin-updater: reqwest no trae proveedor TLS propio.
+        if rustls::crypto::CryptoProvider::get_default().is_none() {
+            let _ = rustls::crypto::ring::default_provider().install_default();
+        }
         let http = reqwest::Client::builder()
             .timeout(Duration::from_secs(20))
             .build()
@@ -129,6 +133,23 @@ impl GhClient {
             web: web_base.trim_end_matches('/').to_string(),
             http,
         }
+    }
+
+    /// Mismo esquema, host y puerto que el API, y ruta dentro de su base. Sin credenciales.
+    fn is_api_url(&self, candidate: &str) -> bool {
+        let (Ok(base), Ok(url)) = (
+            reqwest::Url::parse(&self.api),
+            reqwest::Url::parse(candidate),
+        ) else {
+            return false;
+        };
+        let base_path = base.path().trim_end_matches('/');
+        url.scheme() == base.scheme()
+            && url.host_str() == base.host_str()
+            && url.port_or_known_default() == base.port_or_known_default()
+            && url.username().is_empty()
+            && url.password().is_none()
+            && (base_path.is_empty() || url.path().starts_with(&format!("{base_path}/")))
     }
 
     pub fn production() -> Self {
@@ -192,7 +213,7 @@ impl GhClient {
             let page: Vec<T> = serde_json::from_value(items).map_err(|_| generic(GENERIC_IO))?;
             out.extend(page);
             // Nunca se manda el token a un host distinto del API configurado.
-            url = next_link(&headers).filter(|u| u.starts_with(&self.api));
+            url = next_link(&headers).filter(|u| self.is_api_url(u));
         }
         Ok(out)
     }
@@ -406,6 +427,24 @@ mod tests {
         let client = GhClient::new(&server.url(), &server.url());
         let items: Vec<Value> = client.get_paginated("t0k", "/items", None).await.unwrap();
         assert_eq!(items.len(), 1);
+    }
+
+    #[test]
+    fn look_alike_hosts_are_not_the_api() {
+        let client = GhClient::production();
+        assert!(client.is_api_url("https://api.github.com/repos?page=2"));
+        assert!(!client.is_api_url("https://api.github.com.evil.example/repos"));
+        assert!(!client.is_api_url("https://api.github.com@evil.example/repos"));
+        assert!(!client.is_api_url("https://evil.example@api.github.com/repos"));
+        assert!(!client.is_api_url("http://api.github.com/repos"));
+        assert!(!client.is_api_url("https://api.github.com:444/repos"));
+        assert!(!client.is_api_url("not a url"));
+    }
+
+    #[test]
+    fn production_client_builds_without_panicking() {
+        let _ = GhClient::production();
+        let _ = GhClient::production();
     }
 
     #[tokio::test]
