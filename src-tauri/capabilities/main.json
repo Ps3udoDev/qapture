@@ -53,6 +53,13 @@
     "allow-hide-main-window",
     "allow-open-link",
     "allow-check-update",
-    "allow-install-update"
+    "allow-install-update",
+    "allow-gh-connect-start",
+    "allow-gh-connect-cancel",
+    "allow-gh-account",
+    "allow-gh-disconnect",
+    "allow-gh-list-repos",
+    "allow-gh-project-github-get",
+    "allow-gh-project-github-set"
   ]
 }

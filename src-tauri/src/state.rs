@@ -34,8 +34,6 @@ impl ShortcutRegistrar for NullRegistrar {
     fn unregister(&mut self, _accel: &str) {}
 }
 
-// Lo consumen los comandos de GitHub de la Task 5; quitar este allow entonces.
-#[allow(dead_code)]
 /// Conexión con GitHub: cliente HTTP, token en el llavero y el sondeo del Device Flow en curso.
 pub struct GithubState {
     pub client: GhClient,
@@ -45,7 +43,6 @@ pub struct GithubState {
     pending: Mutex<Option<Arc<AtomicBool>>>,
 }
 
-#[allow(dead_code)]
 impl GithubState {
     pub fn new(client: GhClient, tokens: Box<dyn TokenStore>) -> Self {
         Self {
@@ -114,7 +111,6 @@ pub struct AppState {
     on_saved: Mutex<Option<SavedHook>>,
     /// Última versión nueva encontrada (la muestra la bandeja hasta instalarla).
     pending_update: Mutex<Option<UpdateInfoDto>>,
-    #[allow(dead_code)]
     github: GithubState,
 }
 
@@ -145,7 +141,6 @@ impl AppState {
         }
     }
 
-    #[allow(dead_code)]
     pub fn github(&self) -> &GithubState {
         &self.github
     }
@@ -155,6 +150,12 @@ impl AppState {
         self.db
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    /// El mutex de la base, para código async que solo la bloquea entre `.await`
+    /// (p. ej. `auth::complete`). Nunca retener el candado durante un `.await`.
+    pub fn db_mutex(&self) -> &Mutex<Connection> {
+        &self.db
     }
 
     pub fn capture(&self) -> &CaptureController {

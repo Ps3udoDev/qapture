@@ -31,6 +31,12 @@
     "detail": "base dañada: database disk image is malformed",
     "message": "La base de datos de Qapture está dañada."
   },
+  "deviceCode": {
+    "expiresIn": 900,
+    "interval": 5,
+    "userCode": "ABCD-1234",
+    "verificationUri": "https://github.com/login/device"
+  },
   "docVersion": {
     "approver": "",
     "author": "Ana Pérez",
@@ -91,6 +97,29 @@
     "required": true,
     "type": "list",
     "width": 21
+  },
+  "ghAccount": {
+    "avatarDataUrl": "data:image/png;base64,UE5HREFUQQ==",
+    "connectedAt": "2026-10-19T12:00:00+00:00",
+    "login": "Ps3udoDev",
+    "name": "Pseudo Dev",
+    "needsReconnect": false
+  },
+  "ghAuthError": {
+    "code": "gh_auth",
+    "detail": "github: Tu cuenta de GitHub no está conectada o la sesión venció. Conéctala en Ajustes › GitHub.",
+    "message": "Tu cuenta de GitHub no está conectada o la sesión venció. Conéctala en Ajustes › GitHub."
+  },
+  "ghConnectFailed": {
+    "message": "Se canceló la autorización en GitHub."
+  },
+  "ghRepo": {
+    "canWriteContents": false,
+    "canWriteIssues": true,
+    "fullName": "TEAMS4SOFT/GMX-frontend",
+    "name": "GMX-frontend",
+    "owner": "TEAMS4SOFT",
+    "private": true
   },
   "importSummary": {
     "cases": 3,
@@ -161,6 +190,28 @@
       },
       "templateId": "tpl-funcional"
     },
+    "projectGithubInput": {
+      "evidenceRepo": "TEAMS4SOFT/qa-evidencias",
+      "repos": [
+        {
+          "defaultLabels": [
+            "bug",
+            "qapture"
+          ],
+          "fullName": "TEAMS4SOFT/GMX-frontend",
+          "isDefault": true
+        },
+        {
+          "defaultLabels": [],
+          "fullName": "TEAMS4SOFT/GMX-backend",
+          "isDefault": false
+        }
+      ],
+      "routingFieldId": "fld-1",
+      "routingMap": {
+        "QA": "TEAMS4SOFT/GMX-frontend"
+      }
+    },
     "projectMetaInput": {
       "client": "ACME",
       "endDate": "2026-10-31",
@@ -201,6 +252,14 @@
       "x": 10.5,
       "y": 20.0
     }
+  },
+  "linkedRepo": {
+    "defaultLabels": [
+      "bug",
+      "qapture"
+    ],
+    "fullName": "TEAMS4SOFT/GMX-frontend",
+    "isDefault": true
   },
   "lockedError": {
     "code": "file_locked",
@@ -243,6 +302,24 @@
     "startDate": "2026-10-01",
     "testType": "Funcional",
     "updatedAt": "2026-10-15T12:00:00.000Z"
+  },
+  "projectGithub": {
+    "evidenceRepo": "TEAMS4SOFT/qa-evidencias",
+    "repos": [
+      {
+        "defaultLabels": [
+          "bug",
+          "qapture"
+        ],
+        "fullName": "TEAMS4SOFT/GMX-frontend",
+        "isDefault": true
+      }
+    ],
+    "routingFieldId": "fld-1",
+    "routingMap": {
+      "QA": "TEAMS4SOFT/GMX-frontend"
+    },
+    "routingStale": false
   },
   "projectSummary": {
     "caseCount": 3,

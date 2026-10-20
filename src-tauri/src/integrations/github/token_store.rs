@@ -1,4 +1,6 @@
+#[cfg(test)]
 use std::sync::Mutex;
+#[cfg(test)]
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::error::{AppError, AppResult, GhErrorKind, gh};
@@ -60,12 +62,14 @@ impl TokenStore for KeyringStore {
 }
 
 /// Almacén en memoria, para tests de este y otros módulos.
+#[cfg(test)]
 #[derive(Default)]
 pub struct MemoryTokenStore {
     token: Mutex<Option<String>>,
     fail: AtomicBool,
 }
 
+#[cfg(test)]
 impl MemoryTokenStore {
     /// Almacén cuyas operaciones devuelven siempre el error `Keyring`.
     pub fn failing() -> Self {
@@ -84,6 +88,7 @@ impl MemoryTokenStore {
     }
 }
 
+#[cfg(test)]
 impl TokenStore for MemoryTokenStore {
     fn get(&self) -> AppResult<Option<String>> {
         self.check()?;

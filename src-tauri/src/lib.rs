@@ -226,6 +226,13 @@ pub fn run() {
             commands::settings::open_link,
             commands::updater::check_update,
             commands::updater::install_update,
+            commands::github::gh_connect_start,
+            commands::github::gh_connect_cancel,
+            commands::github::gh_account,
+            commands::github::gh_disconnect,
+            commands::github::gh_list_repos,
+            commands::github::gh_project_github_get,
+            commands::github::gh_project_github_set,
         ])
         .run(tauri::generate_context!())
         .expect("no se pudo iniciar Qapture");
