@@ -1,9 +1,6 @@
 //! Reporte de un caso como issue (o comentario) de GitHub: saneamiento del cuerpo, subida de
 //! capturas al repo de evidencias (o modo asistido) y vínculo caso ↔ issue.
 
-// Lo consumen los comandos de la Task 4.
-#![allow(dead_code)]
-
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::PathBuf;
@@ -409,9 +406,9 @@ static IN_FLIGHT: Mutex<BTreeSet<String>> = Mutex::new(BTreeSet::new());
 struct InFlight(String);
 
 impl InFlight {
-    fn claim(case_id: &str, repo: &RepoRef) -> Option<Self> {
+    fn claim(kind: &str, case_id: &str, repo: &RepoRef) -> Option<Self> {
         let key = format!(
-            "{case_id}|{}/{}",
+            "{kind}|{case_id}|{}/{}",
             repo.owner.to_lowercase(),
             repo.repo.to_lowercase()
         );
@@ -445,7 +442,7 @@ pub async fn create_issue(
     validate_text(&input, true)?;
     // Se reserva antes de leer la base: así el vínculo que se lee no puede quedar viejo
     // por otro reporte del mismo (caso, repo) que termine mientras tanto.
-    let Some(_claim) = InFlight::claim(&input.case_id, &input.repo) else {
+    let Some(_claim) = InFlight::claim("create", &input.case_id, &input.repo) else {
         return Err(gh(
             GhErrorKind::Conflict,
             format!(
@@ -495,6 +492,16 @@ pub async fn comment_issue(
     now: NaiveDateTime,
 ) -> AppResult<(String, UploadMode, Vec<String>)> {
     validate_text(&input, false)?;
+    // Un doble clic en «Comentar» publica un solo comentario.
+    let Some(_claim) = InFlight::claim("comment", &input.case_id, &input.repo) else {
+        return Err(gh(
+            GhErrorKind::Conflict,
+            format!(
+                "Ya se está comentando este caso en {}.",
+                input.repo.full_name()
+            ),
+        ));
+    };
     let snap = snapshot(state, &input)?;
     let token = state.github().token()?;
     let Some(link) = &snap.link else {
@@ -1146,7 +1153,7 @@ mod tests {
         let f = fixture(&s.url(), None, 0);
         let issue = mock_issue(&mut s, None, 0).await;
         let repo = RepoRef::parse("ps3udodev/Testing").unwrap();
-        let hold = InFlight::claim(&f.case_id, &repo).unwrap();
+        let hold = InFlight::claim("create", &f.case_id, &repo).unwrap();
         let err = create_issue(&f.state, f.input(vec![]), now())
             .await
             .unwrap_err();
@@ -1157,11 +1164,59 @@ mod tests {
         );
         issue.assert_async().await;
         assert!(
-            InFlight::claim(&f.case_id, &repo).is_none(),
+            InFlight::claim("create", &f.case_id, &repo).is_none(),
             "el intento fallido no borra la reserva ajena"
         );
         drop(hold);
-        assert!(InFlight::claim(&f.case_id, &repo).is_some(), "se libera");
+        assert!(
+            InFlight::claim("create", &f.case_id, &repo).is_some(),
+            "se libera"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_comment_already_in_flight_for_the_same_case_and_repo_conflicts() {
+        let mut s = mockito::Server::new_async().await;
+        let f = fixture(&s.url(), None, 0);
+        insert_link(
+            &f.state.db(),
+            &CaseIssueLink {
+                case_id: f.case_id.clone(),
+                owner: "Ps3udoDev".into(),
+                repo: "testing".into(),
+                issue_number: 45,
+                node_id: "I_kw".into(),
+                html_url: "https://github.com/Ps3udoDev/testing/issues/45".into(),
+                direction: "exported".into(),
+                issue_state: "open".into(),
+            },
+        )
+        .unwrap();
+        let post = s
+            .mock("POST", format!("{ISSUES}/45/comments").as_str())
+            .expect(0)
+            .create_async()
+            .await;
+        let repo = RepoRef::parse("ps3udodev/Testing").unwrap();
+        let hold = InFlight::claim("comment", &f.case_id, &repo).unwrap();
+        let err = comment_issue(&f.state, f.input(vec![]), now())
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), "gh_conflict");
+        assert_eq!(
+            err.user_message(),
+            "Ya se está comentando este caso en Ps3udoDev/testing."
+        );
+        post.assert_async().await;
+        assert!(
+            InFlight::claim("create", &f.case_id, &repo).is_some(),
+            "crear y comentar no se bloquean entre sí"
+        );
+        drop(hold);
+        assert!(
+            InFlight::claim("comment", &f.case_id, &repo).is_some(),
+            "se libera"
+        );
     }
 
     #[tokio::test]

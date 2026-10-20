@@ -46,7 +46,7 @@ impl LinkTarget {
     }
 }
 
-fn opener_error(error: tauri_plugin_opener::Error) -> AppError {
+pub(crate) fn opener_error(error: tauri_plugin_opener::Error) -> AppError {
     AppError::Io(std::io::Error::other(error.to_string()))
 }
 

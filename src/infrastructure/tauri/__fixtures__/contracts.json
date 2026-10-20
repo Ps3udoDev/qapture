@@ -26,6 +26,32 @@
       "fld-1": "QA"
     }
   },
+  "caseIssueLink": {
+    "caseId": "case-1",
+    "direction": "exported",
+    "fullName": "TEAMS4SOFT/GMX-frontend",
+    "htmlUrl": "https://github.com/TEAMS4SOFT/GMX-frontend/issues/45",
+    "issueNumber": 45,
+    "issueState": "open",
+    "owner": "TEAMS4SOFT",
+    "repo": "GMX-frontend"
+  },
+  "commentResult": {
+    "assistedReason": null,
+    "commentUrl": "https://github.com/TEAMS4SOFT/GMX-frontend/issues/45#issuecomment-1",
+    "link": {
+      "caseId": "case-1",
+      "direction": "exported",
+      "fullName": "TEAMS4SOFT/GMX-frontend",
+      "htmlUrl": "https://github.com/TEAMS4SOFT/GMX-frontend/issues/45",
+      "issueNumber": 45,
+      "issueState": "open",
+      "owner": "TEAMS4SOFT",
+      "repo": "GMX-frontend"
+    },
+    "pendingEvidence": [],
+    "uploadMode": "repo"
+  },
   "corruptError": {
     "code": "corrupt",
     "detail": "base dañada: database disk image is malformed",
@@ -220,6 +246,22 @@
       "startDate": "2026-10-01",
       "testType": "Funcional"
     },
+    "reportInput": {
+      "assignees": [
+        "Ps3udoDev"
+      ],
+      "body": "Pasos\n\n### Evidencias\n\n**1.** Login\n{{img:1}}",
+      "caseId": "case-1",
+      "evidenceIds": [
+        "ev-1"
+      ],
+      "labels": [
+        "bug"
+      ],
+      "milestone": 3,
+      "repo": "TEAMS4SOFT/GMX-frontend",
+      "title": "[EJ-001] Aplicación de recibos"
+    },
     "saveSettings": {
       "export": {
         "defaultFolder": "",
@@ -327,6 +369,39 @@
     "id": "prj-1",
     "name": "Recibos",
     "updatedAt": "2026-10-15T12:00:00.000Z"
+  },
+  "repoMeta": {
+    "assignees": [
+      "Ps3udoDev"
+    ],
+    "labels": [
+      "bug",
+      "qapture"
+    ],
+    "milestones": [
+      {
+        "number": 3,
+        "title": "Sprint 3"
+      }
+    ]
+  },
+  "reportResult": {
+    "assistedReason": "No hay repo de evidencias configurado.",
+    "commentUrl": null,
+    "link": {
+      "caseId": "case-1",
+      "direction": "exported",
+      "fullName": "TEAMS4SOFT/GMX-frontend",
+      "htmlUrl": "https://github.com/TEAMS4SOFT/GMX-frontend/issues/45",
+      "issueNumber": 45,
+      "issueState": "open",
+      "owner": "TEAMS4SOFT",
+      "repo": "GMX-frontend"
+    },
+    "pendingEvidence": [
+      "ev-1"
+    ],
+    "uploadMode": "assisted"
   },
   "restoreResult": {
     "missingImages": 0,

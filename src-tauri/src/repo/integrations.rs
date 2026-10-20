@@ -327,8 +327,6 @@ pub fn find_link(
         .optional()?)
 }
 
-// Lo consume `gh_project_links` (Task 4).
-#[allow(dead_code)]
 pub fn links_for_project(conn: &Connection, project_id: &str) -> AppResult<Vec<CaseIssueLink>> {
     let mut stmt = conn.prepare(&format!(
         "SELECT {LINK_COLUMNS} FROM case_issue_link l JOIN test_case c ON c.id = l.case_id

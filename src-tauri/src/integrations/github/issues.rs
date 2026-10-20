@@ -114,8 +114,6 @@ pub async fn comment(
     Ok(payload.html_url)
 }
 
-// Lo consume `gh_repo_meta` (Task 4).
-#[allow(dead_code)]
 pub async fn repo_meta(client: &GhClient, token: &str, repo: &RepoRef) -> AppResult<RepoMeta> {
     let root = base(repo);
     let labels: Vec<Label> = client

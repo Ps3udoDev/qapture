@@ -63,6 +63,12 @@ pub const APP_COMMANDS: &[&str] = &[
     "gh_list_repos",
     "gh_project_github_get",
     "gh_project_github_set",
+    "gh_repo_meta",
+    "gh_project_links",
+    "gh_create_issue",
+    "gh_comment_issue",
+    "gh_copy_evidence",
+    "gh_open_issue",
 ];
 
 /// Lo único que puede invocar una ventana overlay (spec §9). El resto es de la principal.

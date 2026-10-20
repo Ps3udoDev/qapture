@@ -7,20 +7,29 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
+use chrono::NaiveDateTime;
 use rusqlite::Connection;
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_clipboard_manager::ClipboardExt;
+use tauri_plugin_opener::OpenerExt;
 
 use crate::{
+    commands::settings::opener_error,
     dto::{
-        DeviceCodeDto, GhAccountDto, GhConnectFailedDto, GhRepoDto, ProjectGithubDto,
-        ProjectGithubInput,
+        CaseIssueLinkDto, DeviceCodeDto, GhAccountDto, GhConnectFailedDto, GhRepoDto, MilestoneDto,
+        ProjectGithubDto, ProjectGithubInput, RepoMetaDto, ReportInputDto, ReportResultDto,
     },
-    error::{AppError, AppResult, GhErrorKind},
+    error::{AppError, AppResult, GhErrorKind, validation},
     integrations::github::{
         auth::{self, DeviceCode},
-        project_config, repos,
+        issues, project_config,
+        report::{self, AssistedReason, ReportInput, UploadMode},
+        repos,
     },
-    repo::{self, integrations::GhAccountRow},
+    repo::{
+        self,
+        integrations::{CaseIssueLink, GhAccountRow, RepoRef},
+    },
     state::{AppState, GithubState},
 };
 
@@ -196,6 +205,182 @@ pub(crate) fn project_github_set(
     Ok(project_config::to_dto(&config, &fields))
 }
 
+// --- reportar casos como issues (F8b) ------------------------------------------------------
+
+fn link_dto(link: &CaseIssueLink) -> CaseIssueLinkDto {
+    CaseIssueLinkDto {
+        case_id: link.case_id.clone(),
+        owner: link.owner.clone(),
+        repo: link.repo.clone(),
+        full_name: link.repo_ref().full_name(),
+        issue_number: link.issue_number,
+        html_url: link.html_url.clone(),
+        direction: link.direction.clone(),
+        issue_state: link.issue_state.clone(),
+    }
+}
+
+/// Textos fijos de la UI para el panel del modo asistido.
+fn assisted_text(reason: &AssistedReason) -> String {
+    match reason {
+        AssistedReason::NoEvidenceRepo => "No hay repo de evidencias configurado.".to_string(),
+        AssistedReason::CannotWrite(repo) => {
+            format!("Tu cuenta no puede escribir en {}.", repo.full_name())
+        }
+        AssistedReason::NotInstalled(repo) => {
+            format!("Qapture no está instalada en {}.", repo.full_name())
+        }
+    }
+}
+
+fn result_dto(
+    link: &CaseIssueLink,
+    mode: &UploadMode,
+    pending: Vec<String>,
+    comment_url: Option<String>,
+) -> ReportResultDto {
+    let (upload_mode, assisted_reason) = match mode {
+        UploadMode::Repo => ("repo", None),
+        UploadMode::Assisted(reason) => ("assisted", Some(assisted_text(reason))),
+    };
+    ReportResultDto {
+        link: link_dto(link),
+        upload_mode: upload_mode.to_string(),
+        assisted_reason,
+        pending_evidence: pending,
+        comment_url,
+    }
+}
+
+fn parse_repo(text: &str) -> AppResult<RepoRef> {
+    RepoRef::parse(text.trim())
+        .ok_or_else(|| validation("El repositorio debe tener el formato dueño/repositorio."))
+}
+
+/// El repo del reporte debe ser uno de los vinculados al proyecto del caso (sin distinguir
+/// mayúsculas): el WebView no puede apuntar a un repo cualquiera.
+fn linked_repo(state: &AppState, case_id: &str, text: &str) -> AppResult<RepoRef> {
+    let repo = parse_repo(text)?;
+    let conn = state.db();
+    let case = repo::cases::get(&conn, case_id)?;
+    let config = repo::integrations::get_project_github(&conn, &case.project_id)?;
+    // Se devuelve el repo con la escritura guardada, no la que mandó el WebView.
+    config
+        .repos
+        .into_iter()
+        .map(|l| l.repo)
+        .find(|l| {
+            l.owner.eq_ignore_ascii_case(&repo.owner) && l.repo.eq_ignore_ascii_case(&repo.repo)
+        })
+        .ok_or_else(|| {
+            validation(format!(
+                "«{}» no está vinculado al proyecto.",
+                repo.full_name()
+            ))
+        })
+}
+
+fn report_input(state: &AppState, dto: ReportInputDto) -> AppResult<ReportInput> {
+    let repo = linked_repo(state, &dto.case_id, &dto.repo)?;
+    Ok(ReportInput {
+        case_id: dto.case_id,
+        repo,
+        title: dto.title,
+        body: dto.body,
+        labels: dto.labels,
+        assignees: dto.assignees,
+        milestone: dto.milestone,
+        evidence_ids: dto.evidence_ids,
+    })
+}
+
+pub(crate) async fn repo_meta(state: &AppState, repo: &str) -> AppResult<RepoMetaDto> {
+    let github = state.github();
+    let result = async {
+        let repo = parse_repo(repo)?;
+        let token = github.token()?;
+        let meta = issues::repo_meta(&github.client, &token, &repo).await?;
+        Ok(RepoMetaDto {
+            labels: meta.labels,
+            milestones: meta
+                .milestones
+                .into_iter()
+                .map(|(number, title)| MilestoneDto { number, title })
+                .collect(),
+            assignees: meta.assignees,
+        })
+    }
+    .await;
+    mark_auth(github, result)
+}
+
+pub(crate) fn project_links(
+    state: &AppState,
+    project_id: &str,
+) -> AppResult<Vec<CaseIssueLinkDto>> {
+    let conn = state.db();
+    repo::projects::ensure_exists(&conn, project_id)?;
+    let links = repo::integrations::links_for_project(&conn, project_id)?;
+    Ok(links.iter().map(link_dto).collect())
+}
+
+pub(crate) async fn create_issue(
+    state: &AppState,
+    input: ReportInputDto,
+    now: NaiveDateTime,
+) -> AppResult<ReportResultDto> {
+    let github = state.github();
+    let result = async {
+        let input = report_input(state, input)?;
+        let outcome = report::create_issue(state, input, now).await?;
+        Ok(result_dto(
+            &outcome.link,
+            &outcome.mode,
+            outcome.pending,
+            None,
+        ))
+    }
+    .await;
+    mark_auth(github, result)
+}
+
+pub(crate) async fn comment_issue(
+    state: &AppState,
+    input: ReportInputDto,
+    now: NaiveDateTime,
+) -> AppResult<ReportResultDto> {
+    let github = state.github();
+    let result = async {
+        let input = report_input(state, input)?;
+        let (case_id, repo) = (input.case_id.clone(), input.repo.clone());
+        let (url, mode, pending) = report::comment_issue(state, input, now).await?;
+        let link = repo::integrations::find_link(&state.db(), &case_id, &repo)?
+            .ok_or_else(|| AppError::NotFound("El caso no tiene un issue en ese repo.".into()))?;
+        Ok(result_dto(&link, &mode, pending, Some(url)))
+    }
+    .await;
+    mark_auth(github, result)
+}
+
+/// El PNG renderizado de la captura, como RGBA para el portapapeles.
+pub(crate) fn evidence_rgba(state: &AppState, evidence_id: &str) -> AppResult<(u32, u32, Vec<u8>)> {
+    let shot = repo::evidence::get(&state.db(), state.files(), evidence_id)?;
+    let bytes = std::fs::read(&shot.rendered_path)?;
+    let image = image::load_from_memory_with_format(&bytes, image::ImageFormat::Png)
+        .map_err(|_| validation("La captura no se pudo leer."))?
+        .into_rgba8();
+    let (width, height) = image.dimensions();
+    Ok((width, height, image.into_raw()))
+}
+
+/// La `html_url` guardada del vínculo (caso, repo): nunca una URL del WebView.
+pub(crate) fn stored_issue_url(state: &AppState, case_id: &str, repo: &str) -> AppResult<String> {
+    let repo = parse_repo(repo)?;
+    repo::integrations::find_link(&state.db(), case_id, &repo)?
+        .map(|link| link.html_url)
+        .ok_or_else(|| AppError::NotFound("El caso no tiene un issue en ese repo.".into()))
+}
+
 /// Pide el código del Device Flow y deja el sondeo corriendo. Un segundo inicio cancela el
 /// anterior. Falla antes de que el front abra el navegador si el llavero no responde.
 #[tauri::command(async)]
@@ -271,6 +456,62 @@ pub fn gh_project_github_set(
     config: ProjectGithubInput,
 ) -> AppResult<ProjectGithubDto> {
     project_github_set(&state, &project_id, &config)
+}
+
+#[tauri::command(async)]
+pub async fn gh_repo_meta(state: State<'_, AppState>, repo: String) -> AppResult<RepoMetaDto> {
+    repo_meta(&state, &repo).await
+}
+
+#[tauri::command(async)]
+pub fn gh_project_links(
+    state: State<'_, AppState>,
+    project_id: String,
+) -> AppResult<Vec<CaseIssueLinkDto>> {
+    project_links(&state, &project_id)
+}
+
+#[tauri::command(async)]
+pub async fn gh_create_issue(
+    state: State<'_, AppState>,
+    input: ReportInputDto,
+) -> AppResult<ReportResultDto> {
+    create_issue(&state, input, chrono::Local::now().naive_local()).await
+}
+
+#[tauri::command(async)]
+pub async fn gh_comment_issue(
+    state: State<'_, AppState>,
+    input: ReportInputDto,
+) -> AppResult<ReportResultDto> {
+    comment_issue(&state, input, chrono::Local::now().naive_local()).await
+}
+
+/// Pone el PNG renderizado de la captura en el portapapeles del sistema.
+#[tauri::command(async)]
+pub fn gh_copy_evidence(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    evidence_id: String,
+) -> AppResult<()> {
+    let (width, height, rgba) = evidence_rgba(&state, &evidence_id)?;
+    app.clipboard()
+        .write_image(&tauri::image::Image::new(&rgba, width, height))
+        .map_err(|error| AppError::Io(std::io::Error::other(error.to_string())))
+}
+
+/// Abre la `html_url` guardada del vínculo con el navegador.
+#[tauri::command(async)]
+pub fn gh_open_issue(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    case_id: String,
+    repo: String,
+) -> AppResult<()> {
+    let url = stored_issue_url(&state, &case_id, &repo)?;
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(opener_error)
 }
 
 #[cfg(test)]
@@ -606,5 +847,245 @@ mod tests {
             matches!(outcome, Some(FlowOutcome::Failed(ref m)) if m == "Se canceló la autorización en GitHub.")
         );
         assert!(!state.github().needs_reconnect.load(Ordering::SeqCst));
+    }
+
+    // --- reportar (F8b) -------------------------------------------------------------------
+
+    use crate::repo::integrations::{LinkedRepo, ProjectGithub, insert_link, save_project_github};
+
+    /// Caso de un proyecto vinculado a `Ps3udoDev/testing`, con token y una captura real.
+    fn report_fixture(api: &str) -> (TempDir, AppState, String, String) {
+        let (tmp, state) = state_at(api);
+        state.github().tokens.set("t0k").unwrap();
+        let (case_id, ev_id) = {
+            let conn = state.db();
+            let p = repo::test_support::project(&conn);
+            let c = repo::test_support::case(&conn, &p);
+            save_project_github(
+                &conn,
+                &p.id,
+                &ProjectGithub {
+                    repos: vec![LinkedRepo {
+                        repo: RepoRef::parse("Ps3udoDev/testing").unwrap(),
+                        is_default: true,
+                        default_labels: vec![],
+                    }],
+                    ..ProjectGithub::default()
+                },
+            )
+            .unwrap();
+            std::fs::create_dir_all(state.files().project_dir(&p.id)).unwrap();
+            let rel = crate::media::storage::EvidenceFiles::render_rel(&p.id, "ev0");
+            let mut png = std::io::Cursor::new(Vec::new());
+            image::RgbaImage::from_pixel(2, 1, image::Rgba([1, 2, 3, 255]))
+                .write_to(&mut png, image::ImageFormat::Png)
+                .unwrap();
+            std::fs::write(state.files().absolute(&rel), png.into_inner()).unwrap();
+            conn.execute(
+                "INSERT INTO evidence (id, case_id, position, description, original_path,
+                   rendered_path, annotations, width, height, captured_at, updated_at)
+                 VALUES ('ev0', ?1, 0, 'd', ?2, ?2, '{}', 2, 1, '', '')",
+                rusqlite::params![c.id, rel],
+            )
+            .unwrap();
+            (c.id, "ev0".to_string())
+        };
+        (tmp, state, case_id, ev_id)
+    }
+
+    fn report_dto(case_id: &str, repo: &str) -> ReportInputDto {
+        ReportInputDto {
+            case_id: case_id.into(),
+            repo: repo.into(),
+            title: "[EJ-1] Falla".into(),
+            body: "Pasos".into(),
+            labels: vec![],
+            assignees: vec![],
+            milestone: None,
+            evidence_ids: vec![],
+        }
+    }
+
+    fn at() -> NaiveDateTime {
+        chrono::NaiveDate::from_ymd_opt(2026, 11, 2)
+            .unwrap()
+            .and_hms_opt(15, 30, 12)
+            .unwrap()
+    }
+
+    fn stored_link(case_id: &str) -> CaseIssueLink {
+        CaseIssueLink {
+            case_id: case_id.into(),
+            owner: "Ps3udoDev".into(),
+            repo: "testing".into(),
+            issue_number: 45,
+            node_id: "I_kw".into(),
+            html_url: "https://github.com/Ps3udoDev/testing/issues/45".into(),
+            direction: "exported".into(),
+            issue_state: "open".into(),
+        }
+    }
+
+    #[test]
+    fn open_issue_uses_the_stored_url() {
+        let (_tmp, state, case_id, _) = report_fixture("http://127.0.0.1:9");
+        assert_eq!(
+            stored_issue_url(&state, &case_id, "Ps3udoDev/testing")
+                .unwrap_err()
+                .code(),
+            "not_found"
+        );
+        insert_link(&state.db(), &stored_link(&case_id)).unwrap();
+        assert_eq!(
+            stored_issue_url(&state, &case_id, "ps3udodev/TESTING").unwrap(),
+            "https://github.com/Ps3udoDev/testing/issues/45"
+        );
+        assert_eq!(
+            stored_issue_url(&state, &case_id, "https://evil.example/x")
+                .unwrap_err()
+                .code(),
+            "validation"
+        );
+        let project_id = repo::cases::get(&state.db(), &case_id).unwrap().project_id;
+        let links = project_links(&state, &project_id).unwrap();
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].full_name, "Ps3udoDev/testing");
+    }
+
+    #[test]
+    fn copy_evidence_rejects_an_unknown_id() {
+        let (_tmp, state, _, ev_id) = report_fixture("http://127.0.0.1:9");
+        assert_eq!(
+            evidence_rgba(&state, "no-existe").unwrap_err().code(),
+            "not_found"
+        );
+        let (w, h, rgba) = evidence_rgba(&state, &ev_id).unwrap();
+        assert_eq!((w, h), (2, 1));
+        assert_eq!(rgba, vec![1, 2, 3, 255, 1, 2, 3, 255]);
+    }
+
+    #[test]
+    fn report_maps_assisted_reasons_to_fixed_texts() {
+        let repo = RepoRef::parse("Ps3udoDev/evidencias").unwrap();
+        assert_eq!(
+            assisted_text(&AssistedReason::NoEvidenceRepo),
+            "No hay repo de evidencias configurado."
+        );
+        assert_eq!(
+            assisted_text(&AssistedReason::CannotWrite(repo.clone())),
+            "Tu cuenta no puede escribir en Ps3udoDev/evidencias."
+        );
+        assert_eq!(
+            assisted_text(&AssistedReason::NotInstalled(repo)),
+            "Qapture no está instalada en Ps3udoDev/evidencias."
+        );
+        let link = stored_link("case-1");
+        let repo_mode = result_dto(&link, &UploadMode::Repo, vec![], None);
+        assert_eq!(repo_mode.upload_mode, "repo");
+        assert_eq!(repo_mode.assisted_reason, None);
+        let assisted = result_dto(
+            &link,
+            &UploadMode::Assisted(AssistedReason::NoEvidenceRepo),
+            vec!["ev0".into()],
+            Some("https://c".into()),
+        );
+        assert_eq!(assisted.upload_mode, "assisted");
+        assert_eq!(assisted.pending_evidence, ["ev0"]);
+        assert_eq!(assisted.comment_url.as_deref(), Some("https://c"));
+        assert_eq!(assisted.link.full_name, "Ps3udoDev/testing");
+    }
+
+    #[tokio::test]
+    async fn a_401_while_reporting_marks_reconnect() {
+        let mut server = mockito::Server::new_async().await;
+        let _m = server
+            .mock("POST", "/repos/Ps3udoDev/testing/issues")
+            .with_status(401)
+            .create_async()
+            .await;
+        let (_tmp, state, case_id, _) = report_fixture(&server.url());
+        let error = create_issue(&state, report_dto(&case_id, "Ps3udoDev/testing"), at())
+            .await
+            .unwrap_err();
+        assert_eq!(error.code(), "gh_auth");
+        assert!(state.github().needs_reconnect.load(Ordering::SeqCst));
+
+        // También al leer los metadatos del repo.
+        state
+            .github()
+            .needs_reconnect
+            .store(false, Ordering::SeqCst);
+        let _l = server
+            .mock("GET", "/repos/Ps3udoDev/testing/labels?per_page=100")
+            .with_status(401)
+            .create_async()
+            .await;
+        assert_eq!(
+            repo_meta(&state, "Ps3udoDev/testing")
+                .await
+                .unwrap_err()
+                .code(),
+            "gh_auth"
+        );
+        assert!(state.github().needs_reconnect.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn reporting_to_a_repo_not_linked_to_the_project_is_rejected() {
+        let mut server = mockito::Server::new_async().await;
+        let post = server
+            .mock("POST", mockito::Matcher::Any)
+            .expect(0)
+            .create_async()
+            .await;
+        let (_tmp, state, case_id, _) = report_fixture(&server.url());
+        for run in [
+            create_issue(&state, report_dto(&case_id, "otro/repo"), at()).await,
+            comment_issue(&state, report_dto(&case_id, "otro/repo"), at()).await,
+        ] {
+            let error = run.unwrap_err();
+            assert_eq!(error.code(), "validation");
+            assert_eq!(
+                error.user_message(),
+                "«otro/repo» no está vinculado al proyecto."
+            );
+        }
+        post.assert_async().await;
+        assert!(!state.github().needs_reconnect.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn creating_returns_the_link_and_commenting_adds_the_comment_url() {
+        let mut server = mockito::Server::new_async().await;
+        let _issue = server
+            .mock("POST", "/repos/Ps3udoDev/testing/issues")
+            .with_status(201)
+            .with_body(r#"{"number":45,"node_id":"I_kw","html_url":"https://github.com/Ps3udoDev/testing/issues/45","state":"open"}"#)
+            .create_async()
+            .await;
+        let _comment = server
+            .mock("POST", "/repos/Ps3udoDev/testing/issues/45/comments")
+            .with_status(201)
+            .with_body(
+                r#"{"html_url":"https://github.com/Ps3udoDev/testing/issues/45#issuecomment-9"}"#,
+            )
+            .create_async()
+            .await;
+        let (_tmp, state, case_id, _) = report_fixture(&server.url());
+        let created = create_issue(&state, report_dto(&case_id, "ps3udodev/TESTING"), at())
+            .await
+            .unwrap();
+        assert_eq!(created.upload_mode, "repo");
+        assert_eq!(created.link.issue_number, 45);
+        assert_eq!(created.comment_url, None);
+
+        let commented = comment_issue(&state, report_dto(&case_id, "Ps3udoDev/testing"), at())
+            .await
+            .unwrap();
+        assert_eq!(commented.link, created.link);
+        assert_eq!(
+            commented.comment_url.as_deref(),
+            Some("https://github.com/Ps3udoDev/testing/issues/45#issuecomment-9")
+        );
     }
 }

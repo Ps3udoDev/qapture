@@ -393,6 +393,61 @@ pub struct GhConnectFailedDto {
     pub message: String,
 }
 
+/// Vínculo caso ↔ issue.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CaseIssueLinkDto {
+    pub case_id: String,
+    pub owner: String,
+    pub repo: String,
+    pub full_name: String,
+    pub issue_number: u64,
+    pub html_url: String,
+    pub direction: String,
+    pub issue_state: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MilestoneDto {
+    pub number: u64,
+    pub title: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepoMetaDto {
+    pub labels: Vec<String>,
+    pub milestones: Vec<MilestoneDto>,
+    pub assignees: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReportInputDto {
+    pub case_id: String,
+    /// `dueño/repositorio`.
+    pub repo: String,
+    pub title: String,
+    pub body: String,
+    pub labels: Vec<String>,
+    pub assignees: Vec<String>,
+    pub milestone: Option<u64>,
+    pub evidence_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportResultDto {
+    pub link: CaseIssueLinkDto,
+    /// `repo` o `assisted`.
+    pub upload_mode: String,
+    /// Texto fijo de la UI cuando `upload_mode` es `assisted`.
+    pub assisted_reason: Option<String>,
+    pub pending_evidence: Vec<String>,
+    pub comment_url: Option<String>,
+}
+
 #[cfg(test)]
 mod contract {
     use std::{collections::BTreeMap, path::PathBuf};
@@ -441,7 +496,22 @@ mod contract {
             "saveSettings": serde_json::to_value(Settings::default()).unwrap_or_default(),
             "exportOptions": { "tester": "Ana Pérez", "docVersionId": "ver-1", "includeEvidence": true,
                                "includeSummary": true, "imageMaxWidth": 940 },
-            "projectGithubInput": project_github_input_json()
+            "projectGithubInput": project_github_input_json(),
+            "reportInput": report_input_json()
+        })
+    }
+
+    /// F8b: lo que manda el diálogo de reporte.
+    fn report_input_json() -> Value {
+        json!({
+            "caseId": "case-1",
+            "repo": "TEAMS4SOFT/GMX-frontend",
+            "title": "[EJ-001] Aplicación de recibos",
+            "body": "Pasos\n\n### Evidencias\n\n**1.** Login\n{{img:1}}",
+            "labels": ["bug"],
+            "assignees": ["Ps3udoDev"],
+            "milestone": 3,
+            "evidenceIds": ["ev-1"]
         })
     }
 
@@ -529,6 +599,16 @@ mod contract {
             is_default: true,
             default_labels: vec!["bug".into(), "qapture".into()],
         };
+        let link = CaseIssueLinkDto {
+            case_id: "case-1".into(),
+            owner: "TEAMS4SOFT".into(),
+            repo: "GMX-frontend".into(),
+            full_name: "TEAMS4SOFT/GMX-frontend".into(),
+            issue_number: 45,
+            html_url: "https://github.com/TEAMS4SOFT/GMX-frontend/issues/45".into(),
+            direction: "exported".into(),
+            issue_state: "open".into(),
+        };
         json!({
             "ghAccount": GhAccountDto {
                 login: "Ps3udoDev".into(),
@@ -560,6 +640,26 @@ mod contract {
                 routing_stale: false,
             },
             "ghConnectFailed": GhConnectFailedDto { message: "Se canceló la autorización en GitHub.".into() },
+            "caseIssueLink": link.clone(),
+            "repoMeta": RepoMetaDto {
+                labels: vec!["bug".into(), "qapture".into()],
+                milestones: vec![MilestoneDto { number: 3, title: "Sprint 3".into() }],
+                assignees: vec!["Ps3udoDev".into()],
+            },
+            "reportResult": ReportResultDto {
+                link: link.clone(),
+                upload_mode: "assisted".into(),
+                assisted_reason: Some("No hay repo de evidencias configurado.".into()),
+                pending_evidence: vec!["ev-1".into()],
+                comment_url: None,
+            },
+            "commentResult": ReportResultDto {
+                link,
+                upload_mode: "repo".into(),
+                assisted_reason: None,
+                pending_evidence: vec![],
+                comment_url: Some("https://github.com/TEAMS4SOFT/GMX-frontend/issues/45#issuecomment-1".into()),
+            },
             "ghAuthError": crate::error::gh(
                 crate::error::GhErrorKind::Auth,
                 "Tu cuenta de GitHub no está conectada o la sesión venció. Conéctala en Ajustes › GitHub.",
@@ -625,6 +725,7 @@ mod contract {
         serde_json::from_value::<ExportOptionsInput>(i["exportOptions"].clone()).unwrap();
         serde_json::from_value::<Settings>(i["saveSettings"].clone()).unwrap();
         serde_json::from_value::<ProjectGithubInput>(i["projectGithubInput"].clone()).unwrap();
+        serde_json::from_value::<ReportInputDto>(i["reportInput"].clone()).unwrap();
     }
 
     #[test]
@@ -638,6 +739,9 @@ mod contract {
         let mut linked = inputs_json()["projectGithubInput"].clone();
         linked["repos"][0]["extra"] = json!(1);
         assert!(serde_json::from_value::<ProjectGithubInput>(linked).is_err());
+        let mut report = inputs_json()["reportInput"].clone();
+        report["extra"] = json!(1);
+        assert!(serde_json::from_value::<ReportInputDto>(report).is_err());
     }
 
     /// Regenerar: `UPDATE_CONTRACTS=1 cargo test contract`

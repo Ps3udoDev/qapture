@@ -221,3 +221,40 @@ export const projectGithubSchema = z.strictObject({
 export const projectGithubInputSchema = projectGithubSchema.omit({ routingStale: true });
 
 export const ghConnectFailedSchema = z.strictObject({ message: z.string() });
+
+export const caseIssueLinkSchema = z.strictObject({
+  caseId: z.string(),
+  owner: z.string(),
+  repo: z.string(),
+  fullName: z.string(),
+  issueNumber: z.number().int().positive(),
+  htmlUrl: z.string(),
+  direction: z.enum(["exported", "imported"]),
+  issueState: z.string(),
+});
+
+export const repoMetaSchema = z.strictObject({
+  labels: z.array(z.string()),
+  milestones: z.array(z.strictObject({ number: z.number().int(), title: z.string() })),
+  assignees: z.array(z.string()),
+});
+
+/** Lo que acepta `gh_create_issue` / `gh_comment_issue` (campo `input`). */
+export const reportInputSchema = z.strictObject({
+  caseId: z.string(),
+  repo: z.string(),
+  title: z.string(),
+  body: z.string(),
+  labels: z.array(z.string()),
+  assignees: z.array(z.string()),
+  milestone: z.number().int().nullable(),
+  evidenceIds: z.array(z.string()),
+});
+
+export const reportResultSchema = z.strictObject({
+  link: caseIssueLinkSchema,
+  uploadMode: z.enum(["repo", "assisted"]),
+  assistedReason: z.string().nullable(),
+  pendingEvidence: z.array(z.string()),
+  commentUrl: z.string().nullable(),
+});
