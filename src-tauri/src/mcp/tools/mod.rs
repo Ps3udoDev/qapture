@@ -1,3 +1,5 @@
+pub mod capture;
+pub mod export;
 pub mod read;
 pub mod write;
 use super::host::AgentHost;
@@ -93,6 +95,10 @@ fn dispatch(
         "update_case" => write::update_case(ctx, a),
         "add_evidence" => write::add_evidence(ctx, a),
         "update_evidence_description" => write::update_evidence_description(ctx, a),
+        "capture_screen" => capture::capture_screen(ctx, a),
+        "list_windows" => capture::list_windows(ctx, a),
+        "export_excel" => export::export_excel(ctx, a),
+        "export_package" => export::export_package(ctx, a),
         _ => Err("Herramienta desconocida.".into()),
     }
 }
