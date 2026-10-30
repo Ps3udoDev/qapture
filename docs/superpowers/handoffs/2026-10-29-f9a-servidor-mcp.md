@@ -36,7 +36,7 @@ Se creó la rama desde main y se preservaron los documentos editados/sin seguimi
 3. **Captura selectiva:** se extendió `AgentScreen` con `monitor_count` y `capture_monitor`; listar monitores devuelve imágenes según la interfaz original y habría capturado monitores ajenos o un destino inválido. El host Xcap consulta cantidad sin capturar y captura solo tras permiso.
 4. **Excel sin versiones:** MCP admite exportar antes de la primera revisión del documento. Construye opciones explícitas con `version: None`; no cambia la validación de la exportación interactiva. Si hay versiones, usa la última disponible.
 5. **Tokio:** `macros` también en producción por `tokio::select!`. Las features dev hacían pasar tests, pero el primer release detectó la ausencia.
-6. **Bootstrap del sidecar:** `build.rs` permite compilar/tests en checkout limpio sin sidecar previo. El bundler sigue exigiendo el binario real, generado por `beforeBuildCommand`; no se comitean ejecutables de relleno.
+6. **Empaquetado sin duplicación:** el primer MSI falló con ICE30: Tauri incluía `qapture-mcp.exe` como binario del crate y como `bundle.externalBin`. Se retiró `externalBin` y la excepción de bootstrap de `build.rs`; el CLI incluye automáticamente los targets `src/bin/` ([código oficial](https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-cli/src/interface/rust.rs)). El script conserva la copia con sufijo para el ZIP portable. Una prueba de regresión impide registrar el puente otra vez como binario externo.
 7. **Arranque del puente y lectura cancelable:** la clave se lee después de intentar abrir la app para permitir el primer arranque que la genera. Los fragmentos de líneas pertenecen a la conexión, evitando pérdida de JSON cuando `select!` elige otra rama. El puente conserva bytes recibidos junto al saludo.
 8. **Seguridad y actividad:** metadatos de evidencias sin rutas internas; errores de archivos genéricos; la actividad verifica ids contra la base y guarda solo nombre de herramienta en detail. No se registran contenido, paths, base64 o clave.
 9. **Interfaz:** cargas de actividad tienen secuencia para que una respuesta lenta no reemplace el filtro nuevo. Rotar clave conserva el filtro. «Ir al caso» valida que siga existiendo, navega y cierra Ajustes.
@@ -48,19 +48,34 @@ Se creó la rama desde main y se preservaron los documentos editados/sin seguimi
 
 ## 4. Evidencia de validación
 
-Gates integrados correctos. Empaquetado release pendiente de finalizar; no se declara validado el instalador todavía.
+Gates integrados correctos. El `pnpm tauri build` final terminó con código 0 y generó MSI y NSIS; se inspeccionaron ambos y se generó un ZIP portable de revisión. La instalación e interacción con clientes reales permanecen pendientes.
 
 - Frontend: `pnpm lint` y `pnpm typecheck`, correctos.
 - `pnpm vitest run --maxWorkers=4`: **381 pruebas, 53 archivos**, correctos.
 - `pnpm build`: build de producción correcto, también después del ajuste del aviso portable. `pnpm check-version`: versión 1.1.0 coherente en los cuatro archivos.
 - Después del último ajuste de texto portable: `pnpm vitest run --maxWorkers=4 Update update`, 23 aprobadas; `cargo test system::updater --lib`, 4 aprobadas; fmt, lint y typecheck correctos.
-- Rust: `cargo fmt --check` y `cargo clippy --all-targets -- -D warnings`, correctos. `cargo test`: **473 unitarias aprobadas, 3 ignoradas de escritorio y 2 pruebas de integración del puente aprobadas**.
+- Rust: `cargo fmt --check` y `cargo clippy --all-targets -- -D warnings`, correctos, repetidos tras el último ajuste portable. `cargo test`: **473 unitarias aprobadas, 3 ignoradas de escritorio y 2 pruebas de integración del puente aprobadas**.
 - Protocolo focalizado: **16/16**.
 - Canal: **7/7**, incluyendo pipe real Windows/ACL, cliente autenticado initialize/list, falta de saludo, list_changed, desconexión, límite y lectura parcial cancelada.
 - Binario del puente: **2/2** pruebas de integración, stdout JSON y reconexión sobre pipes reales con replay oculto y error a la llamada en vuelo.
-- Scripts: `node --test scripts/sidecar.test.mjs`, **2/2**. El comando literal del plan `node --test scripts/` falla resolviendo el directorio en Node 24/Windows; los otros scripts usan Vitest.
+- Scripts: `node --test scripts/sidecar.test.mjs`, **3/3**, incluyendo la regresión de empaquetado duplicado. El comando literal del plan `node --test scripts/` falla resolviendo el directorio en Node 24/Windows; los otros scripts usan Vitest.
 - Hubo un fallo inicial del test de migración que fijaba 5; se corrigió usando `db::latest_version()` para admitir 0006.
+- El primer `pnpm tauri build` detectó la duplicación ICE30. Tras la corrección, `pnpm tauri bundle --no-sign` generó MSI y NSIS y `7z l` confirmó un único puente en ambos. La comprobación fue por extracción/inspección, sin instalar sobre la app del usuario. El `pnpm tauri build` completo posterior finalizó correctamente, sin la duplicación ni el aviso de parcheo que aparecía al reutilizar el ejecutable de la primera corrida fallida.
 - Hubo un fallo inicial de metadatos de actividad; el focalizado posterior confirma ids de proyecto/caso y ausencia de argumentos privados.
+
+El toolchain MSVC local emite una advertencia `linker_messages` al tratar como diagnóstico su salida informativa en español «Creando biblioteca …». `cargo test` finaliza correctamente y clippy con `-D warnings` está limpio. No se añadió ninguna supresión global de warnings; revisar esa particularidad del entorno si se exige también silencio absoluto del enlazador.
+
+### Artefactos locales verificados
+
+Todos están bajo `src-tauri/target/release/bundle/` y no se comitean. Se mantuvo la versión 1.1.0 del manifiesto; son builds locales de revisión F9a.
+
+| Artefacto | Bytes | SHA-256 |
+|---|---:|---|
+| `nsis/Qapture_1.1.0_x64-setup.exe` | 5 009 192 | `d009ae6e02dbafca04f1b5cafa957105fc780ade8e65fc8ab23906259cacbc93` |
+| `msi/Qapture_1.1.0_x64_es-ES.msi` | 6 963 200 | `580d991fba0440fdb762f7a45eeebb06813b25cb3cfcc48440078b6fc75709de` |
+| `portable/Qapture_1.1.0_f9a_portable.zip` | 6 614 193 | `1aceaeca044d767a4943811112ea2c9e57c406c123a5fca92101738746910e01` |
+
+`7z l -slt` confirmó exactamente un puente en MSI y NSIS. El ZIP pasó la prueba de integridad y tiene únicamente `Qapture.exe`, `qapture-mcp.exe`, `LEEME.txt` y `portable.flag`, sin datos ni claves. No se ejecutaron los instaladores sobre la app del usuario.
 
 ## 5. Bloqueos y validación pendiente
 
@@ -100,4 +115,4 @@ cargo build --bin qapture-mcp
 - T1: `19a40a8`; T2: `303c3d6`; T3: `dce8cc8`; T4: `ed78ef6`; T5: `17c6d61`.
 - T6: `5effc9d`; T7: `4395c47`; T8: `8100355`.
 - T9: `c27bdce`; T10: `bbb6f1e`.
-- T11: `fdd9177`. Cierre documental: el commit que incorpora este handoff; consultar `git log -1`.
+- T11: `fdd9177`; documentación inicial y aviso portable: `ba42476`. El fix posterior «evitar duplicar el puente en los instaladores» contiene la corrección y esta evidencia final. La rama tiene 14 commits sobre `bd63691`; consultar `git log`.

@@ -27,6 +27,8 @@
 
 Implementación T1–T11 entregada en `feat/f9a-servidor-mcp`, con commits por tarea. T12 tiene la documentación y la verificación automática; su puerta manual de salida sigue pendiente. Ver [handoff de revisión](../handoffs/2026-10-29-f9a-servidor-mcp.md) y [contrato](../contracts/F9a-servidor-mcp.md) para decisiones, evidencia y límites.
 
+El build final generó MSI y NSIS y se verificó un ZIP portable. Se corrigió el registro duplicado del puente retirando `externalBin`, pues Tauri ya incluye el segundo binario del crate; ver la decisión documentada en el contrato.
+
 Las casillas de pruebas rojas no ejecutadas se conservan abiertas como registro histórico; no significan código pendiente. Los gates se ejecutaron de forma integrada, sin afirmar una corrida aislada completa de los seis comandos después de cada task. Las verificaciones mixtas con pasos manuales permanecen abiertas hasta realizar esas pruebas.
 
 ## Global Constraints

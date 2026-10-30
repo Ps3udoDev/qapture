@@ -36,7 +36,7 @@ El tester conecta Claude Code, Codex, Cursor o Claude Desktop a Qapture por MCP 
 - `export_excel` admite proyectos sin versiones del documento mediante opciones MCP explícitas, manteniendo la validación anterior de la UI. Con versiones usa la última disponible.
 - El arranque carga los ajustes antes de aceptar clientes MCP. La lectura de líneas del canal conserva fragmentos cuando `select!` cancela una espera.
 - Tokio activa `macros` también en dependencias de producción: `tokio::select!` lo requiere. Las features dev de los tests ocultaban ese requisito; se detectó compilando release.
-- `build.rs` permite compilar/tests sin un sidecar previo; el empaquetador mantiene la exigencia del binario real y lo genera en `beforeBuildCommand`.
+- Tauri incluye automáticamente el segundo binario del crate. Se retiró `bundle.externalBin` porque añadía el puente por segunda vez y hacía fallar MSI con ICE30. Se conserva el script de copia con sufijo para el ZIP portable; no hacen falta excepciones en `build.rs` para compilar un checkout limpio.
 - Los tests node:test del sidecar se ejecutan con `node --test scripts/sidecar.test.mjs`, separados de Vitest. `node --test scripts/` no resuelve el directorio en Node 24 sobre este Windows.
 
 ## Interfaces producidas
@@ -109,7 +109,7 @@ El tester conecta Claude Code, Codex, Cursor o Claude Desktop a Qapture por MCP 
 
 - Rust: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` y `cargo test`: 473 unitarias aprobadas, 3 ignoradas de escritorio y 2 pruebas de integración del puente aprobadas.
 - TypeScript: lint/typecheck correctos; Vitest 381 pruebas en 53 archivos.
-- Scripts: `node --test scripts/sidecar.test.mjs`, 2 aprobadas.
-- Build web de producción correcto. La construcción del instalador y sus límites se registran en el [handoff](../handoffs/2026-10-29-f9a-servidor-mcp.md).
+- Scripts: `node --test scripts/sidecar.test.mjs`, 3 aprobadas (incluye regresión del registro duplicado).
+- Build web y `pnpm tauri build` correctos. MSI/NSIS contienen un solo puente; ZIP portable con cuatro entradas y prueba de integridad correcta. Los artefactos y límites se registran en el [handoff](../handoffs/2026-10-29-f9a-servidor-mcp.md).
 
 Estas verificaciones no sustituyen las filas del checklist manual. Se mantienen pendientes las pruebas reales con Inspector, Claude Code y Codex, instalación/actualización y portable, y el humo Linux.

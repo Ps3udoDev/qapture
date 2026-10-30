@@ -32,7 +32,6 @@
     }
   },
   "bundle": {
-    "externalBin": ["binaries/qapture-mcp"],
     "active": true,
     "targets": "all",
     "icon": [
