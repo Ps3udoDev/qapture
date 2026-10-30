@@ -1,4 +1,5 @@
 mod backup;
+pub mod bridge;
 mod capture;
 mod commands;
 mod db;
@@ -12,7 +13,7 @@ pub mod mcp;
 mod repo;
 mod settings;
 mod state;
-mod system;
+pub mod system;
 mod transfer;
 
 use tauri::Manager;
