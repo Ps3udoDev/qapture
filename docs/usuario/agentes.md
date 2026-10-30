@@ -48,5 +48,6 @@ La tabla muestra cliente, herramienta, caso y resultado. Filtra por nombre de cl
 | qapture-mcp (…) no es compatible con Qapture (…). Reinstala Qapture para actualizar los dos. | Actualiza app y puente juntos. |
 | Qapture se reinició; vuelve a intentar. | Repite la llamada; el puente reconecta, pero no repite escrituras en vuelo. |
 | El tester rechazó la captura. / El tester rechazó la exportación. | Respeta la decisión del tester. |
+| El tester no respondió en 3 minutos; no se hizo la captura. / … la exportación. | El diálogo «Permitir / Rechazar» espera como máximo 3 minutos. Si vence, Qapture avisa con una notificación y el diálogo que quede abierto ya no tiene efecto. Pide al tester que esté atento y vuelve a intentar. |
 
 **Regenerar clave** solicita confirmación, cambia la clave local y desconecta sesiones abiertas. Vuelve a conectar tus agentes. Las exportaciones evitan sobrescribir archivos: añaden ` (2)`, ` (3)` y así sucesivamente.

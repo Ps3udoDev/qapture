@@ -6,6 +6,7 @@ use super::{
     read::{evidence_metadata, required},
     write::attach_png,
 };
+use crate::mcp::host::Answer;
 
 pub fn list_windows(
     ctx: &ToolContext<'_>,
@@ -76,13 +77,17 @@ pub fn capture_screen(
             return Err(format!("No existe el monitor {index}. Hay {count}."));
         }
     }
-    if ctx.state.settings().agents.confirm_capture
-        && !ctx.host.confirm(
+    if ctx.state.settings().agents.confirm_capture {
+        match ctx.host.confirm(
             "Captura de pantalla",
             &format!("Un agente quiere capturar {label}. ¿Permitir?"),
-        )
-    {
-        return Err("El tester rechazó la captura.".into());
+        ) {
+            Answer::Allow => {}
+            Answer::Reject => return Err("El tester rechazó la captura.".into()),
+            Answer::NoAnswer => {
+                return Err("El tester no respondió en 3 minutos; no se hizo la captura.".into());
+            }
+        }
     }
     let image = match target {
         Target::Monitor(index) => ctx
@@ -160,7 +165,7 @@ mod tests {
         fn notify(&self, s: &str) {
             crate::mcp::host::AgentHost::notify(&self.host, s);
         }
-        fn confirm(&self, t: &str, s: &str) -> bool {
+        fn confirm(&self, t: &str, s: &str) -> crate::mcp::host::Answer {
             crate::mcp::host::AgentHost::confirm(&self.host, t, s)
         }
         fn screen(&self) -> &dyn crate::mcp::host::AgentScreen {

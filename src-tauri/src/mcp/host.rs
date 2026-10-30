@@ -1,9 +1,29 @@
 use crate::error::{AppResult, validation};
 use image::RgbaImage;
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::mpsc, time::Duration};
 use tauri::{Emitter, Manager};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 use tauri_plugin_notification::NotificationExt;
+/// Cuánto espera un agente a que el tester responda «Permitir / Rechazar».
+pub const CONFIRM_TIMEOUT: Duration = Duration::from_secs(180);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Answer {
+    Allow,
+    Reject,
+    /// Pasaron 3 minutos sin respuesta: se trata como rechazo.
+    NoAnswer,
+}
+
+/// Espera la respuesta del diálogo; si el diálogo se cierra sin responder cuenta como rechazo.
+pub fn wait_answer(answer: &mpsc::Receiver<bool>, timeout: Duration) -> Answer {
+    match answer.recv_timeout(timeout) {
+        Ok(true) => Answer::Allow,
+        Ok(false) | Err(mpsc::RecvTimeoutError::Disconnected) => Answer::Reject,
+        Err(mpsc::RecvTimeoutError::Timeout) => Answer::NoAnswer,
+    }
+}
+
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct WindowInfo {
     pub id: u32,
@@ -31,7 +51,7 @@ pub trait AgentScreen: Send + Sync {
 pub trait AgentHost: Send + Sync {
     fn data_changed(&self, project_id: Option<&str>, case_id: Option<&str>, summary: &str);
     fn notify(&self, message: &str);
-    fn confirm(&self, title: &str, message: &str) -> bool;
+    fn confirm(&self, title: &str, message: &str) -> Answer;
     fn screen(&self) -> &dyn AgentScreen;
     fn default_export_dir(&self) -> PathBuf;
 }
@@ -113,7 +133,8 @@ impl AgentHost for TauriAgentHost {
             .body(message)
             .show();
     }
-    fn confirm(&self, title: &str, message: &str) -> bool {
+    fn confirm(&self, title: &str, message: &str) -> Answer {
+        let (sender, receiver) = mpsc::channel();
         self.app
             .dialog()
             .message(message)
@@ -122,7 +143,17 @@ impl AgentHost for TauriAgentHost {
                 "Permitir".into(),
                 "Rechazar".into(),
             ))
-            .blocking_show()
+            .show(move |allowed| {
+                let _ = sender.send(allowed);
+            });
+        let answer = wait_answer(&receiver, CONFIRM_TIMEOUT);
+        if answer == Answer::NoAnswer {
+            // El diálogo nativo no se puede cerrar desde aquí: avisar que ya no tiene efecto.
+            self.notify(&format!(
+                "La solicitud «{title}» del agente venció sin respuesta. No se hizo nada."
+            ));
+        }
+        answer
     }
     fn screen(&self) -> &dyn AgentScreen {
         &XcapAgentScreen
@@ -138,6 +169,7 @@ impl AgentHost for TauriAgentHost {
 pub struct RecordingHost {
     pub calls: std::sync::Mutex<Vec<String>>,
     pub allow: bool,
+    pub unanswered: bool,
     pub dir: PathBuf,
 }
 #[cfg(test)]
@@ -146,6 +178,7 @@ impl Default for RecordingHost {
         Self {
             calls: Default::default(),
             allow: true,
+            unanswered: false,
             dir: std::env::temp_dir(),
         }
     }
@@ -177,14 +210,49 @@ impl AgentHost for RecordingHost {
     fn notify(&self, s: &str) {
         self.calls.lock().unwrap().push(s.into());
     }
-    fn confirm(&self, _: &str, s: &str) -> bool {
+    fn confirm(&self, _: &str, s: &str) -> Answer {
         self.calls.lock().unwrap().push(s.into());
-        self.allow
+        match (self.unanswered, self.allow) {
+            (true, _) => Answer::NoAnswer,
+            (false, true) => Answer::Allow,
+            (false, false) => Answer::Reject,
+        }
     }
     fn screen(&self) -> &dyn AgentScreen {
         self
     }
     fn default_export_dir(&self) -> PathBuf {
         self.dir.clone()
+    }
+}
+#[cfg(test)]
+mod answer_tests {
+    use super::*;
+    #[test]
+    fn answers_map_to_allow_reject_and_no_answer() {
+        let (sender, receiver) = mpsc::channel();
+        sender.send(true).unwrap();
+        assert_eq!(
+            wait_answer(&receiver, Duration::from_millis(10)),
+            Answer::Allow
+        );
+        sender.send(false).unwrap();
+        assert_eq!(
+            wait_answer(&receiver, Duration::from_millis(10)),
+            Answer::Reject
+        );
+        assert_eq!(
+            wait_answer(&receiver, Duration::from_millis(10)),
+            Answer::NoAnswer
+        );
+        drop(sender);
+        assert_eq!(
+            wait_answer(&receiver, Duration::from_millis(10)),
+            Answer::Reject
+        );
+    }
+    #[test]
+    fn the_wait_is_three_minutes() {
+        assert_eq!(CONFIRM_TIMEOUT, Duration::from_secs(180));
     }
 }

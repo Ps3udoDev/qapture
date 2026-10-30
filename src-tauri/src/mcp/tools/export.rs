@@ -4,6 +4,7 @@ use chrono::Local;
 use serde_json::{Map, Value, json};
 
 use super::{ToolContext, ToolOutput, read::required};
+use crate::mcp::host::Answer;
 use crate::{
     dto::ExportOptionsInput,
     excel::{
@@ -74,16 +75,22 @@ fn folder(ctx: &ToolContext<'_>, args: &Map<String, Value>) -> Result<PathBuf, S
 }
 
 fn confirm(ctx: &ToolContext<'_>, project: &str, folder: &Path) -> Result<(), String> {
-    if ctx.state.settings().agents.confirm_export
-        && !ctx.host.confirm(
+    if ctx.state.settings().agents.confirm_export {
+        match ctx.host.confirm(
             "Exportar",
             &format!(
                 "Un agente quiere exportar «{project}» a {}. ¿Permitir?",
                 folder.display()
             ),
-        )
-    {
-        return Err("El tester rechazó la exportación.".into());
+        ) {
+            Answer::Allow => {}
+            Answer::Reject => return Err("El tester rechazó la exportación.".into()),
+            Answer::NoAnswer => {
+                return Err(
+                    "El tester no respondió en 3 minutos; no se hizo la exportación.".into(),
+                );
+            }
+        }
     }
     std::fs::create_dir_all(folder)
         .map_err(|_| "No se pudo crear la carpeta de exportación.".to_string())
@@ -325,6 +332,28 @@ mod tests {
             )
             .unwrap_err(),
             "El tester rechazó la exportación."
+        );
+        assert!(!host.dir.exists());
+    }
+
+    #[test]
+    fn an_unanswered_export_is_refused_without_writing() {
+        let tmp = TempDir::new();
+        let state = state(&tmp);
+        let project = test_support::project(&state.db());
+        let host = RecordingHost {
+            unanswered: true,
+            dir: tmp.path().join("exports"),
+            ..Default::default()
+        };
+        let ctx = ToolContext {
+            state: &state,
+            host: &host,
+            client: "test",
+        };
+        assert_eq!(
+            export_package(&ctx, json!({"projectId":project.id}).as_object().unwrap()).unwrap_err(),
+            "El tester no respondió en 3 minutos; no se hizo la exportación."
         );
         assert!(!host.dir.exists());
     }
