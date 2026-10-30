@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.2.0
+
+### Nuevo
+- Servidor MCP local y puente qapture-mcp para lectura, escritura, capturas y exportación con permisos apagados por defecto
+- Ajustes › Agentes: permisos por grupo, confirmaciones, configuración para clientes y actividad limitada a 2 000 operaciones
+- Recarga en vivo de proyectos, casos y evidencias y avisos agrupados
+- Prompt documentar_migracion, guía de agentes y ADR 0006
+- Puente incluido en instaladores y ZIP portable; validación manual F9a pendiente según su contrato
+
 ## 1.1.0 — 2026-10-20
 
 ### Nuevo

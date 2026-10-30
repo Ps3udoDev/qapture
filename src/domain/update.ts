@@ -16,7 +16,7 @@ export interface UpdateProgress {
   total: number | null;
 }
 
-export const PORTABLE_MESSAGE = "Estás usando la versión portable: descarga el ZIP nuevo y reemplaza Qapture.exe. Tus datos en .\\data se conservan.";
+export const PORTABLE_MESSAGE = "Estás usando la versión portable: descarga el ZIP nuevo y reemplaza Qapture.exe y qapture-mcp.exe juntos. Tus datos en .\\data se conservan.";
 export const SAVE_FIRST_MESSAGE = "Guarda o descarta la captura abierta antes de actualizar.";
 
 export const availableMessage = (info: Pick<UpdateInfo, "version" | "currentVersion">) =>

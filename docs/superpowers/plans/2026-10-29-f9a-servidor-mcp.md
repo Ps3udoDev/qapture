@@ -23,6 +23,12 @@
 - Se trabaja en la rama `feat/f9a-servidor-mcp`, desde `main`.
 - El primer commit de la Task 1 incluye los documentos ya editados y sin commit: el cierre de F8b, el spec, la revisión de Manus y este plan.
 
+## Registro de ejecución — 2026-10-29
+
+Implementación T1–T11 entregada en `feat/f9a-servidor-mcp`, con commits por tarea. T12 tiene la documentación y la verificación automática; su puerta manual de salida sigue pendiente. Ver [handoff de revisión](../handoffs/2026-10-29-f9a-servidor-mcp.md) y [contrato](../contracts/F9a-servidor-mcp.md) para decisiones, evidencia y límites.
+
+Las casillas de pruebas rojas no ejecutadas se conservan abiertas como registro histórico; no significan código pendiente. Los gates se ejecutaron de forma integrada, sin afirmar una corrida aislada completa de los seis comandos después de cada task. Las verificaciones mixtas con pasos manuales permanecen abiertas hasta realizar esas pruebas.
+
 ## Global Constraints
 
 - **Commits:**
@@ -163,8 +169,8 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - `NewActivity { client: String, tool: String, project_id: Option<String>, case_id: Option<String>, ok: bool, detail: String }`.
   - `ActivityDto { id, at, client, tool, projectId, caseId, ok, detail }` en camelCase; `list` devuelve del más nuevo al más viejo.
 
-- [ ] **Step 1: Rama y documentos.** Crear la rama con `git switch -c feat/f9a-servidor-mcp` y hacer commit de los documentos ya editados (F8a, F8b y README de contratos, spec de GitHub, spec MCP, `manus/respuesta-spec.md` y este plan) con el mensaje `docs: cierre de F8b, spec y plan de F9a (servidor MCP)`.
-- [ ] **Step 2: Contrato.** Crear `F9a-servidor-mcp.md` con la forma de `F8b-reportar-issues.md`:
+- [x] **Step 1: Rama y documentos.** Crear la rama con `git switch -c feat/f9a-servidor-mcp` y hacer commit de los documentos ya editados (F8a, F8b y README de contratos, spec de GitHub, spec MCP, `manus/respuesta-spec.md` y este plan) con el mensaje `docs: cierre de F8b, spec y plan de F9a (servidor MCP)`.
+- [x] **Step 2: Contrato.** Crear `F9a-servidor-mcp.md` con la forma de `F8b-reportar-issues.md`:
   - Objetivo y alcance: entra §5.1; queda fuera §5.2, HTTP y borrar.
   - Las «Decisiones respecto al spec» de este plan.
   - Tasks T1–T12 con ☐.
@@ -181,7 +187,7 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
     9. Prueba de humo Linux (adicional, no bloquea).
 
   En el README de contratos, F9 pasa a `🚧 En desarrollo` con enlace al contrato y al plan.
-- [ ] **Step 3: Tests que fallan.** En `settings.rs`:
+- [x] **Step 3: Tests que fallan.** En `settings.rs`:
   - `agent_prefs_default_to_everything_off_with_confirmations_on`;
   - `old_settings_without_agents_load_with_defaults` (JSON sin la clave `agents`).
 
@@ -191,11 +197,11 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - `insert_prunes_to_2000_rows` (inserta 2 005; quedan 2 000 y no están las 5 más viejas).
 
   En `db/mod.rs`, el test existente `migrations_are_idempotent` debe cubrir la 0006.
-- [ ] **Step 4: Verificar que fallan.** Run: `cargo test agent_` → falla al compilar (`AgentPrefs`, `agent_activity` no existen).
-- [ ] **Step 5: Implementar.** Crear la tabla `agent_activity` exactamente como en el spec §6, más el índice. La poda va dentro de `insert`, en la misma transacción: `DELETE … WHERE id NOT IN (SELECT id … ORDER BY at DESC, rowid DESC LIMIT 2000)`. `at` es ISO 8601 local, como `now()` en `repo`.
-- [ ] **Step 6: Verificar.** Run: `cargo test` → PASS. También pasa `cargo test contract`: si el fixture cambia por `Settings`, se regenera con `UPDATE_CONTRACTS=1` y se revisa el diff.
-- [ ] **Step 7: Front mínimo para no romper el contrato.** En `src/domain/settings.ts`, agregar `agents` al schema zod con los mismos valores por defecto y actualizar `src/infrastructure/tauri/__fixtures__`. Run: `pnpm vitest run --maxWorkers=4 settings contract` → PASS.
-- [ ] **Step 8: Commit** `feat(f9a): ajustes de agentes y registro de actividad`.
+- [x] **Step 4: Verificar que fallan.** Run: `cargo test agent_` → falla al compilar (`AgentPrefs`, `agent_activity` no existen).
+- [x] **Step 5: Implementar.** Crear la tabla `agent_activity` exactamente como en el spec §6, más el índice. La poda va dentro de `insert`, en la misma transacción: `DELETE … WHERE id NOT IN (SELECT id … ORDER BY at DESC, rowid DESC LIMIT 2000)`. `at` es ISO 8601 local, como `now()` en `repo`.
+- [x] **Step 6: Verificar.** Run: `cargo test` → PASS. También pasa `cargo test contract`: si el fixture cambia por `Settings`, se regenera con `UPDATE_CONTRACTS=1` y se revisa el diff.
+- [x] **Step 7: Front mínimo para no romper el contrato.** En `src/domain/settings.ts`, agregar `agents` al schema zod con los mismos valores por defecto y actualizar `src/infrastructure/tauri/__fixtures__`. Run: `pnpm vitest run --maxWorkers=4 settings contract` → PASS.
+- [x] **Step 8: Commit** `feat(f9a): ajustes de agentes y registro de actividad`.
 
 ### Task 2: Protocolo MCP, catálogo y prompt
 
@@ -230,7 +236,7 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - `protocol::handle_line(session: &mut Session, ctx_state: &AppState, host: &dyn AgentHost, line: &str) -> Vec<String>`: devuelve 0..n líneas, sin `\n` final.
   - `protocol::tools_list_changed() -> String`: la notificación lista para enviar.
 
-- [ ] **Step 1: Tests que fallan** (`protocol.rs`; el estado de prueba se arma con el mismo helper que `commands/github.rs` en `AppState::new(conn, tmp.files(), tmp.path(), None, false, github)`):
+- [x] **Step 1: Tests que fallan** (`protocol.rs`; el estado de prueba se arma con el mismo helper que `commands/github.rs` en `AppState::new(conn, tmp.files(), tmp.path(), None, false, github)`):
   - `initialize_echoes_a_supported_version_and_falls_back_to_2025_06_18`: con `"2025-03-26"` responde `"2025-03-26"`; con `"2099-01-01"` responde `"2025-06-18"`. `serverInfo.name == "qapture"`, `capabilities.tools.listChanged == true` e `instructions` igual al texto de Global Constraints.
   - `initialize_stores_the_client_name` (`clientInfo.name` → `session.client`; sin él, `"desconocido"`).
   - `notifications_get_no_response` (`notifications/initialized` → `vec![]`).
@@ -244,14 +250,14 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - `qapture_status_reports_version_permissions_and_github_without_token`: el resultado no contiene la cadena del token aunque la cuenta esté conectada en el estado de prueba.
   - `prompts_get_documentar_migracion_fills_the_arguments` (`proyecto`, `modulo`, `url_actual`, `url_nueva` aparecen en el texto).
   - `every_call_is_recorded_in_activity` (una llamada con éxito y una con error → 2 filas con `ok` 1 y 0 y el `client` de la sesión).
-- [ ] **Step 2: Verificar que fallan.** Run: `cargo test mcp::` → falla al compilar.
-- [ ] **Step 3: Implementar.**
+- [x] **Step 2: Verificar que fallan.** Run: `cargo test mcp::` → falla al compilar.
+- [x] **Step 3: Implementar.**
   - `handle_line` hace serde a `serde_json::Value` y despacha por `method`.
   - `tools/call` llama a `policy::check` con el grupo del catálogo, después a `tools::call` y, por último, a `policy::record` con el `Meta` que devolvió la herramienta.
   - El texto del prompt sigue §5.3 del spec.
   - `qapture_status` devuelve `{ version, recovery: bool, agents: AgentPrefs, github: { connected, login? } }`.
-- [ ] **Step 4: Verificar.** Run: `cargo test mcp::` → PASS; `cargo clippy --all-targets -- -D warnings` → limpio.
-- [ ] **Step 5: Commit** `feat(f9a): protocolo MCP, catálogo de herramientas y prompt`.
+- [x] **Step 4: Verificar.** Run: `cargo test mcp::` → PASS; `cargo clippy --all-targets -- -D warnings` → limpio.
+- [x] **Step 5: Commit** `feat(f9a): protocolo MCP, catálogo de herramientas y prompt`.
 
 ### Task 3: Herramientas de lectura
 
@@ -267,7 +273,7 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - `images::thumbnail_png(bytes: &[u8], max_side: u32) -> AppResult<Vec<u8>>`.
   - `read::{status, list_templates, list_projects, get_project, list_cases, get_case, get_evidence_image}`, registradas en `tools::call`.
 
-- [ ] **Step 1: Tests que fallan:**
+- [x] **Step 1: Tests que fallan:**
   - `labels_match_ignoring_case_and_accents`: «modulo», «MÓDULO» y « Módulo » → el campo `Módulo`. Dos campos «Paso» y «paso» → `«paso» coincide con varios campos: Paso, paso. Usa el id.`.
   - `unknown_field_lists_the_valid_ones`: `El campo «Prioridad» no existe en el proyecto. Campos: Módulo, Resultado esperado, …` (en el orden de las columnas).
   - `get_project_includes_fields_and_statuses`: `statuses == STATUSES`; `defaultStatus == "No ejecutado"`.
@@ -276,9 +282,9 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - `get_case_by_project_and_code`, `get_case_lists_evidence_metadata_without_paths` (sin `originalPath` ni `renderedPath` en la salida).
   - `get_evidence_image_returns_an_image_content_reduced_to_1568`: una imagen de 2 400×1 200 → contenido MCP `{type:"image", mimeType:"image/png"}` cuyo PNG mide 1 568×784.
 - [ ] **Step 2: Verificar que fallan.** Run: `cargo test mcp::` → FAIL.
-- [ ] **Step 3: Implementar.** `get_evidence_image` devuelve `ToolOutput::Content` con el contenido `image` (Task 2). Las rutas internas (`originalPath` y `renderedPath`) se quitan de cada DTO que se devuelve al agente.
-- [ ] **Step 4: Verificar.** Run: `cargo test mcp::` → PASS.
-- [ ] **Step 5: Commit** `feat(f9a): herramientas de lectura del MCP`.
+- [x] **Step 3: Implementar.** `get_evidence_image` devuelve `ToolOutput::Content` con el contenido `image` (Task 2). Las rutas internas (`originalPath` y `renderedPath`) se quitan de cada DTO que se devuelve al agente.
+- [x] **Step 4: Verificar.** Run: `cargo test mcp::` → PASS.
+- [x] **Step 5: Commit** `feat(f9a): herramientas de lectura del MCP`.
 
 ### Task 4: Herramientas de escritura
 
@@ -293,7 +299,7 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - `images::load(args: &Map<String, Value>) -> Result<Vec<u8>, String>`: `path` absoluta o `base64`, nunca los dos; tamaño ≤ 25 MB comprobado con `metadata` antes de leer.
   - `write::{create_project, create_case, update_case, add_evidence, update_evidence_description}`. Cada una llama a `host.data_changed(...)` con un `summary` corto: `"Un agente creó EJ-014"`, `"Un agente actualizó EJ-014"`, `"Un agente adjuntó una captura a EJ-014"` o `"Un agente creó el proyecto «<nombre>»"`.
 
-- [ ] **Step 1: Tests que fallan:**
+- [x] **Step 1: Tests que fallan:**
   - `create_case_defaults_to_no_ejecutado_and_resolves_labels`.
   - `create_case_rejects_an_unknown_status_listing_the_valid_ones`.
   - `update_case_merges_values_instead_of_replacing`: un caso con `Módulo=A` y `Resultado=X`; `update_case { values: { Resultado: "Y" } }` → `Módulo=A`, `Resultado=Y`.
@@ -305,7 +311,7 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - `writes_emit_data_changed_with_project_and_case` (`RecordingHost`).
   - `two_sessions_creating_cases_get_distinct_codes`: 2 hilos × 10 `create_case` sobre el mismo `AppState` → 20 códigos distintos `EJ-001…EJ-020`.
 - [ ] **Step 2: Verificar que fallan.** Run: `cargo test mcp::tools::write` → FAIL.
-- [ ] **Step 3: Implementar.** `add_evidence`:
+- [x] **Step 3: Implementar.** `add_evidence`:
   1. `images::load`;
   2. `sniff`;
   3. `repo::evidence::stage(files, &bytes)`;
@@ -313,8 +319,8 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   5. `repo::evidence::add` con la meta. Si `add` falla, `discard_staged`.
 
   `position` queda fuera de F9a: la evidencia va al final, y `position` sale del schema.
-- [ ] **Step 4: Verificar.** Run: `cargo test mcp::` → PASS.
-- [ ] **Step 5: Commit** `feat(f9a): herramientas de escritura del MCP`.
+- [x] **Step 4: Verificar.** Run: `cargo test mcp::` → PASS.
+- [x] **Step 5: Commit** `feat(f9a): herramientas de escritura del MCP`.
 
 ### Task 5: Captura y exportación
 
@@ -330,7 +336,7 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - `export::unique_path(dir: &Path, file_name: &str) -> PathBuf`: `name.xlsx` → `name (2).xlsx` → `name (3).xlsx`…
   - `host::XcapAgentScreen`, que usa `xcap::Monitor::all` y `xcap::Window::all`; ignora ventanas minimizadas y las de Qapture (título que empieza con `Qapture`).
 
-- [ ] **Step 1: Tests que fallan:**
+- [x] **Step 1: Tests que fallan:**
   - `capture_asks_for_confirmation_when_configured`: `confirm` → `false` da `El tester rechazó la captura.` y no crea evidencia.
   - `capture_skips_confirmation_when_disabled`.
   - `capture_always_notifies`: `notify("Un agente capturó la pantalla.")`.
@@ -344,13 +350,13 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - `export_package_writes_a_qapture_in_the_folder`.
   - `export_uses_folder_then_settings_then_documents` (`RecordingHost.default_export_dir`).
 - [ ] **Step 2: Verificar que fallan.** Run: `cargo test mcp::tools` → FAIL.
-- [ ] **Step 3: Implementar.** Codificar el PNG con `image::codecs::png::PngEncoder`. El diálogo de confirmación de `TauriAgentHost` (Task 6) dice:
+- [x] **Step 3: Implementar.** Codificar el PNG con `image::codecs::png::PngEncoder`. El diálogo de confirmación de `TauriAgentHost` (Task 6) dice:
   - captura: «Un agente quiere capturar <monitor n | la ventana «t»>. ¿Permitir?»;
   - exportación: «Un agente quiere exportar «<proyecto>» a <carpeta>. ¿Permitir?».
 
   El `detail` de la actividad lleva solo el tipo de destino, nunca la carpeta.
-- [ ] **Step 4: Verificar.** Run: `cargo test mcp::` → PASS.
-- [ ] **Step 5: Commit** `feat(f9a): captura de pantalla y exportación desde el MCP`.
+- [x] **Step 4: Verificar.** Run: `cargo test mcp::` → PASS.
+- [x] **Step 5: Commit** `feat(f9a): captura de pantalla y exportación desde el MCP`.
 
 ### Task 6: Canal local, saludo y arranque en la app
 
@@ -371,7 +377,7 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - `mcp::McpRuntime`: lo guarda `app.manage`. Tiene `start(app: AppHandle, data_dir: PathBuf)`, `permissions_changed(&self)` (manda `tools/list_changed` a cada sesión viva por un `tokio::sync::broadcast`) y `disconnect_all(&self)`.
   - `mcp::host::TauriAgentHost { app: AppHandle }`: hace `emit_to("main", "agent:data-changed", …)`, notifica con `tauri_plugin_notification`, confirma con `tauri_plugin_dialog` y `blocking_show` (botones «Permitir» / «Rechazar») y toma Documentos de `app.path().document_dir()`.
 
-- [ ] **Step 1: Tests que fallan** (`endpoint.rs`, puros o con `tempdir`):
+- [x] **Step 1: Tests que fallan** (`endpoint.rs`, puros o con `tempdir`):
   - `channel_name_is_stable_and_differs_per_data_dir`: el mismo dir da el mismo nombre; el dir portable da otro. En Windows empieza con `\\.\pipe\qapture-mcp-` y tiene 12 hex.
   - `key_is_64_hex_and_reused`.
   - `regenerate_changes_the_key`.
@@ -385,7 +391,7 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - `a_client_without_hello_is_closed`;
   - `permissions_changed_sends_list_changed_to_open_sessions`.
 - [ ] **Step 2: Verificar que fallan.** Run: `cargo test mcp::endpoint mcp::channel` → FAIL.
-- [ ] **Step 3: Implementar el listener.**
+- [x] **Step 3: Implementar el listener.**
   - **Windows:** `tokio::net::windows::named_pipe::ServerOptions` con `first_pipe_instance(true)` en la primera instancia, `reject_remote_clients(true)` y un descriptor de seguridad SDDL `D:P(A;;GA;;;OW)(A;;GA;;;SY)` aplicado con `create_with_security_attributes_raw` (`ConvertStringSecurityDescriptorToSecurityDescriptorW`; liberar con `LocalFree`).
   - **Linux:** `tokio::net::UnixListener`. Si ya existe un socket, borrarlo; `chmod 0600` después de `bind`.
   - **Sesiones:** cada conexión lee la primera línea como `Hello` (máximo 2 s), responde `HelloReply` y luego entra en un bucle: lee una línea, ejecuta `handle_line` en `tokio::task::spawn_blocking` y escribe las respuestas. Cualquier línea de más de 40 MB cierra la conexión.
@@ -394,7 +400,7 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - El cierre de `set_on_saved` llama, además de `sync_autostart`, a `McpRuntime::permissions_changed`.
   - En `system::updater`, antes de instalar, se llama a `disconnect_all` para que el puente vea un EOF limpio.
 - [ ] **Step 5: Verificar.** Run: `cargo test` → PASS. A mano: `pnpm tauri dev`, encender los agentes en la base (o esperar a la Task 10) y comprobar que el canal existe con `[System.IO.Directory]::GetFiles("\\.\pipe\") | Select-String qapture`.
-- [ ] **Step 6: Commit** `feat(f9a): canal local con saludo y clave para el MCP`.
+- [x] **Step 6: Commit** `feat(f9a): canal local con saludo y clave para el MCP`.
 
 ### Task 7: Puente `qapture-mcp`
 
@@ -415,7 +421,7 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
     - `on_reconnect(&mut self) -> Vec<String>` (líneas a reenviar: `initialize` guardado con `id` interno `"qapture-replay"` y `notifications/initialized`);
     - `pending_errors(&mut self) -> Vec<String>` (respuestas `Qapture se reinició; vuelve a intentar.` para los `id` en vuelo).
 
-- [ ] **Step 1: Tests que fallan:**
+- [x] **Step 1: Tests que fallan:**
   - `fallback_answers_initialize_and_lists_only_status`.
   - `fallback_tool_call_returns_the_message_as_error`.
   - `reconnect_replays_initialize_and_swallows_its_response`: el cliente manda `initialize` (`id 1`) y `tools/call` (`id 2`), y el servidor responde el 1. Tras la reconexión, `pending_errors` da exactamente una respuesta de error para el `id 2`; `on_reconnect` devuelve el `initialize` con `id "qapture-replay"`; y `on_server_line` de la respuesta `"qapture-replay"` → `None`.
@@ -423,7 +429,7 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - `default_app_data_dir_uses_the_identifier`.
   - `bridge_logs_never_go_to_stdout`: el `main` del bin solo escribe en stdout por `relay` o `fallback`, y un test de integración en `tests/bridge.rs` lanza el bin con la app ausente y `QAPTURE_MCP_NO_LAUNCH=1` → stdout tiene solo JSON válido por línea.
 - [ ] **Step 2: Verificar que fallan.** Run: `cargo test bridge` → FAIL.
-- [ ] **Step 3: Implementar `main`.**
+- [x] **Step 3: Implementar `main`.**
   1. Resolver el dir de datos: `resolve_data_dir(exe_dir, default_app_data_dir())`.
   2. Calcular `channel_name` y leer `mcp.key`. Si falta, ir al fallback con `No se encontró Qapture y no se pudo abrir. Ábrelo y vuelve a intentar.`.
   3. `connect_or_launch`: lanza `app_path` con `--hidden` si no conecta y reintenta 10 s cada 250 ms. `QAPTURE_MCP_NO_LAUNCH=1` lo desactiva para los tests.
@@ -431,7 +437,7 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   5. Copiar líneas en las dos direcciones a través de `Relay`.
   6. Ante un EOF del canal: `pending_errors`, reconectar y `on_reconnect`. Ante un EOF de stdin, salir con 0.
 - [ ] **Step 4: Verificar.** Run: `cargo test` → PASS; `cargo build --bin qapture-mcp` → ok. A mano, con la app en dev y los agentes encendidos: `npx @modelcontextprotocol/inspector target/debug/qapture-mcp.exe` lista las herramientas.
-- [ ] **Step 5: Commit** `feat(f9a): puente qapture-mcp con reconexión y modo de aviso`.
+- [x] **Step 5: Commit** `feat(f9a): puente qapture-mcp con reconexión y modo de aviso`.
 
 ### Task 8: Comandos para Ajustes › Agentes
 
@@ -451,7 +457,7 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - `codex`: `[mcp_servers.qapture]\ncommand = '<bridgePath>'`
   - `json`: `{"mcpServers":{"qapture":{"command":"<bridgePath con \\ escapadas>"}}}`, con sangría de 2.
 
-- [ ] **Step 1: Tests que fallan:**
+- [x] **Step 1: Tests que fallan:**
   - `client_config_uses_the_sibling_bridge_path`;
   - `json_config_escapes_backslashes`;
   - `codex_config_uses_a_literal_string`;
@@ -459,9 +465,9 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - los tests de `names.rs` (comandos registrados en los tres lugares);
   - `cargo test contract` con los DTO nuevos.
 - [ ] **Step 2: Verificar que fallan.** Run: `cargo test agents` → FAIL.
-- [ ] **Step 3: Implementar** y regenerar el fixture con `UPDATE_CONTRACTS=1 cargo test contract`. Revisar el diff.
-- [ ] **Step 4: Verificar.** Run: `cargo test` → PASS.
-- [ ] **Step 5: Commit** `feat(f9a): comandos de configuración y actividad de agentes`.
+- [x] **Step 3: Implementar** y regenerar el fixture con `UPDATE_CONTRACTS=1 cargo test contract`. Revisar el diff.
+- [x] **Step 4: Verificar.** Run: `cargo test` → PASS.
+- [x] **Step 5: Commit** `feat(f9a): comandos de configuración y actividad de agentes`.
 
 ### Task 9: Puerto, adaptador y slice de agentes
 
@@ -484,7 +490,7 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - Slice: `agentConfig`, `agentActivity`, `loadAgents()`, `regenerateAgentKey()`.
   - Workspace: suscripción a `onDataChanged`. Recarga la lista de proyectos siempre; los casos, si `projectId` es el abierto; las evidencias, si `caseId` es el seleccionado. Junta los `summary` y muestra **un** toast cada 5 s con `summarizeAgentChanges`.
 
-- [ ] **Step 1: Tests que fallan:**
+- [x] **Step 1: Tests que fallan:**
   - `summarizes one change verbatim and many as a count`.
   - `recommended enables only read and write`.
   - `data-changed for the open project reloads cases`.
@@ -492,9 +498,9 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - `data-changed for the selected case reloads its evidence`.
   - `groups toasts in a 5 s window` (`vi.useFakeTimers`: 3 eventos en 1 s → un toast `Un agente hizo 3 cambios`).
 - [ ] **Step 2: Verificar que fallan.** Run: `pnpm vitest run --maxWorkers=4 agents workspace` → FAIL.
-- [ ] **Step 3: Implementar.**
-- [ ] **Step 4: Verificar.** Run: `pnpm typecheck && pnpm vitest run --maxWorkers=4` → PASS.
-- [ ] **Step 5: Commit** `feat(f9a): puerto, slice y recarga en vivo por agentes`.
+- [x] **Step 3: Implementar.**
+- [x] **Step 4: Verificar.** Run: `pnpm typecheck && pnpm vitest run --maxWorkers=4` → PASS.
+- [x] **Step 5: Commit** `feat(f9a): puerto, slice y recarga en vivo por agentes`.
 
 ### Task 10: Pestaña «Agentes» en Ajustes
 
@@ -505,7 +511,7 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
 **Interfaces:**
 - Consumes: el slice de la Task 9; `draft.agents` del borrador de ajustes que ya maneja el diálogo (se guarda con el botón «Guardar» existente).
 
-- [ ] **Step 1: Tests que fallan** (`Agents.test.tsx`, con el adaptador en memoria):
+- [x] **Step 1: Tests que fallan** (`Agents.test.tsx`, con el adaptador en memoria):
   - «con el interruptor apagado, los grupos están deshabilitados».
   - «encender el interruptor no marca ningún grupo».
   - «Activar configuración recomendada marca solo Lectura y Escritura».
@@ -516,9 +522,9 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - «la actividad muestra cliente, herramienta, caso y resultado, y filtra por cliente».
   - «Regenerar clave pide confirmación y avisa `Clave nueva: vuelve a conectar tus agentes.`».
 - [ ] **Step 2: Verificar que fallan.** Run: `pnpm vitest run --maxWorkers=4 Agents` → FAIL.
-- [ ] **Step 3: Implementar** con los componentes y clases que ya usan `GithubAccountPanel` y la pestaña «Sistema».
-- [ ] **Step 4: Verificar.** Run: `pnpm lint && pnpm typecheck && pnpm vitest run --maxWorkers=4` → PASS.
-- [ ] **Step 5: Commit** `feat(f9a): pestaña Agentes en Ajustes`.
+- [x] **Step 3: Implementar** con los componentes y clases que ya usan `GithubAccountPanel` y la pestaña «Sistema».
+- [x] **Step 4: Verificar.** Run: `pnpm lint && pnpm typecheck && pnpm vitest run --maxWorkers=4` → PASS.
+- [x] **Step 5: Commit** `feat(f9a): pestaña Agentes en Ajustes`.
 
 ### Task 11: Empaquetado del puente
 
@@ -532,11 +538,11 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
   - AppImage: al arrancar, si existe `APPIMAGE`, se copia `qapture-mcp` a `<datos>/bin/` cuando su contenido difiere y se escribe `<datos>/bin/app-path` con el valor de `APPIMAGE`. En ese caso, `mcp_client_config.bridgePath` apunta a `<datos>/bin/qapture-mcp`.
 
 - [ ] **Step 1: Test que falla:** `sidecar.test.mjs`, con `parses the host triple from rustc -vV` y `names the windows binary with .exe`. Run: `node --test scripts/` → FAIL.
-- [ ] **Step 2: Implementar** el script y la configuración. El ZIP portable lleva `qapture-mcp.exe` junto a `qapture.exe`. La CI corre `cargo build --bin qapture-mcp`.
+- [x] **Step 2: Implementar** el script y la configuración. El ZIP portable lleva `qapture-mcp.exe` junto a `qapture.exe`. La CI corre `cargo build --bin qapture-mcp`.
 - [ ] **Step 3: Verificar.**
   - `node --test scripts/` → PASS.
   - `pnpm tauri build` → el instalador NSIS deja `qapture-mcp.exe` junto a `qapture.exe`. Comprobarlo instalando y con `dir "C:\Program Files\Qapture"`.
-- [ ] **Step 4: Commit** `feat(f9a): el instalador y el ZIP portable incluyen qapture-mcp`.
+- [x] **Step 4: Commit** `feat(f9a): el instalador y el ZIP portable incluyen qapture-mcp`.
 
 ### Task 12: Documentación y prueba real
 
@@ -544,7 +550,7 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
 - Create: `docs/usuario/agentes.md`, `docs/adr/0006-servidor-mcp.md`
 - Modify: `docs/arquitectura.md`, `README.md`, `docs/usuario/README.md` (índice), `CHANGELOG.md` (sección `1.2.0` sin fecha), contrato F9a
 
-- [ ] **Step 1: Escribir** las guías de §10 del spec. `agentes.md` cubre:
+- [x] **Step 1: Escribir** las guías de §10 del spec. `agentes.md` cubre:
   - qué es y qué no puede hacer;
   - activar y elegir permisos (con la tabla de grupos);
   - conectar Claude Code, Codex, Cursor y Claude Desktop;
@@ -553,5 +559,5 @@ docs/usuario/agentes.md · docs/adr/0006-servidor-mcp.md
 
   El ADR 0006 explica D2, D3 y D7.
 - [ ] **Step 2: Checklist.** Ejecutar el checklist del contrato con el instalador local (filas 1–8) y anotar la fecha en cada fila. La fila 9 (Linux) se anota como pendiente si no se hace.
-- [ ] **Step 3: Verificación completa.** Run: `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test` (en `src-tauri/`) y `pnpm lint && pnpm typecheck && pnpm vitest run --maxWorkers=4` → todo verde.
-- [ ] **Step 4: Commit** `docs(f9a): guía de agentes, ADR 0006 y checklist`.
+- [x] **Step 3: Verificación completa.** Run: `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test` (en `src-tauri/`) y `pnpm lint && pnpm typecheck && pnpm vitest run --maxWorkers=4` → todo verde.
+- [x] **Step 4: Commit** `docs(f9a): guía de agentes, ADR 0006 y checklist`.

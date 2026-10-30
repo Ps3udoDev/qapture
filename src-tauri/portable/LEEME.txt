@@ -12,7 +12,7 @@ DATOS
   verás tus datos.
 
 ACTUALIZAR
-- Descarga el ZIP nuevo, extráelo y reemplaza Qapture.exe por el del ZIP nuevo.
+- Descarga el ZIP nuevo, extráelo y reemplaza Qapture.exe y qapture-mcp.exe juntos por los del ZIP nuevo.
 - Tu carpeta .\data y el archivo portable.flag se conservan tal cual.
 
 DÓNDE EXTRAERLO

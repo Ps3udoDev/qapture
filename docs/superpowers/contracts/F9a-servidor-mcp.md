@@ -1,5 +1,7 @@
 # F9a — Servidor MCP para agentes · `v1.2.0`
 
+**Estado:** implementación en validación; la puerta manual de salida sigue pendiente.
+
 **Depende de:** F1–F8b · **Plan:** [2026-10-29-f9a-servidor-mcp](../plans/2026-10-29-f9a-servidor-mcp.md) · **Spec:** [2026-10-29-mcp-design](../specs/2026-10-29-mcp-design.md).
 
 ## Objetivo
@@ -27,6 +29,16 @@ El tester conecta Claude Code, Codex, Cursor o Claude Desktop a Qapture por MCP 
 - **Registro:** `detail` contiene solo códigos de caso, nombres de proyecto, cantidades y nombres de herramienta. Nunca rutas, base64, contenido de imágenes ni la clave. Las fechas usan `db::now()` (RFC3339 UTC, como los demás repositorios). La actividad no viaja en Excel ni `.qapture`; sí en respaldos.
 - **Interfaz:** eventos `agent:data-changed` dirigidos a `main`, con `{ projectId, caseId, summary }`; ids opcionales como `null`. Al crear proyectos sin ventana abierta, `projectId` es `null` y se recarga la lista.
 
+### Ajustes de implementación para revisión
+- `structuredContent` conserva resultados objeto y envuelve listas en `{ "items": [...] }`; el contenido de texto mantiene el JSON original. Es necesario porque el [schema MCP 2025-06-18](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-06-18/schema.json) exige un objeto en ese campo.
+- Las fechas usan el helper existente `db::now()` (UTC), sin introducir otro criterio temporal para la actividad.
+- `AgentScreen` agrega consulta de cantidad y captura de monitor individual: el host real nunca captura otros monitores al seleccionar uno ni captura antes de la confirmación.
+- `export_excel` admite proyectos sin versiones del documento mediante opciones MCP explícitas, manteniendo la validación anterior de la UI. Con versiones usa la última disponible.
+- El arranque carga los ajustes antes de aceptar clientes MCP. La lectura de líneas del canal conserva fragmentos cuando `select!` cancela una espera.
+- Tokio activa `macros` también en dependencias de producción: `tokio::select!` lo requiere. Las features dev de los tests ocultaban ese requisito; se detectó compilando release.
+- `build.rs` permite compilar/tests sin un sidecar previo; el empaquetador mantiene la exigencia del binario real y lo genera en `beforeBuildCommand`.
+- Los tests node:test del sidecar se ejecutan con `node --test scripts/sidecar.test.mjs`, separados de Vitest. `node --test scripts/` no resuelve el directorio en Node 24 sobre este Windows.
+
 ## Interfaces producidas
 - `settings::AgentPrefs` y `Settings.agents`, serializados camelCase y con valores por defecto para ajustes antiguos.
 - `repo::agent_activity::NewActivity { client, tool, project_id, case_id, ok, detail }`; `insert(&Connection, &NewActivity) -> AppResult<()>` inserta y poda en una transacción; `list(&Connection, limit: u32, client: Option<&str>) -> AppResult<Vec<ActivityDto>>` ordena por `at DESC, rowid DESC`.
@@ -37,26 +49,26 @@ El tester conecta Claude Code, Codex, Cursor o Claude Desktop a Qapture por MCP 
 ## Tasks
 | ID | Task | Estado |
 |---|---|---|
-| F9a-T1 | Ajustes de agentes, migración 0006 y registro de actividad | ✅ |
-| F9a-T2 | Protocolo MCP, catálogo y prompt | ✅ |
-| F9a-T3 | Herramientas de lectura, resolución de campos e imágenes | ☐ |
-| F9a-T4 | Herramientas de escritura | ☐ |
-| F9a-T5 | Captura y exportación | ☐ |
-| F9a-T6 | Canal local, saludo y arranque en la app | ☐ |
-| F9a-T7 | Puente `qapture-mcp` | ☐ |
-| F9a-T8 | Comandos para Ajustes › Agentes | ☐ |
-| F9a-T9 | Puerto, adaptador y slice de agentes | ☐ |
-| F9a-T10 | Pestaña «Agentes» en Ajustes | ☐ |
-| F9a-T11 | Empaquetado del puente | ☐ |
-| F9a-T12 | Documentación y prueba real | ☐ |
+| F9a-T1 | Ajustes de agentes, migración 0006 y registro de actividad | ✅ Implementada; validación integrada correcta |
+| F9a-T2 | Protocolo MCP, catálogo y prompt | ✅ Implementada; validación integrada correcta |
+| F9a-T3 | Herramientas de lectura, resolución de campos e imágenes | ✅ Implementada; validación integrada correcta |
+| F9a-T4 | Herramientas de escritura | ✅ Implementada; validación integrada correcta |
+| F9a-T5 | Captura y exportación | ✅ Implementada; validación integrada correcta |
+| F9a-T6 | Canal local, saludo y arranque en la app | ✅ Implementada; validación integrada correcta |
+| F9a-T7 | Puente `qapture-mcp` | ✅ Implementada; validación integrada correcta |
+| F9a-T8 | Comandos para Ajustes › Agentes | ✅ Implementada; validación integrada correcta |
+| F9a-T9 | Puerto, adaptador y slice de agentes | ✅ Implementada; validación integrada correcta |
+| F9a-T10 | Pestaña «Agentes» en Ajustes | ✅ Implementada; validación integrada correcta |
+| F9a-T11 | Empaquetado del puente | ✅ Código y CI; instalación manual pendiente |
+| F9a-T12 | Documentación y prueba real | ◐ Docs y gates; prueba real pendiente |
 
 ## Criterios de aceptación
 - [x] **T1:** `agent_prefs_default_to_everything_off_with_confirmations_on`, `old_settings_without_agents_load_with_defaults`, `insert_then_list_returns_newest_first`, `list_filters_by_client`, `insert_prunes_to_2000_rows`, migraciones idempotentes, persistencia y contrato Rust → TS.
-- [ ] **T2–T3:** negociación MCP, catálogo condicionado por permisos, errores JSON-RPC, prompt, recuperación, lectura paginada, imágenes y etiquetas sin tildes/mayúsculas.
-- [ ] **T4:** mezcla de valores, códigos distintos para dos sesiones concurrentes y rechazo de archivos que no sean imágenes sin repetir ruta ni contenido.
-- [ ] **T5:** confirmaciones, notificación por captura, selección de monitor/ventana y exportación sin sobrescritura.
-- [ ] **T6–T8:** autenticación, permisos del canal y secreto, reconexión y repetición interna de `initialize`, configuración y ACL de comandos.
-- [ ] **T9–T10:** recarga selectiva en vivo, toasts agrupados cada 5 s y panel de permisos/configuración/actividad.
+- [x] **T2–T3:** negociación MCP, catálogo condicionado por permisos, errores JSON-RPC, prompt, recuperación, lectura paginada, imágenes y etiquetas sin tildes/mayúsculas.
+- [x] **T4:** mezcla de valores, códigos distintos para dos sesiones concurrentes y rechazo de archivos que no sean imágenes sin repetir ruta ni contenido.
+- [x] **T5:** confirmaciones, notificación por captura, selección de monitor/ventana y exportación sin sobrescritura.
+- [x] **T6–T8:** autenticación, permisos del canal y secreto, reconexión y repetición interna de `initialize`, configuración y ACL de comandos.
+- [x] **T9–T10:** recarga selectiva en vivo, toasts agrupados cada 5 s y panel de permisos/configuración/actividad.
 - [ ] **T11–T12:** puente instalado y portable; guías, ADR y checklist local firmado.
 
 ## Mensajes fijos
@@ -92,3 +104,12 @@ El tester conecta Claude Code, Codex, Cursor o Claude Desktop a Qapture por MCP 
 | 7 | Versión portable | El puente usa los datos junto al exe | ☐ |
 | 8 | Migración completa con Claude Code y Codex | 10+ casos, 20+ capturas y Excel equivalente a la carga manual | ☐ |
 | 9 | Humo Linux (§9 del spec), adicional y no bloqueante | Anotar distribución, versión, escritorio, canal `0600`, persistencia, captura y exportación | ☐ Pendiente |
+
+## Verificación automática — 2026-10-29
+
+- Rust: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` y `cargo test`: 473 unitarias aprobadas, 3 ignoradas de escritorio y 2 pruebas de integración del puente aprobadas.
+- TypeScript: lint/typecheck correctos; Vitest 381 pruebas en 53 archivos.
+- Scripts: `node --test scripts/sidecar.test.mjs`, 2 aprobadas.
+- Build web de producción correcto. La construcción del instalador y sus límites se registran en el [handoff](../handoffs/2026-10-29-f9a-servidor-mcp.md).
+
+Estas verificaciones no sustituyen las filas del checklist manual. Se mantienen pendientes las pruebas reales con Inspector, Claude Code y Codex, instalación/actualización y portable, y el humo Linux.

@@ -135,3 +135,18 @@ Los datos están en la migración `0005_integrations.sql` (`gh_account`, `projec
 ## Publicación
 
 `ci.yml` valida cada PR y `release.yml` construye cada tag `vX.Y.Z` y deja un **borrador** de release con los instaladores, el ZIP portable y `latest.json`. El updater consulta `releases/latest/download/latest.json`, que ignora borradores: una versión llega a las apps cuando alguien **publica** el borrador. Los pasos están en [CONTRIBUTING.md](../CONTRIBUTING.md#publicar-una-versión) y la verificación manual en [release-checklist.md](release-checklist.md).
+
+## Agentes MCP (F9a)
+
+```mermaid
+flowchart LR
+  Cliente[Cliente MCP] -->|stdio JSON por líneas| Puente[qapture-mcp]
+  Puente -->|pipe Windows o socket Unix + clave| Canal[Canal local autenticado]
+  Canal --> Protocolo[Protocolo y políticas]
+  Protocolo --> Herramientas[Herramientas MCP]
+  Herramientas --> Repos[AppState y repositorios]
+  Repos --> DB[(SQLite serializado)]
+  Herramientas -->|agent:data-changed| UI[Ventana principal]
+```
+
+El puente no abre SQLite. Las herramientas se ejecutan dentro de la app y reutilizan validación, recuperación y almacenamiento. El canal tiene ACL del usuario y saludo con secreto y versión. Los permisos se verifican por llamada; la UI recarga datos por evento. Véase [ADR 0006](adr/0006-servidor-mcp.md).
