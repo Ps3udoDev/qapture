@@ -13,24 +13,49 @@ use crate::{
     transfer::package,
 };
 
-pub fn unique_path(dir: &Path, file_name: &str) -> PathBuf {
-    let original = dir.join(file_name);
-    if !original.exists() {
-        return original;
-    }
+/// Reserva el nombre creando un archivo vacío con `create_new`: dos exportaciones a la vez nunca
+/// eligen el mismo destino y no hace falta bloquear la base mientras se arma el archivo.
+pub fn reserve_path(dir: &Path, file_name: &str) -> std::io::Result<PathBuf> {
     let file = Path::new(file_name);
     let stem = file.file_stem().unwrap_or_default().to_string_lossy();
     let extension = file
         .extension()
         .map(|s| format!(".{}", s.to_string_lossy()))
         .unwrap_or_default();
-    for n in 2u64.. {
-        let candidate = dir.join(format!("{stem} ({n}){extension}"));
-        if !candidate.exists() {
-            return candidate;
+    for n in 1u64.. {
+        let candidate = if n == 1 {
+            dir.join(file_name)
+        } else {
+            dir.join(format!("{stem} ({n}){extension}"))
+        };
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&candidate)
+        {
+            Ok(_) => return Ok(candidate),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(e),
         }
     }
     unreachable!()
+}
+
+/// Escribe sobre el archivo reservado; si falla, quita la reserva para no dejar archivos vacíos.
+fn write_reserved<T>(
+    folder: &Path,
+    file_name: &str,
+    write: impl FnOnce(&Path) -> crate::error::AppResult<T>,
+) -> Result<(PathBuf, T), String> {
+    let path = reserve_path(folder, file_name)
+        .map_err(|_| "No se pudo crear el archivo de exportación.".to_string())?;
+    match write(&path) {
+        Ok(value) => Ok((path, value)),
+        Err(e) => {
+            let _ = std::fs::remove_file(&path);
+            Err(e.to_string())
+        }
+    }
 }
 
 fn folder(ctx: &ToolContext<'_>, args: &Map<String, Value>) -> Result<PathBuf, String> {
@@ -117,10 +142,11 @@ pub fn export_excel(
         data::resolve_options(&data, &input, false, today).map_err(|e| e.to_string())?
     };
     confirm(ctx, &data.project.name, &folder)?;
-    // Hold the DB mutex across name selection and saving to serialize concurrent agent exports.
-    let _guard = ctx.state.db();
-    let path = unique_path(&folder, &data::suggested_file_name(&data.project, &options));
-    let result = excel::export(&data, &options, &path, &|_| {}).map_err(|e| e.to_string())?;
+    let (_, result) = write_reserved(
+        &folder,
+        &data::suggested_file_name(&data.project, &options),
+        |path| excel::export(&data, &options, path, &|_| {}),
+    )?;
     Ok(ToolOutput::Json(json!(result)))
 }
 
@@ -136,16 +162,15 @@ pub fn export_package(
     )
     .map_err(|e| e.to_string())?;
     confirm(ctx, &export.doc.project.name, &folder)?;
-    let _guard = ctx.state.db();
-    let path = unique_path(
+    let (path, ()) = write_reserved(
         &folder,
         &package::suggested_file_name(
             &export.doc.project.client,
             &export.doc.project.name,
             Local::now().date_naive(),
         ),
-    );
-    package::write(&export, &path).map_err(|e| e.to_string())?;
+        |path| package::write(&export, path),
+    )?;
     Ok(ToolOutput::Json(
         json!({"path":path.to_string_lossy(),"cases":export.doc.cases.len(),"evidence":export.evidence_count(),"missingImages":export.missing_images}),
     ))
@@ -198,6 +223,31 @@ mod tests {
         let second = output(export_excel(&ctx, args.as_object().unwrap()));
         assert!(second["path"].as_str().unwrap().ends_with(" (2).xlsx"));
         assert_eq!(std::fs::read(path).unwrap(), original);
+    }
+
+    #[test]
+    fn reserve_path_never_hands_out_the_same_name_twice() {
+        let tmp = TempDir::new();
+        let a = reserve_path(tmp.path(), "Matriz.xlsx").unwrap();
+        let b = reserve_path(tmp.path(), "Matriz.xlsx").unwrap();
+        assert_eq!(a, tmp.path().join("Matriz.xlsx"));
+        assert_eq!(b, tmp.path().join("Matriz (2).xlsx"));
+        assert!(a.is_file() && b.is_file());
+    }
+
+    #[test]
+    fn a_failed_export_removes_its_reservation() {
+        let tmp = TempDir::new();
+        let error = write_reserved(
+            tmp.path(),
+            "Matriz.xlsx",
+            |_| -> crate::error::AppResult<()> {
+                Err(crate::error::AppError::Validation("falló".into()))
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error, "falló");
+        assert!(!tmp.path().join("Matriz.xlsx").exists());
     }
 
     #[test]
