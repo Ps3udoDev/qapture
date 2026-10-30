@@ -2,6 +2,13 @@ use serde_json::{Value, json};
 
 pub const APP_UNAVAILABLE: &str =
     "No se encontró Qapture y no se pudo abrir. Ábrelo y vuelve a intentar.";
+/// Tras perder la conexión el puente no vuelve a abrir Qapture (el instalador pudo cerrarla).
+pub const APP_CLOSED: &str = "Qapture se cerró. Ábrelo y vuelve a intentar.";
+pub fn app_updated(app: &str) -> String {
+    format!(
+        "Qapture se actualizó a {app}. Vuelve a conectar el servidor MCP en tu agente (en Claude Code: /mcp)."
+    )
+}
 
 /// Servidor mínimo legible incluso si la app no está disponible.
 pub fn respond(line: &str, message: &str) -> Option<String> {

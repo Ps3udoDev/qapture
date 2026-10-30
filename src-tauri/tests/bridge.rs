@@ -186,3 +186,209 @@ async fn bridge_reconnects_on_the_wire_without_repeating_initialize_to_the_clien
     std::fs::remove_dir(data).unwrap();
     std::fs::remove_dir(directory).unwrap();
 }
+
+#[cfg(windows)]
+mod reconnect {
+    use serde_json::{Value, json};
+    use std::{
+        io::{BufRead, Write},
+        path::PathBuf,
+        process::{Child, ChildStdin, ChildStdout, Command, Stdio},
+        time::Duration,
+    };
+    use tokio::{
+        io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+        net::windows::named_pipe::{NamedPipeServer, ServerOptions},
+    };
+
+    pub struct Bridge {
+        pub directory: PathBuf,
+        pub name: String,
+        pub child: Child,
+        pub stdin: ChildStdin,
+        pub stdout: std::io::Lines<std::io::BufReader<ChildStdout>>,
+    }
+
+    /// Puente portable en una carpeta temporal. Sin QAPTURE_MCP_NO_LAUNCH: si intentara abrir
+    /// Qapture al reconectar, fallaría al no existir qapture.exe y respondería sin servidor.
+    pub fn bridge() -> Bridge {
+        let directory =
+            std::env::temp_dir().join(format!("qapture-reconnect-{}", uuid::Uuid::new_v4()));
+        let data = directory.join("data");
+        std::fs::create_dir_all(&data).unwrap();
+        let exe = directory.join("qapture-mcp.exe");
+        std::fs::copy(env!("CARGO_BIN_EXE_qapture-mcp"), &exe).unwrap();
+        std::fs::write(directory.join("portable.flag"), b"").unwrap();
+        std::fs::write(data.join("mcp.key"), "a".repeat(64)).unwrap();
+        let name = qapture_lib::mcp::endpoint::channel_name(&data);
+        let mut child = Command::new(&exe)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        let stdin = child.stdin.take().unwrap();
+        let stdout = std::io::BufReader::new(child.stdout.take().unwrap()).lines();
+        Bridge {
+            directory,
+            name,
+            child,
+            stdin,
+            stdout,
+        }
+    }
+
+    pub fn send_client(bridge: &mut Bridge, value: Value) {
+        writeln!(bridge.stdin, "{value}").unwrap();
+    }
+
+    /// Falla en vez de colgarse si el puente no responde al cliente.
+    pub async fn next_client(bridge: Bridge) -> (Bridge, Value) {
+        tokio::time::timeout(
+            Duration::from_secs(30),
+            tokio::task::spawn_blocking(move || {
+                let mut bridge = bridge;
+                let line = bridge.stdout.next().unwrap().unwrap();
+                (bridge, serde_json::from_str(&line).unwrap())
+            }),
+        )
+        .await
+        .expect("el puente no respondió al cliente")
+        .unwrap()
+    }
+
+    pub async fn take(server: &mut BufReader<NamedPipeServer>) -> Value {
+        let mut line = String::new();
+        tokio::time::timeout(Duration::from_secs(15), server.read_line(&mut line))
+            .await
+            .unwrap()
+            .unwrap();
+        serde_json::from_str(&line).unwrap()
+    }
+
+    pub async fn send(server: &mut BufReader<NamedPipeServer>, value: Value) {
+        server
+            .get_mut()
+            .write_all(format!("{value}\n").as_bytes())
+            .await
+            .unwrap();
+    }
+
+    /// Acepta al puente y responde el saludo.
+    pub async fn accept(name: &str) -> BufReader<NamedPipeServer> {
+        let server = ServerOptions::new()
+            .first_pipe_instance(true)
+            .create(name)
+            .unwrap();
+        server.connect().await.unwrap();
+        let mut server = BufReader::new(server);
+        assert_eq!(take(&mut server).await["qapture"], "hello");
+        send(
+            &mut server,
+            json!({"ok":true,"proto":1,"app":env!("CARGO_PKG_VERSION")}),
+        )
+        .await;
+        server
+    }
+
+    /// Responde el initialize que el puente repite al reconectar.
+    pub async fn replay(server: &mut BufReader<NamedPipeServer>) {
+        assert_eq!(take(server).await["id"], "qapture-replay");
+        send(
+            server,
+            json!({"jsonrpc":"2.0","id":"qapture-replay","result":{}}),
+        )
+        .await;
+        assert_eq!(take(server).await["method"], "notifications/initialized");
+    }
+
+    /// Conecta el puente y completa el initialize del cliente.
+    pub async fn start(bridge: Bridge) -> (Bridge, BufReader<NamedPipeServer>) {
+        let name = bridge.name.clone();
+        let accepted = tokio::spawn(async move { accept(&name).await });
+        let mut bridge = bridge;
+        send_client(
+            &mut bridge,
+            json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}),
+        );
+        let mut server = accepted.await.unwrap();
+        assert_eq!(take(&mut server).await["id"], 1);
+        send(&mut server, json!({"jsonrpc":"2.0","id":1,"result":{}})).await;
+        let (bridge, response) = next_client(bridge).await;
+        assert_eq!(response["id"], 1);
+        (bridge, server)
+    }
+
+    pub fn finish(mut bridge: Bridge) {
+        drop(bridge.stdin);
+        assert!(bridge.child.wait().unwrap().success());
+        let _ = std::fs::remove_dir_all(&bridge.directory);
+    }
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn a_restart_reconnects_without_opening_qapture() {
+    use reconnect::*;
+    use serde_json::json;
+    let (mut bridge, server) = start(bridge()).await;
+    // Qapture se cierra (instalador o reinicio) y vuelve un segundo después.
+    drop(server);
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    let mut server = accept(&bridge.name).await;
+    replay(&mut server).await;
+    send_client(
+        &mut bridge,
+        json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
+    );
+    assert_eq!(take(&mut server).await["id"], 2);
+    send(
+        &mut server,
+        json!({"jsonrpc":"2.0","id":2,"result":{"tools":[]}}),
+    )
+    .await;
+    let (bridge, response) = next_client(bridge).await;
+    assert_eq!(response["result"]["tools"], json!([]));
+    drop(server);
+    finish(bridge);
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn after_a_long_absence_the_next_message_reconnects() {
+    use reconnect::*;
+    use serde_json::json;
+    let (mut bridge, server) = start(bridge()).await;
+    drop(server);
+    // Pasada la espera de 10 s el puente contesta sin servidor y no abre Qapture.
+    tokio::time::sleep(std::time::Duration::from_secs(11)).await;
+    send_client(
+        &mut bridge,
+        json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"qapture_status"}}),
+    );
+    let (mut bridge, response) = next_client(bridge).await;
+    assert_eq!(
+        response["result"]["content"][0]["text"],
+        "Qapture se cerró. Ábrelo y vuelve a intentar."
+    );
+    // Cuando Qapture vuelve, el siguiente mensaje reconecta y llega al servidor.
+    let name = bridge.name.clone();
+    let accepted = tokio::spawn(async move { accept(&name).await });
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    send_client(
+        &mut bridge,
+        json!({"jsonrpc":"2.0","id":3,"method":"tools/list"}),
+    );
+    let mut server = accepted.await.unwrap();
+    replay(&mut server).await;
+    assert_eq!(take(&mut server).await["id"], 3);
+    send(
+        &mut server,
+        json!({"jsonrpc":"2.0","id":3,"result":{"tools":[]}}),
+    )
+    .await;
+    let (bridge, response) = next_client(bridge).await;
+    assert_eq!(response["id"], 3);
+    drop(server);
+    finish(bridge);
+}
