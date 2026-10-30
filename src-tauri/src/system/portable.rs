@@ -9,6 +9,50 @@ pub const PORTABLE_FLAG: &str = "portable.flag";
 const DATA_FOLDER: &str = "data";
 const PROBE_FILE: &str = ".qapture-write-test";
 
+/// Mismo identificador que `app.path().app_data_dir()` (tauri.conf.json).
+/// Verificación manual: comparar ambas rutas en una instalación normal.
+pub fn default_app_data_dir() -> Option<PathBuf> {
+    #[cfg(windows)]
+    let base = std::env::var_os("APPDATA").map(PathBuf::from);
+    #[cfg(unix)]
+    let base = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share")));
+    base.map(|base| base.join("com.teams4soft.qapture"))
+}
+
+/// Extrae el puente del montaje temporal de AppImage a una ruta persistente.
+pub fn prepare_appimage_bridge(data_dir: &Path, exe: &Path) -> std::io::Result<()> {
+    let Some(appimage) = std::env::var_os("APPIMAGE") else {
+        return Ok(());
+    };
+    let source = exe
+        .parent()
+        .ok_or_else(|| std::io::Error::other("sin directorio de aplicación"))?
+        .join("qapture-mcp");
+    let bytes = fs::read(source)?;
+    let bin = data_dir.join("bin");
+    fs::create_dir_all(&bin)?;
+    let target = bin.join("qapture-mcp");
+    if fs::read(&target).ok().as_deref() != Some(bytes.as_slice()) {
+        let temporary = bin.join(format!("qapture-mcp-{}.tmp", uuid::Uuid::new_v4()));
+        fs::write(&temporary, &bytes)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&temporary, fs::Permissions::from_mode(0o700))?;
+        }
+        // rename permite actualizar aunque una sesión tenga ejecutándose el binario anterior.
+        fs::rename(&temporary, &target)?;
+    }
+    let appimage = PathBuf::from(appimage);
+    if !appimage.is_absolute() {
+        return Err(std::io::Error::other("APPIMAGE debe ser una ruta absoluta"));
+    }
+    fs::write(bin.join("app-path"), appimage.to_string_lossy().as_bytes())
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DataLocation {
     pub dir: PathBuf,
@@ -47,6 +91,15 @@ pub fn ensure_writable(dir: &Path) -> Result<(), String> {
 mod tests {
     use super::*;
     use crate::media::storage::TempDir;
+
+    #[test]
+    fn default_app_data_dir_uses_the_identifier() {
+        assert!(
+            default_app_data_dir()
+                .unwrap()
+                .ends_with("com.teams4soft.qapture")
+        );
+    }
 
     #[test]
     fn without_the_flag_data_stays_in_app_data() {

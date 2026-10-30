@@ -6,11 +6,27 @@ import { charLength } from "./fields";
 export const SHORTCUT_ACTIONS = ["toggle", "capture", "paste", "newCase"] as const;
 export type ShortcutAction = (typeof SHORTCUT_ACTIONS)[number];
 
+export interface AgentPrefs {
+  enabled: boolean;
+  read: boolean;
+  write: boolean;
+  capture: boolean;
+  export: boolean;
+  confirmCapture: boolean;
+  confirmExport: boolean;
+}
+
+export const DEFAULT_AGENT_PREFS: AgentPrefs = {
+  enabled: false, read: false, write: false, capture: false, export: false,
+  confirmCapture: true, confirmExport: true,
+};
+
 export interface Settings {
   profile: { tester: string; role: string; email: string };
   shortcuts: Record<ShortcutAction, string>;
   system: { autostart: boolean; startHidden: boolean; closeToTray: boolean; escHides: boolean };
   export: { defaultFolder: string; imageMaxWidth: number; includeSummary: boolean };
+  agents: AgentPrefs;
 }
 
 export interface ShortcutFailure {
@@ -35,6 +51,7 @@ export const DEFAULT_SETTINGS: Settings = {
   shortcuts: { toggle: "Ctrl+Alt+Q", capture: "Ctrl+Alt+S", paste: "Ctrl+Alt+V", newCase: "Ctrl+Alt+N" },
   system: { autostart: false, startHidden: true, closeToTray: true, escHides: false },
   export: { defaultFolder: "", imageMaxWidth: IMAGE_WIDTH.default, includeSummary: true },
+  agents: { ...DEFAULT_AGENT_PREFS },
 };
 
 export const SHORTCUT_LABEL: Record<ShortcutAction, string> = {

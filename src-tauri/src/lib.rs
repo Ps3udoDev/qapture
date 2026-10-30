@@ -1,4 +1,5 @@
 mod backup;
+pub mod bridge;
 mod capture;
 mod commands;
 mod db;
@@ -7,11 +8,12 @@ mod dto;
 mod error;
 mod excel;
 mod integrations;
+pub mod mcp;
 mod media;
 mod repo;
 mod settings;
 mod state;
-mod system;
+pub mod system;
 mod transfer;
 
 use tauri::Manager;
@@ -64,6 +66,11 @@ pub fn run() {
                     .title("Qapture")
                     .blocking_show();
                 std::process::exit(1);
+            }
+            if let Err(error) =
+                system::portable::prepare_appimage_bridge(&data_dir, &std::env::current_exe()?)
+            {
+                eprintln!("No se pudo preparar el puente MCP: {error}");
             }
             if portable {
                 // El scope de tauri.conf.json solo cubre `$APPDATA`; aquí las imágenes están junto al exe.
@@ -122,6 +129,7 @@ pub fn run() {
                 app: handle.clone(),
             }));
             let loaded = system::runtime::reload_settings(&state);
+            app.manage(mcp::McpRuntime::start(handle.clone(), data_dir.clone()));
             let args: Vec<String> = std::env::args().collect();
             let plan =
                 system::runtime::startup_plan(state.recovery().is_some(), &args, &loaded.system);
@@ -130,6 +138,7 @@ pub fn run() {
             let hook_app = handle.clone();
             state.set_on_saved(Box::new(move |saved| {
                 system::runtime::sync_autostart(&hook_app, saved.system.autostart);
+                hook_app.state::<mcp::McpRuntime>().permissions_changed();
             }));
             system::daily_backup::spawn(handle.clone());
             system::updater::spawn(handle.clone());
@@ -173,6 +182,9 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            commands::agents::mcp_client_config,
+            commands::agents::mcp_activity,
+            commands::agents::mcp_regenerate_key,
             commands::templates::list_templates,
             commands::templates::save_template_from_project,
             commands::templates::delete_template,

@@ -23,7 +23,7 @@ pub const PROGRESS_EVENT: &str = "update:progress";
 const CONNECTION_FAILED: &str = "No se pudo buscar actualizaciones. Revisa tu conexión a internet.";
 const BAD_SIGNATURE: &str =
     "La actualización descargada no pasó la verificación de firma y no se instaló.";
-const PORTABLE: &str = "Estás usando la versión portable: descarga el ZIP nuevo y reemplaza Qapture.exe. Tus datos en .\\data se conservan.";
+const PORTABLE: &str = "Estás usando la versión portable: descarga el ZIP nuevo y reemplaza Qapture.exe y qapture-mcp.exe juntos. Tus datos en .\\data se conservan.";
 
 const FIRST_CHECK_AFTER: Duration = Duration::from_secs(15);
 const CHECK_EVERY: Duration = Duration::from_secs(6 * 60 * 60);
@@ -215,7 +215,11 @@ pub async fn install(app: &AppHandle) -> AppResult<()> {
                 let progress = UpdateProgressDto { downloaded, total };
                 let _ = app.emit_to("main", PROGRESS_EVENT, progress);
             },
-            || {},
+            || {
+                if let Some(runtime) = app.try_state::<crate::mcp::McpRuntime>() {
+                    runtime.disconnect_all();
+                }
+            },
         )
         .await
         .map_err(|e| {

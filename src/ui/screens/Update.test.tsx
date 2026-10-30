@@ -51,7 +51,7 @@ describe("actualizaciones", () => {
     const { user, repos } = await renderApp();
     act(() => repos.updater.emitAvailable(info({ portable: true })));
     const dialog = await screen.findByRole("dialog", { name: "Nueva versión disponible" });
-    expect(within(dialog).getByText("Estás usando la versión portable: descarga el ZIP nuevo y reemplaza Qapture.exe. Tus datos en .\\data se conservan.")).toBeInTheDocument();
+    expect(within(dialog).getByText("Estás usando la versión portable: descarga el ZIP nuevo y reemplaza Qapture.exe y qapture-mcp.exe juntos. Tus datos en .\\data se conservan.")).toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "Instalar y reiniciar" })).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Descargar" }));
     expect(repos.settings.calls).toContain("openLink:releases");

@@ -1,4 +1,21 @@
 {
+  "activity": {
+    "at": "2026-10-29T10:00:00.000Z",
+    "caseId": "case-1",
+    "client": "codex",
+    "detail": "EJ-001",
+    "id": "act-1",
+    "ok": true,
+    "projectId": "prj-1",
+    "tool": "create_case"
+  },
+  "agentClientConfig": {
+    "bridgePath": "C:\\Program Files\\Qapture\\qapture-mcp.exe",
+    "claudeCode": "claude mcp add qapture -- \"C:\\Program Files\\Qapture\\qapture-mcp.exe\"",
+    "codex": "[mcp_servers.qapture]\ncommand = 'C:\\Program Files\\Qapture\\qapture-mcp.exe'",
+    "json": "{\"mcpServers\":{\"qapture\":{\"command\":\"C:\\\\Program Files\\\\Qapture\\\\qapture-mcp.exe\"}}}",
+    "listening": true
+  },
   "backup": {
     "createdAt": "2026-10-16T09:00:00",
     "fileName": "qapture-diario-20261016.db",
@@ -264,6 +281,15 @@
       "title": "[EJ-001] Aplicación de recibos"
     },
     "saveSettings": {
+      "agents": {
+        "capture": false,
+        "confirmCapture": true,
+        "confirmExport": true,
+        "enabled": false,
+        "export": false,
+        "read": false,
+        "write": false
+      },
       "export": {
         "defaultFolder": "",
         "imageMaxWidth": 940,
@@ -420,6 +446,15 @@
     "dataDir": "C:\\Users\\ana\\AppData\\Roaming\\com.teams4soft.qapture",
     "portable": false,
     "settings": {
+      "agents": {
+        "capture": false,
+        "confirmCapture": true,
+        "confirmExport": true,
+        "enabled": false,
+        "export": false,
+        "read": false,
+        "write": false
+      },
       "export": {
         "defaultFolder": "",
         "imageMaxWidth": 940,

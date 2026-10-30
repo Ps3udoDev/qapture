@@ -453,7 +453,7 @@ mod tests {
                 .unwrap();
             assert_eq!(n, 1, "falta {table}");
         }
-        assert_eq!(db::schema_version(&conn).unwrap(), 5);
+        assert_eq!(db::schema_version(&conn).unwrap(), db::latest_version());
     }
 
     #[test]

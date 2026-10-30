@@ -68,3 +68,7 @@ Los instaladores se descargan desde [Releases](https://github.com/Ps3udoDev/qapt
 ## Licencia
 
 [MIT](LICENSE). El logo y la marca Teams4Soft no están cubiertos por la licencia: ver [NOTICE](NOTICE).
+
+## Usar Qapture con agentes
+
+F9a incorpora un servidor MCP local para Claude Code, Codex, Cursor y Claude Desktop. Desde Ajustes › Agentes puedes conceder permisos de lectura, escritura, captura y exportación y copiar la configuración del puente. Todo empieza desactivado. Consulta la [guía de agentes](docs/usuario/agentes.md) y el [estado de validación F9a](docs/superpowers/contracts/F9a-servidor-mcp.md).

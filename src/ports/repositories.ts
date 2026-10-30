@@ -1,17 +1,33 @@
 import type { CaseInput, CaseRecord } from "../domain/cases";
-import type { Evidence, EvidenceUpdateInput, NewEvidenceInput, StagedImage } from "../domain/evidence";
+import type {
+  Evidence,
+  EvidenceUpdateInput,
+  NewEvidenceInput,
+  StagedImage,
+} from "../domain/evidence";
 import type { FieldDef } from "../domain/fields";
-import type { FieldInput, NewProjectInput, Project, ProjectMeta, ProjectSummary, Template } from "../domain/project";
+import type {
+  FieldInput,
+  NewProjectInput,
+  Project,
+  ProjectMeta,
+  ProjectSummary,
+  Template,
+} from "../domain/project";
 import type { ScreenCapture } from "./capture";
 import type { DataTransfer } from "./data";
 import type { DocVersionRepository, Exporter } from "./export";
 import type { IssueTracker } from "./issue-tracker";
-import type { SettingsStore } from "./settings";
+import type { SettingsStore, AgentSettings } from "./settings";
 import type { Updater } from "./updater";
 
 export interface TemplateRepository {
   list(): Promise<Template[]>;
-  saveFromProject(projectId: string, name: string, testType: string): Promise<Template>;
+  saveFromProject(
+    projectId: string,
+    name: string,
+    testType: string,
+  ): Promise<Template>;
   remove(id: string): Promise<void>;
 }
 
@@ -56,6 +72,7 @@ export interface Repositories {
   exporter: Exporter;
   data: DataTransfer;
   settings: SettingsStore;
+  agents: AgentSettings;
   updater: Updater;
   github: IssueTracker;
 }

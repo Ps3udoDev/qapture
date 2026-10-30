@@ -1,3 +1,4 @@
+import { createMemoryAgents, type MemoryAgents } from "./agents";
 import { formatCode, normalizeCaseInput, validateCaseInput, type CaseInput, type CaseRecord } from "../../domain/cases";
 import { activeFields, type FieldDef } from "../../domain/fields";
 import { emptyMeta, normalizeFieldInput, validateFieldInputs, validateProjectMeta, type Project, type ProjectMeta, type Template } from "../../domain/project";
@@ -20,6 +21,7 @@ export interface MemoryRepositories extends Repositories {
   exporter: MemoryExporter;
   data: MemoryData;
   settings: MemorySettings;
+  agents: MemoryAgents;
   updater: MemoryUpdater;
   github: MemoryGithub;
 }
@@ -251,6 +253,7 @@ export function createMemoryRepositories(): MemoryRepositories {
       remember: (path) => repos.exporter.remember(path),
     }),
     settings: createMemorySettings(),
+    agents: createMemoryAgents(),
     updater: createMemoryUpdater(),
     github: createMemoryGithub((projectId) => projects.get(projectId)?.fields ?? [], (caseId) => cases.get(caseId)?.projectId),
   };

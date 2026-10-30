@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "node scripts/clean-bundle.mjs && pnpm build",
+    "beforeBuildCommand": "node scripts/sidecar.mjs && node scripts/clean-bundle.mjs && pnpm build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -46,7 +46,8 @@
         "language": "es-ES"
       },
       "nsis": {
-        "languages": ["Spanish"]
+        "languages": ["Spanish"],
+        "installerHooks": "./windows/hooks.nsh"
       }
     }
   },

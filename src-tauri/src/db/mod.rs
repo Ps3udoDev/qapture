@@ -30,6 +30,7 @@ pub(crate) const MIGRATIONS: &[&str] = &[
     include_str!("migrations/0003_doc_version.sql"),
     include_str!("migrations/0004_setting.sql"),
     include_str!("migrations/0005_integrations.sql"),
+    include_str!("migrations/0006_agents.sql"),
 ];
 
 pub fn open(path: &Path) -> AppResult<Connection> {
@@ -126,6 +127,13 @@ mod tests {
     fn migrations_are_idempotent() {
         let conn = open_in_memory().unwrap();
         assert_eq!(schema_version(&conn).unwrap(), MIGRATIONS.len() as i64);
+        let columns = conn
+            .prepare(
+                "SELECT id, at, client, tool, project_id, case_id, ok, detail FROM agent_activity",
+            )
+            .unwrap()
+            .column_count();
+        assert_eq!(columns, 8);
         migrate(&conn).unwrap();
         assert_eq!(schema_version(&conn).unwrap(), MIGRATIONS.len() as i64);
     }

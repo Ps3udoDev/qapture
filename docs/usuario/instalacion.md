@@ -35,7 +35,7 @@ El `.msi` sirve para desplegar Qapture en varias computadoras con las herramient
 2. Ejecuta `Qapture.exe`.
 3. No borres `portable.flag`. Ese archivo le dice a Qapture que trabaje en modo portable; sin él, la app usaría otra carpeta de datos y no verías tus proyectos.
 
-Tus datos quedan en la carpeta `data`, junto a `Qapture.exe`. Para actualizar, descarga el ZIP nuevo y reemplaza `Qapture.exe`; `data` y `portable.flag` se conservan. El archivo `LEEME.txt` del ZIP repite estas indicaciones.
+Tus datos quedan en la carpeta `data`, junto a `Qapture.exe`. Para actualizar, descarga el ZIP nuevo y reemplaza `Qapture.exe` y `qapture-mcp.exe` juntos; `data` y `portable.flag` se conservan. El archivo `LEEME.txt` del ZIP repite estas indicaciones.
 
 ## Linux
 

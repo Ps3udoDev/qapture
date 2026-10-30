@@ -1,3 +1,4 @@
+import { AgentsPanel } from "./AgentsPanel";
 import { useState } from "react";
 import type { FormErrors } from "../../domain/cases";
 import { IMAGE_WIDTH } from "../../domain/export";
@@ -11,7 +12,7 @@ import { BackupsDialog } from "./BackupsDialog";
 import { GithubAccountPanel } from "./GithubAccountPanel";
 import { ShortcutRecorder } from "./ShortcutRecorder";
 
-const TABS = ["Perfil", "Atajos", "Sistema", "Exportación", "Datos", "GitHub", "Acerca de"] as const;
+const TABS = ["Perfil", "Atajos", "Sistema", "Exportación", "Datos", "GitHub", "Agentes", "Acerca de"] as const;
 type Tab = (typeof TABS)[number];
 
 const tabOf = (key: string): Tab => {
@@ -200,6 +201,7 @@ export function AppSettingsDialog({ onClose, initialTab = "Perfil" }: { onClose:
           )}
 
           {tab === "GitHub" && <GithubAccountPanel />}
+          {tab === "Agentes" && <AgentsPanel onNavigate={onClose} value={draft.agents} onChange={(change) => patch("agents", change)} />}
 
           {tab === "Acerca de" && (
             <>

@@ -6,6 +6,29 @@ use crate::{domain::fields::FieldType, settings::Settings, system::shortcuts::Sh
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ActivityDto {
+    pub id: String,
+    pub at: String,
+    pub client: String,
+    pub tool: String,
+    pub project_id: Option<String>,
+    pub case_id: Option<String>,
+    pub ok: bool,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentClientConfigDto {
+    pub bridge_path: String,
+    pub listening: bool,
+    pub claude_code: String,
+    pub codex: String,
+    pub json: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FieldDto {
     pub id: String,
     pub key: String,
@@ -591,6 +614,19 @@ mod contract {
                 portable: false,
             },
             "updateProgress": UpdateProgressDto { downloaded: 1_048_576, total: Some(8_388_608) },
+            "activity": ActivityDto {
+                id: "act-1".into(), at: "2026-10-29T10:00:00.000Z".into(),
+                client: "codex".into(), tool: "create_case".into(),
+                project_id: Some("prj-1".into()), case_id: Some("case-1".into()),
+                ok: true, detail: "EJ-001".into(),
+            },
+            "agentClientConfig": AgentClientConfigDto {
+                bridge_path: "C:\\Program Files\\Qapture\\qapture-mcp.exe".into(),
+                listening: true,
+                claude_code: "claude mcp add qapture -- \"C:\\Program Files\\Qapture\\qapture-mcp.exe\"".into(),
+                codex: "[mcp_servers.qapture]\ncommand = 'C:\\Program Files\\Qapture\\qapture-mcp.exe'".into(),
+                json: "{\"mcpServers\":{\"qapture\":{\"command\":\"C:\\\\Program Files\\\\Qapture\\\\qapture-mcp.exe\"}}}".into(),
+            },
         })
     }
 

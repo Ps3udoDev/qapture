@@ -10,4 +10,6 @@ Si es tu primera vez, lee las guías en este orden:
 4. [Preguntas frecuentes](faq.md): atajo ocupado, la app «desaparece», respaldos, cambio de equipo y GitHub.
 5. [Conectar con GitHub](github.md): conectar tu cuenta y vincular repos a un proyecto. Si administras una organización, lee la [guía para administradores](github-admin.md).
 
+6. [Agentes de IA (MCP)](agentes.md): permisos, conexión de clientes y registro de actividad.
+
 Qapture funciona sin conexión. Solo usa internet para buscar actualizaciones y, si la conectas, para hablar con GitHub.

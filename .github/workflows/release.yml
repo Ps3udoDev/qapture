@@ -172,6 +172,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force portable | Out-Null
           Copy-Item src-tauri/target/release/qapture.exe portable/Qapture.exe
+          Copy-Item src-tauri/binaries/qapture-mcp-x86_64-pc-windows-msvc.exe portable/qapture-mcp.exe
           New-Item -ItemType File -Force portable/portable.flag | Out-Null
           Copy-Item src-tauri/portable/LEEME.txt portable/LEEME.txt
           $zip = "Qapture_${env:VERSION}_portable.zip"
@@ -180,7 +181,7 @@ jobs:
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           $archive = [IO.Compression.ZipFile]::OpenRead((Resolve-Path $zip).Path)
           try { $entries = @($archive.Entries | ForEach-Object { $_.FullName }) } finally { $archive.Dispose() }
-          foreach ($required in 'Qapture.exe', 'portable.flag', 'LEEME.txt') {
+          foreach ($required in 'Qapture.exe', 'qapture-mcp.exe', 'portable.flag', 'LEEME.txt') {
             if ($entries -notcontains $required) {
               throw "Falta $required en la raíz del ZIP portable (contiene: $($entries -join ', '))"
             }

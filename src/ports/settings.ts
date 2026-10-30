@@ -1,4 +1,8 @@
-import type { LinkTarget, Settings, SettingsSnapshot } from "../domain/settings";
+import type {
+  LinkTarget,
+  Settings,
+  SettingsSnapshot,
+} from "../domain/settings";
 
 /** Ajustes de la aplicación y acciones del sistema que dependen de ellos (F6). */
 export interface SettingsStore {
@@ -12,4 +16,16 @@ export interface SettingsStore {
   openLink(target: LinkTarget): Promise<void>;
   /** Suscribe al evento `shortcut:new-case` (atajo o menú de la bandeja). */
   onNewCase(handler: () => void): Promise<() => void>;
+}
+
+export interface AgentSettings {
+  clientConfig(): Promise<import("../domain/agents").AgentClientConfig>;
+  activity(
+    limit: number,
+    client?: string,
+  ): Promise<import("../domain/agents").Activity[]>;
+  regenerateKey(): Promise<void>;
+  onDataChanged(
+    handler: (event: import("../domain/agents").AgentDataChanged) => void,
+  ): Promise<() => void>;
 }

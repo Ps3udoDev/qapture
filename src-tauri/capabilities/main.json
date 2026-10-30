@@ -5,6 +5,9 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
+    "allow-mcp-client-config",
+    "allow-mcp-activity",
+    "allow-mcp-regenerate-key",
     "allow-list-templates",
     "allow-save-template-from-project",
     "allow-delete-template",
