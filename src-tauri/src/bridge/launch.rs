@@ -6,6 +6,9 @@ use std::{
 };
 
 #[cfg(windows)]
+const PIPE_BUSY_WAIT: Duration = Duration::from_secs(2);
+
+#[cfg(windows)]
 pub type Stream = tokio::net::windows::named_pipe::NamedPipeClient;
 #[cfg(unix)]
 pub type Stream = tokio::net::UnixStream;
@@ -28,7 +31,21 @@ pub fn app_path(bridge_exe: &Path) -> PathBuf {
 pub async fn connect(name: &str) -> io::Result<Stream> {
     #[cfg(windows)]
     {
-        tokio::net::windows::named_pipe::ClientOptions::new().open(name)
+        // Entre una conexión y la siguiente instancia del pipe el canal responde «ocupado»: no es
+        // una app cerrada, así que se reintenta en vez de lanzar Qapture (que mostraría la ventana).
+        const ERROR_PIPE_BUSY: i32 = 231;
+        let deadline = tokio::time::Instant::now() + PIPE_BUSY_WAIT;
+        loop {
+            match tokio::net::windows::named_pipe::ClientOptions::new().open(name) {
+                Err(e)
+                    if e.raw_os_error() == Some(ERROR_PIPE_BUSY)
+                        && tokio::time::Instant::now() < deadline =>
+                {
+                    tokio::time::sleep(Duration::from_millis(50)).await;
+                }
+                result => return result,
+            }
+        }
     }
     #[cfg(unix)]
     {
@@ -82,6 +99,29 @@ pub async fn connect_or_launch(name: &str, app: &Path, wait: Duration) -> io::Re
 mod tests {
     use super::*;
     use crate::media::storage::TempDir;
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn a_busy_pipe_is_retried_instead_of_reported_as_closed() {
+        use tokio::net::windows::named_pipe::ServerOptions;
+        let name = format!(r"\\.\pipe\qapture-mcp-busy-{}", uuid::Uuid::new_v4());
+        let first = ServerOptions::new()
+            .first_pipe_instance(true)
+            .create(&name)
+            .unwrap();
+        let _taken = connect(&name).await.unwrap();
+        first.connect().await.unwrap();
+        // La única instancia está ocupada: la siguiente aparece un momento después.
+        let later = name.clone();
+        let server = tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(300)).await;
+            let next = ServerOptions::new().create(&later).unwrap();
+            next.connect().await.unwrap();
+            next
+        });
+        assert!(connect(&name).await.is_ok());
+        drop(server.await.unwrap());
+    }
     #[test]
     fn app_path_prefers_the_sibling_exe_and_reads_app_path_file() {
         let dir = TempDir::new();
