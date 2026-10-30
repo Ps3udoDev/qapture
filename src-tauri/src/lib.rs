@@ -177,6 +177,9 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            commands::agents::mcp_client_config,
+            commands::agents::mcp_activity,
+            commands::agents::mcp_regenerate_key,
             commands::templates::list_templates,
             commands::templates::save_template_from_project,
             commands::templates::delete_template,

@@ -3,6 +3,9 @@
 // capability de su ventana (capabilities/*.json). Los tests de abajo verifican las tres cosas.
 
 pub const APP_COMMANDS: &[&str] = &[
+    "mcp_client_config",
+    "mcp_activity",
+    "mcp_regenerate_key",
     "list_templates",
     "save_template_from_project",
     "delete_template",

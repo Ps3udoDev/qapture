@@ -12,5 +12,6 @@ pub mod templates;
 pub mod updater;
 
 // Solo lo leen build.rs (vía include!) y los tests de ACL.
+pub mod agents;
 #[cfg(test)]
 mod names;
