@@ -123,6 +123,7 @@ pub fn run() {
                 app: handle.clone(),
             }));
             let loaded = system::runtime::reload_settings(&state);
+            app.manage(mcp::McpRuntime::start(handle.clone(), data_dir.clone()));
             let args: Vec<String> = std::env::args().collect();
             let plan =
                 system::runtime::startup_plan(state.recovery().is_some(), &args, &loaded.system);
@@ -131,6 +132,7 @@ pub fn run() {
             let hook_app = handle.clone();
             state.set_on_saved(Box::new(move |saved| {
                 system::runtime::sync_autostart(&hook_app, saved.system.autostart);
+                hook_app.state::<mcp::McpRuntime>().permissions_changed();
             }));
             system::daily_backup::spawn(handle.clone());
             system::updater::spawn(handle.clone());

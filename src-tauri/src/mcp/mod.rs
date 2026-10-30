@@ -1,8 +1,12 @@
 pub mod catalog;
+pub(crate) mod channel;
+pub mod endpoint;
 pub mod fields;
 pub mod host;
 pub mod images;
 pub mod policy;
 pub mod prompts;
 pub mod protocol;
+mod runtime;
 pub mod tools;
+pub use runtime::McpRuntime;

@@ -215,7 +215,11 @@ pub async fn install(app: &AppHandle) -> AppResult<()> {
                 let progress = UpdateProgressDto { downloaded, total };
                 let _ = app.emit_to("main", PROGRESS_EVENT, progress);
             },
-            || {},
+            || {
+                if let Some(runtime) = app.try_state::<crate::mcp::McpRuntime>() {
+                    runtime.disconnect_all();
+                }
+            },
         )
         .await
         .map_err(|e| {

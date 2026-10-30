@@ -1,6 +1,9 @@
 use crate::error::{AppResult, validation};
 use image::RgbaImage;
 use std::path::PathBuf;
+use tauri::{Emitter, Manager};
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+use tauri_plugin_notification::NotificationExt;
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct WindowInfo {
     pub id: u32,
@@ -88,6 +91,47 @@ impl AgentScreen for XcapAgentScreen {
         window
             .capture_image()
             .map_err(|_| validation("No se pudo capturar la ventana."))
+    }
+}
+pub struct TauriAgentHost {
+    pub app: tauri::AppHandle,
+}
+impl AgentHost for TauriAgentHost {
+    fn data_changed(&self, project_id: Option<&str>, case_id: Option<&str>, summary: &str) {
+        let _ = self.app.emit_to(
+            "main",
+            "agent:data-changed",
+            serde_json::json!({"projectId": project_id, "caseId": case_id, "summary": summary}),
+        );
+    }
+    fn notify(&self, message: &str) {
+        let _ = self
+            .app
+            .notification()
+            .builder()
+            .title("Qapture")
+            .body(message)
+            .show();
+    }
+    fn confirm(&self, title: &str, message: &str) -> bool {
+        self.app
+            .dialog()
+            .message(message)
+            .title(title)
+            .buttons(MessageDialogButtons::OkCancelCustom(
+                "Permitir".into(),
+                "Rechazar".into(),
+            ))
+            .blocking_show()
+    }
+    fn screen(&self) -> &dyn AgentScreen {
+        &XcapAgentScreen
+    }
+    fn default_export_dir(&self) -> PathBuf {
+        self.app
+            .path()
+            .document_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
     }
 }
 #[cfg(test)]

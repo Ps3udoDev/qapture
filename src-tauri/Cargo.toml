@@ -41,11 +41,12 @@ tauri-plugin-global-shortcut = "2.4.1"
 tauri-plugin-autostart = "2.7.0"
 tauri-plugin-updater = "2.14.0"
 reqwest = { version = "0.13", default-features = false, features = ["json", "form", "rustls-no-provider"] }
-tokio = { version = "1", features = ["time"] }
+tokio = { version = "1", features = ["rt", "net", "io-util", "io-std", "sync", "time", "macros"] }
+sha2 = "0.10"
+getrandom = "0.3"
 keyring = { version = "3", features = ["windows-native", "sync-secret-service", "crypto-rust"] }
 # Proveedor TLS ring (el mismo que usa tauri-plugin-updater); evita aws-lc-sys.
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
-
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
@@ -64,3 +65,6 @@ tokio = { version = "1", features = ["macros", "rt"] }
 # calamine 0.36 (solo tests) pide zip ^8.6 y crates.io retiró toda la serie 8.x: se toma del tag.
 [patch.crates-io]
 zip8 = { package = "zip", git = "https://github.com/zip-rs/zip2", tag = "v8.6.0" }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Security", "Win32_Security_Authorization", "Win32_Foundation", "Win32_System_Memory"] }
