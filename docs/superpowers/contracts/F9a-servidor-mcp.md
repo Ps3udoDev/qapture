@@ -1,6 +1,6 @@
 # F9a — Servidor MCP para agentes · `v1.2.0`
 
-**Estado:** implementación en validación; la puerta manual de salida sigue pendiente.
+**Estado:** ✅ Cerrada el 2026-10-30: filas 1–8 del checklist aprobadas por el tester en Windows 11 con el instalador local. Queda la prueba de humo en Linux (fila 9), adicional y no bloqueante: hasta hacerla no se anuncia soporte MCP en Linux.
 
 **Depende de:** F1–F8b · **Plan:** [2026-10-29-f9a-servidor-mcp](../plans/2026-10-29-f9a-servidor-mcp.md) · **Spec:** [2026-10-29-mcp-design](../specs/2026-10-29-mcp-design.md).
 
@@ -59,8 +59,8 @@ El tester conecta Claude Code, Codex, Cursor o Claude Desktop a Qapture por MCP 
 | F9a-T8 | Comandos para Ajustes › Agentes | ✅ Implementada; validación integrada correcta |
 | F9a-T9 | Puerto, adaptador y slice de agentes | ✅ Implementada; validación integrada correcta |
 | F9a-T10 | Pestaña «Agentes» en Ajustes | ✅ Implementada; validación integrada correcta |
-| F9a-T11 | Empaquetado del puente | ✅ Código y CI; instalación manual pendiente |
-| F9a-T12 | Documentación y prueba real | ◐ Docs y gates; prueba real pendiente |
+| F9a-T11 | Empaquetado del puente | ✅ Instalador y portable probados (filas 6 y 7) |
+| F9a-T12 | Documentación y prueba real | ✅ Guía, ADR y checklist firmado |
 
 ## Criterios de aceptación
 - [x] **T1:** `agent_prefs_default_to_everything_off_with_confirmations_on`, `old_settings_without_agents_load_with_defaults`, `insert_then_list_returns_newest_first`, `list_filters_by_client`, `insert_prunes_to_2000_rows`, migraciones idempotentes, persistencia y contrato Rust → TS.
@@ -69,7 +69,7 @@ El tester conecta Claude Code, Codex, Cursor o Claude Desktop a Qapture por MCP 
 - [x] **T5:** confirmaciones, notificación por captura, selección de monitor/ventana y exportación sin sobrescritura.
 - [x] **T6–T8:** autenticación, permisos del canal y secreto, reconexión y repetición interna de `initialize`, configuración y ACL de comandos.
 - [x] **T9–T10:** recarga selectiva en vivo, toasts agrupados cada 5 s y panel de permisos/configuración/actividad.
-- [ ] **T11–T12:** puente instalado y portable; guías, ADR y checklist local firmado.
+- [x] **T11–T12:** puente instalado y portable; guías, ADR y checklist local firmado (2026-10-30).
 
 ## Mensajes fijos
 - `Los agentes están desactivados. Actívalos en Ajustes › Agentes.`
@@ -97,14 +97,14 @@ El tester conecta Claude Code, Codex, Cursor o Claude Desktop a Qapture por MCP 
 ## Checklist de pruebas locales
 | # | Prueba | Esperado | OK |
 |---|---|---|---|
-| 1 | MCP Inspector con todos los permisos apagados | Lista solo `qapture_status` | ◐ 2026-10-30 con Claude Code y Codex: con los cuatro grupos apagados solo aparece `qapture_status` y Claude Code actualizó el catálogo sin reconectar. Falta repetirlo con el interruptor general apagado y con MCP Inspector |
-| 2 | «Activar configuración recomendada» y Claude Code crea 3 casos con capturas | Se ven en Qapture en vivo | ⚠️ 2026-10-30: EJ-001..003 en vivo, etiquetas sin tildes resueltas y valores mezclados. Defecto: la captura de monitor incluía el diálogo de confirmación (EJ-001); corregido, falta repetirlo con el instalador nuevo |
+| 1 | MCP Inspector con todos los permisos apagados | Lista solo `qapture_status` | ✅ 2026-10-30 (con las correcciones finales: con los cuatro grupos apagados y con el interruptor general apagado solo aparece `qapture_status`; Claude Code actualizó el catálogo sin reconectar) |
+| 2 | «Activar configuración recomendada» y Claude Code crea 3 casos con capturas | Se ven en Qapture en vivo | ✅ 2026-10-30 (con las correcciones finales: EJ-001..003 en vivo, etiquetas sin tildes resueltas y valores mezclados. La captura de monitor ya no incluye el diálogo de confirmación) |
 | 3 | Repetir con Codex | 3 casos con capturas visibles en vivo | ✅ 2026-10-30: Codex CLI 0.166.0 creó EJ-004..006, una captura por ventana cada uno, en estado Aprobado |
-| 4 | `capture_screen` | Pide confirmación y muestra la notificación del sistema; el diálogo no aparece en la evidencia | ⚠️ 2026-10-30: confirmación y notificación correctas en Claude Code y Codex. La captura de monitor incluía el diálogo; corregido, falta repetirlo. La captura por ventana sale limpia |
+| 4 | `capture_screen` | Pide confirmación y muestra la notificación del sistema; el diálogo no aparece en la evidencia | ✅ 2026-10-30 (con las correcciones finales: confirmación y notificación en Claude Code y Codex; capturas de monitor y de ventana limpias) |
 | 5 | `export_excel` con un archivo del mismo nombre | Exporta con sufijo y conserva el archivo original | ✅ 2026-10-30: generó `… (2).xlsx` y el original se conservó; `export_package` también |
-| 6 | Actualizar la app con un agente conectado | El instalador termina sin «Error al abrir el archivo para escribir» (cierra `qapture-mcp.exe` y Qapture no vuelve a abrirse a media instalación). Después, el agente vuelve a conectar el MCP (`/mcp` en Claude Code) y funciona. Aparte: reiniciar Qapture sin actualizar reconecta solo y la llamada en vuelo pide reintentar | ✗ 2026-10-30: el puente relanzó Qapture durante la instalación y el instalador no pudo escribir `qapture.exe`. Corregido (D15 revisada); falta repetirla |
-| 7 | Versión portable | El puente usa los datos junto al exe | ☐ |
-| 8 | Migración completa con Claude Code y Codex | 10+ casos, 20+ capturas y Excel equivalente a la carga manual | ☐ |
+| 6 | Actualizar la app con un agente conectado | El instalador termina sin «Error al abrir el archivo para escribir» (cierra `qapture-mcp.exe` y Qapture no vuelve a abrirse a media instalación). Después, el agente vuelve a conectar el MCP (`/mcp` en Claude Code) y funciona. Aparte: reiniciar Qapture sin actualizar reconecta solo y la llamada en vuelo pide reintentar | ✅ 2026-10-30 (con las correcciones finales: el primer intento falló porque el puente relanzó Qapture a media instalación; con D15 revisada y el gancho NSIS el instalador termina y el agente reconecta con `/mcp`) |
+| 7 | Versión portable | El puente usa los datos junto al exe | ✅ 2026-10-30 (con las correcciones finales: el puente usa la carpeta `data` junto al exe) |
+| 8 | Migración completa con Claude Code y Codex | 10+ casos, 20+ capturas y Excel equivalente a la carga manual | ✅ 2026-10-30 (con las correcciones finales: escenario de migración completo y Excel exportado) |
 | 9 | Humo Linux (§9 del spec), adicional y no bloqueante | Anotar distribución, versión, escritorio, canal `0600`, persistencia, captura y exportación | ☐ Pendiente |
 
 `list_windows` no lista las ventanas de Qapture (títulos que empiezan por «Qapture») ni las minimizadas. Es intencional: así el agente no captura la app que está documentando. Para que Qapture salga en una evidencia, se usa la captura de monitor.
@@ -116,4 +116,4 @@ El tester conecta Claude Code, Codex, Cursor o Claude Desktop a Qapture por MCP 
 - Scripts: `node --test scripts/sidecar.test.mjs`, 3 aprobadas (incluye regresión del registro duplicado).
 - Build web y `pnpm tauri build` correctos. MSI/NSIS contienen un solo puente; ZIP portable con cuatro entradas y prueba de integridad correcta. Los artefactos y límites se registran en el [handoff](../handoffs/2026-10-29-f9a-servidor-mcp.md).
 
-Estas verificaciones no sustituyen las filas del checklist manual. Se mantienen pendientes las pruebas reales con Inspector, Claude Code y Codex, instalación/actualización y portable, y el humo Linux.
+Estas verificaciones no sustituyen las filas del checklist manual, que se completaron el 2026-10-30 (filas 1–8). Tras la revisión y las pruebas locales se sumaron siete correcciones; la verificación final fue `cargo test` (482 pruebas y 4 de integración del puente), `clippy -D warnings`, `node --test scripts/sidecar.test.mjs` (4) y `pnpm tauri build` con el gancho NSIS incluido. Solo queda el humo Linux (fila 9).
