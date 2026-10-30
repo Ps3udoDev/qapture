@@ -35,7 +35,7 @@ flowchart LR
 | F7 | [CI/CD, updater, release y docs](F7-cicd-release.md) | [plan](../plans/2026-10-17-f7-cicd-release.md) | 🧪 En pruebas del equipo | `v1.0.0` |
 | F8a | [Conexión con GitHub](F8a-github-conexion.md) | [plan](../plans/2026-10-19-f8a-github-conexion.md) | 🧪 En pruebas del equipo (filas 5 y 7) | `v1.1.0` |
 | F8b | [Reportar casos como issues](F8b-reportar-issues.md) | [plan](../plans/2026-10-20-f8b-reportar-issues.md) | ✅ Cerrada | `v1.1.0` |
-| F9 | Servidor MCP para agentes ([spec](../specs/2026-10-29-mcp-design.md)) | — | 📝 Spec en revisión | `v1.2.0` |
+| F9 | [Servidor MCP para agentes](F9a-servidor-mcp.md) | [plan](../plans/2026-10-29-f9a-servidor-mcp.md) | 🚧 En desarrollo | `v1.2.0` |
 | F8c | Importar issues como casos ([spec §9](../specs/2026-10-19-integracion-github-design.md)) | — | ⏸️ Pospuesta, después de F9 | `v1.3.0` |
 | F8d | Sincronizar estados ([spec §10](../specs/2026-10-19-integracion-github-design.md)) | — | ⏸️ Pospuesta, después de F8c | `v1.4.0` |
 

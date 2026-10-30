@@ -8,6 +8,7 @@ const PROFILE: &str = "profile";
 const SHORTCUTS: &str = "shortcuts";
 const SYSTEM: &str = "system";
 const EXPORT: &str = "export";
+const AGENTS: &str = "agents";
 
 /// Lee cada sección por separado: una fila ausente, un JSON inválido o un campo de tipo
 /// erróneo dejan esa sección (o ese campo) con su valor por defecto.
@@ -17,6 +18,7 @@ pub fn load(conn: &Connection) -> AppResult<Settings> {
         shortcuts: load_section(conn, SHORTCUTS)?,
         system: load_section(conn, SYSTEM)?,
         export: load_section(conn, EXPORT)?,
+        agents: load_section(conn, AGENTS)?,
     })
 }
 
@@ -26,6 +28,7 @@ pub fn save(conn: &Connection, settings: &Settings) -> AppResult<()> {
     save_section(&tx, SHORTCUTS, &settings.shortcuts)?;
     save_section(&tx, SYSTEM, &settings.system)?;
     save_section(&tx, EXPORT, &settings.export)?;
+    save_section(&tx, AGENTS, &settings.agents)?;
     tx.commit()?;
     Ok(())
 }
@@ -109,6 +112,9 @@ mod tests {
         saved.profile.tester = "Ana Pérez".into();
         saved.shortcuts.capture = "Ctrl+Shift+F12".into();
         saved.system.autostart = true;
+        saved.agents.enabled = true;
+        saved.agents.read = true;
+        saved.agents.confirm_capture = false;
         {
             let conn = db::open(&path).unwrap();
             save(&conn, &saved).unwrap();

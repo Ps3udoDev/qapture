@@ -1,3 +1,4 @@
+pub mod agent_activity;
 pub mod cases;
 pub mod doc_versions;
 pub mod evidence;

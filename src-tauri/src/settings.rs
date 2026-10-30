@@ -14,6 +14,33 @@ pub struct Settings {
     pub shortcuts: Shortcuts,
     pub system: SystemPrefs,
     pub export: ExportPrefs,
+    pub agents: AgentPrefs,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct AgentPrefs {
+    pub enabled: bool,
+    pub read: bool,
+    pub write: bool,
+    pub capture: bool,
+    pub export: bool,
+    pub confirm_capture: bool,
+    pub confirm_export: bool,
+}
+
+impl Default for AgentPrefs {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            read: false,
+            write: false,
+            capture: false,
+            export: false,
+            confirm_capture: true,
+            confirm_export: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -114,6 +141,30 @@ fn is_valid_email(email: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn agent_prefs_default_to_everything_off_with_confirmations_on() {
+        let prefs = AgentPrefs::default();
+        assert!(!prefs.enabled);
+        assert!(!prefs.read);
+        assert!(!prefs.write);
+        assert!(!prefs.capture);
+        assert!(!prefs.export);
+        assert!(prefs.confirm_capture);
+        assert!(prefs.confirm_export);
+    }
+
+    #[test]
+    fn old_settings_without_agents_load_with_defaults() {
+        let settings: Settings = serde_json::from_value(serde_json::json!({
+            "profile": { "tester": "Ana" },
+            "system": { "closeToTray": false }
+        }))
+        .unwrap();
+        assert_eq!(settings.profile.tester, "Ana");
+        assert!(!settings.system.close_to_tray);
+        assert_eq!(settings.agents, AgentPrefs::default());
+    }
 
     fn with(f: impl FnOnce(&mut Settings)) -> Settings {
         let mut s = Settings::default();

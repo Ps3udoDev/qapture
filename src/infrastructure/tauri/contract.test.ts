@@ -7,10 +7,20 @@ import { toSelection } from "../../domain/capture";
 import type { EvidenceUpdateInput, NewEvidenceInput } from "../../domain/evidence";
 import type { FieldInput, NewProjectInput } from "../../domain/project";
 import fixture from "./__fixtures__/contracts.json";
-import { appErrorSchema, backupSchema, capturedEventSchema, caseIssueLinkSchema, caseSchema, deviceCodeSchema, docVersionSchema, evidenceSchema, exportProgressSchema, exportResultSchema, fieldSchema, ghAccountSchema, ghConnectFailedSchema, ghRepoSchema, importSummarySchema, linkedRepoSchema, packageExportResultSchema, projectGithubInputSchema, projectGithubSchema, projectSchema, projectSummarySchema, repoMetaSchema, reportInputSchema, reportResultSchema, restoreResultSchema, settingsSnapshotSchema, stagedImageSchema, startupStatusSchema, templateSchema, updateInfoSchema, updateProgressSchema } from "./dto";
+import { activitySchema, agentClientConfigSchema, appErrorSchema, backupSchema, capturedEventSchema, caseIssueLinkSchema, caseSchema, deviceCodeSchema, docVersionSchema, evidenceSchema, exportProgressSchema, exportResultSchema, fieldSchema, ghAccountSchema, ghConnectFailedSchema, ghRepoSchema, importSummarySchema, linkedRepoSchema, packageExportResultSchema, projectGithubInputSchema, projectGithubSchema, projectSchema, projectSummarySchema, repoMetaSchema, reportInputSchema, reportResultSchema, restoreResultSchema, settingsSnapshotSchema, stagedImageSchema, startupStatusSchema, templateSchema, updateInfoSchema, updateProgressSchema } from "./dto";
 
 describe("contrato Rust → TS", () => {
+  it("los ajustes antiguos sin agentes recuperan los permisos por defecto", () => {
+    const settings = structuredClone(fixture.settings);
+    Reflect.deleteProperty(settings.settings, "agents");
+    expect(settingsSnapshotSchema.parse(settings).settings.agents).toEqual(DEFAULT_SETTINGS.agents);
+    expect(settingsSnapshotSchema.parse({
+      ...settings, settings: { ...settings.settings, agents: { read: true } },
+    }).settings.agents).toEqual({ ...DEFAULT_SETTINGS.agents, read: true });
+  });
   it.each([
+    ["activity", activitySchema],
+    ["agentClientConfig", agentClientConfigSchema],
     ["field", fieldSchema],
     ["template", templateSchema],
     ["projectSummary", projectSummarySchema],

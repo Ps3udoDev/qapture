@@ -17,6 +17,12 @@ const with_ = (f: (s: Settings) => void): Settings => {
 };
 
 describe("ajustes", () => {
+  it("los agentes empiezan apagados y las confirmaciones encendidas", () => {
+    expect(DEFAULT_SETTINGS.agents).toEqual({
+      enabled: false, read: false, write: false, capture: false, export: false,
+      confirmCapture: true, confirmExport: true,
+    });
+  });
   it("formatAccelerator da la forma canónica", () => {
     expect(formatAccelerator(key("KeyQ", { ctrlKey: true, altKey: true }))).toBe("Ctrl+Alt+Q");
     expect(formatAccelerator(key("F12", { ctrlKey: true, shiftKey: true }))).toBe("Ctrl+Shift+F12");

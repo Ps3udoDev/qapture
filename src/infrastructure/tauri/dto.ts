@@ -2,7 +2,7 @@ import { z } from "zod";
 import { FIELD_TYPES } from "../../domain/fields";
 import { BACKUP_KINDS } from "../../domain/data";
 import { EXPORT_STAGES } from "../../domain/export";
-import { SHORTCUT_ACTIONS } from "../../domain/settings";
+import { DEFAULT_AGENT_PREFS, SHORTCUT_ACTIONS } from "../../domain/settings";
 import { STATUSES } from "../../domain/status";
 
 export const fieldSchema = z.strictObject({
@@ -152,11 +152,41 @@ export const startupStatusSchema = z.strictObject({
   detail: z.string(),
 });
 
+export const agentPrefsSchema = z.strictObject({
+  enabled: z.boolean().default(false),
+  read: z.boolean().default(false),
+  write: z.boolean().default(false),
+  capture: z.boolean().default(false),
+  export: z.boolean().default(false),
+  confirmCapture: z.boolean().default(true),
+  confirmExport: z.boolean().default(true),
+});
+
+export const activitySchema = z.strictObject({
+  id: z.string(),
+  at: z.string(),
+  client: z.string(),
+  tool: z.string(),
+  projectId: z.string().nullable(),
+  caseId: z.string().nullable(),
+  ok: z.boolean(),
+  detail: z.string(),
+});
+
+export const agentClientConfigSchema = z.strictObject({
+  bridgePath: z.string(),
+  listening: z.boolean(),
+  claudeCode: z.string(),
+  codex: z.string(),
+  json: z.string(),
+});
+
 export const settingsSchema = z.strictObject({
   profile: z.strictObject({ tester: z.string(), role: z.string(), email: z.string() }),
   shortcuts: z.strictObject({ toggle: z.string(), capture: z.string(), paste: z.string(), newCase: z.string() }),
   system: z.strictObject({ autostart: z.boolean(), startHidden: z.boolean(), closeToTray: z.boolean(), escHides: z.boolean() }),
   export: z.strictObject({ defaultFolder: z.string(), imageMaxWidth: z.number().int(), includeSummary: z.boolean() }),
+  agents: agentPrefsSchema.default({ ...DEFAULT_AGENT_PREFS }),
 });
 
 export const settingsSnapshotSchema = z.strictObject({
@@ -259,3 +289,5 @@ export const reportResultSchema = z.strictObject({
   pendingEvidence: z.array(z.string()),
   commentUrl: z.string().nullable(),
 });
+
+export const agentDataChangedSchema = z.strictObject({ projectId: z.string().nullable(), caseId: z.string().nullable(), summary: z.string() });
