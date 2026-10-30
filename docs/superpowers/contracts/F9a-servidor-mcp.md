@@ -95,15 +95,17 @@ El tester conecta Claude Code, Codex, Cursor o Claude Desktop a Qapture por MCP 
 ## Checklist de pruebas locales
 | # | Prueba | Esperado | OK |
 |---|---|---|---|
-| 1 | MCP Inspector con todos los permisos apagados | Lista solo `qapture_status` | ☐ |
-| 2 | «Activar configuración recomendada» y Claude Code crea 3 casos con capturas | Se ven en Qapture en vivo | ☐ |
-| 3 | Repetir con Codex | 3 casos con capturas visibles en vivo | ☐ |
-| 4 | `capture_screen` | Pide confirmación y muestra la notificación del sistema | ☐ |
-| 5 | `export_excel` con un archivo del mismo nombre | Exporta con sufijo y conserva el archivo original | ☐ |
+| 1 | MCP Inspector con todos los permisos apagados | Lista solo `qapture_status` | ◐ 2026-10-30 con Claude Code y Codex: con los cuatro grupos apagados solo aparece `qapture_status` y Claude Code actualizó el catálogo sin reconectar. Falta repetirlo con el interruptor general apagado y con MCP Inspector |
+| 2 | «Activar configuración recomendada» y Claude Code crea 3 casos con capturas | Se ven en Qapture en vivo | ⚠️ 2026-10-30: EJ-001..003 en vivo, etiquetas sin tildes resueltas y valores mezclados. Defecto: la captura de monitor incluía el diálogo de confirmación (EJ-001); corregido, falta repetirlo con el instalador nuevo |
+| 3 | Repetir con Codex | 3 casos con capturas visibles en vivo | ✅ 2026-10-30: Codex CLI 0.166.0 creó EJ-004..006, una captura por ventana cada uno, en estado Aprobado |
+| 4 | `capture_screen` | Pide confirmación y muestra la notificación del sistema; el diálogo no aparece en la evidencia | ⚠️ 2026-10-30: confirmación y notificación correctas en Claude Code y Codex. La captura de monitor incluía el diálogo; corregido, falta repetirlo. La captura por ventana sale limpia |
+| 5 | `export_excel` con un archivo del mismo nombre | Exporta con sufijo y conserva el archivo original | ✅ 2026-10-30: generó `… (2).xlsx` y el original se conservó; `export_package` también |
 | 6 | Actualizar la app con un agente conectado | Reconecta; la llamada en vuelo pide reintentar | ☐ |
 | 7 | Versión portable | El puente usa los datos junto al exe | ☐ |
 | 8 | Migración completa con Claude Code y Codex | 10+ casos, 20+ capturas y Excel equivalente a la carga manual | ☐ |
 | 9 | Humo Linux (§9 del spec), adicional y no bloqueante | Anotar distribución, versión, escritorio, canal `0600`, persistencia, captura y exportación | ☐ Pendiente |
+
+`list_windows` no lista las ventanas de Qapture (títulos que empiezan por «Qapture») ni las minimizadas. Es intencional: así el agente no captura la app que está documentando. Para que Qapture salga en una evidencia, se usa la captura de monitor.
 
 ## Verificación automática — 2026-10-29
 

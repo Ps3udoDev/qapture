@@ -10,7 +10,7 @@ Abre **Ajustes › Agentes**, enciende «Permitir que agentes de IA usen Qapture
 |---|---|---|
 | Lectura | list_templates, list_projects, get_project, list_cases, get_case, get_evidence_image | Proyectos, campos, casos e imágenes; pueden contener datos del cliente. |
 | Escritura | create_project, create_case, update_case, add_evidence, update_evidence_description | Crear desde plantillas existentes, cambiar datos y adjuntar imágenes. Nunca borrar. |
-| Captura de pantalla | capture_screen, list_windows | Capturar un monitor o una ventana visible. Confirmación por uso activada por defecto. |
+| Captura de pantalla | capture_screen, list_windows | Capturar un monitor o una ventana visible. Confirmación por uso activada por defecto; la captura espera a que se cierre el diálogo. `list_windows` no muestra las ventanas de Qapture ni las minimizadas. |
 | Exportar | export_excel, export_package | Crear archivos locales .xlsx y .qapture. Confirmación por uso activada por defecto. |
 
 `qapture_status` está disponible siempre para diagnosticar permisos. Las herramientas sin permiso no se listan. Las capturas notifican al tester incluso si desactiva su confirmación. En recuperación solo se permite lectura. No hay herramientas para borrar, publicar en GitHub ni navegar páginas; el navegador lo controla el agente con sus propias herramientas.

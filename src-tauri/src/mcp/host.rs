@@ -6,6 +6,9 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 use tauri_plugin_notification::NotificationExt;
 /// Cuánto espera un agente a que el tester responda «Permitir / Rechazar».
 pub const CONFIRM_TIMEOUT: Duration = Duration::from_secs(180);
+/// Tras «Permitir», tiempo para que Windows cierre el diálogo (con su animación) y redibuje lo que
+/// tapaba. Sin esta espera el diálogo aparece dentro de la captura del monitor.
+pub const DIALOG_CLOSE_DELAY: Duration = Duration::from_millis(500);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Answer {
@@ -52,6 +55,8 @@ pub trait AgentHost: Send + Sync {
     fn data_changed(&self, project_id: Option<&str>, case_id: Option<&str>, summary: &str);
     fn notify(&self, message: &str);
     fn confirm(&self, title: &str, message: &str) -> Answer;
+    /// Espera a que el diálogo de confirmación desaparezca de la pantalla.
+    fn wait_dialog_closed(&self);
     fn screen(&self) -> &dyn AgentScreen;
     fn default_export_dir(&self) -> PathBuf;
 }
@@ -155,6 +160,9 @@ impl AgentHost for TauriAgentHost {
         }
         answer
     }
+    fn wait_dialog_closed(&self) {
+        std::thread::sleep(DIALOG_CLOSE_DELAY);
+    }
     fn screen(&self) -> &dyn AgentScreen {
         &XcapAgentScreen
     }
@@ -217,6 +225,9 @@ impl AgentHost for RecordingHost {
             (false, true) => Answer::Allow,
             (false, false) => Answer::Reject,
         }
+    }
+    fn wait_dialog_closed(&self) {
+        self.calls.lock().unwrap().push("dialog-closed".into());
     }
     fn screen(&self) -> &dyn AgentScreen {
         self

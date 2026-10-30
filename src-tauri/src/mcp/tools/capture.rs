@@ -82,7 +82,7 @@ pub fn capture_screen(
             "Captura de pantalla",
             &format!("Un agente quiere capturar {label}. ¿Permitir?"),
         ) {
-            Answer::Allow => {}
+            Answer::Allow => ctx.host.wait_dialog_closed(),
             Answer::Reject => return Err("El tester rechazó la captura.".into()),
             Answer::NoAnswer => {
                 return Err("El tester no respondió en 3 minutos; no se hizo la captura.".into());
@@ -144,6 +144,11 @@ mod tests {
         }
         fn capture_monitor(&self, index: usize) -> crate::error::AppResult<image::RgbaImage> {
             self.captures.lock().unwrap().push(index);
+            self.host
+                .calls
+                .lock()
+                .unwrap()
+                .push(format!("capture:{index}"));
             Ok(image::RgbaImage::from_pixel(
                 4,
                 4,
@@ -168,12 +173,51 @@ mod tests {
         fn confirm(&self, t: &str, s: &str) -> crate::mcp::host::Answer {
             crate::mcp::host::AgentHost::confirm(&self.host, t, s)
         }
+        fn wait_dialog_closed(&self) {
+            crate::mcp::host::AgentHost::wait_dialog_closed(&self.host);
+        }
         fn screen(&self) -> &dyn crate::mcp::host::AgentScreen {
             self
         }
         fn default_export_dir(&self) -> std::path::PathBuf {
             self.host.dir.clone()
         }
+    }
+
+    #[test]
+    fn the_monitor_is_captured_only_after_the_dialog_closes() {
+        let tmp = TempDir::new();
+        let state = state(&tmp);
+        let case = {
+            let db = state.db();
+            test_support::case(&db, &test_support::project(&db))
+        };
+        let host = TargetedHost {
+            host: RecordingHost::default(),
+            captures: Default::default(),
+        };
+        let ctx = ToolContext {
+            state: &state,
+            host: &host,
+            client: "test",
+        };
+        let args = json!({"caseId":case.id,"target":{"monitor":0}});
+        output(capture_screen(&ctx, args.as_object().unwrap()));
+        assert_eq!(
+            host.host.calls.lock().unwrap()[..3],
+            [
+                "Un agente quiere capturar monitor 0. ¿Permitir?".to_string(),
+                "dialog-closed".into(),
+                "capture:0".into(),
+            ]
+        );
+        // Sin confirmación no hay diálogo que esperar.
+        let mut settings = state.settings();
+        settings.agents.confirm_capture = false;
+        state.set_settings(settings);
+        host.host.calls.lock().unwrap().clear();
+        output(capture_screen(&ctx, args.as_object().unwrap()));
+        assert_eq!(host.host.calls.lock().unwrap()[0], "capture:0");
     }
 
     #[test]
