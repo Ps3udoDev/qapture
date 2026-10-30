@@ -24,12 +24,20 @@ export function AppShell() {
   const listenCaptures = useWorkspace((s) => s.listenCaptures);
   const listenNewCase = useWorkspace((s) => s.listenNewCase);
   const listenUpdates = useWorkspace((s) => s.listenUpdates);
+  const listenAgents = useWorkspace((s) => s.listenAgents);
   const listenGithub = useWorkspace((s) => s.listenGithub);
   const updatePrompt = useWorkspace(isUpdatePromptOpen);
   const pushToast = useWorkspace((s) => s.pushToast);
   const hideWindow = useWorkspace((s) => s.hideWindow);
   const escHides = useWorkspace((s) => s.settings?.settings.system.escHides ?? false);
   const store = useStoreApi();
+
+  useEffect(() => {
+    let disposed = false;
+    let off: (() => void) | undefined;
+    void listenAgents().then((unsubscribe) => { if (disposed) unsubscribe(); else off = unsubscribe; }).catch(() => pushToast("error", "No se pudieron escuchar los cambios de agentes."));
+    return () => { disposed = true; off?.(); };
+  }, [listenAgents, pushToast]);
 
   useEffect(() => {
     void init();

@@ -1,3 +1,4 @@
+import { tauriAgents } from "./agents";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { z } from "zod";
 import type { Repositories } from "../../ports/repositories";
@@ -65,6 +66,7 @@ export function tauriRepositories(): Repositories {
     exporter: tauriExporter(),
     data: tauriData(),
     settings: tauriSettings(),
+    agents: tauriAgents(),
     updater: tauriUpdater(),
     github: tauriGithub(),
   };

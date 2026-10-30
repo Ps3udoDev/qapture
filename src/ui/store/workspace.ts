@@ -1,3 +1,4 @@
+import { createAgentsSlice, type AgentsSlice } from "./agents-slice";
 import { createStore, type StoreApi } from "zustand/vanilla";
 import * as useCases from "../../application/use-cases";
 import type { CaseInput, CaseRecord, FormErrors } from "../../domain/cases";
@@ -25,7 +26,7 @@ export interface Toast {
   actions?: ToastAction[];
 }
 
-export interface WorkspaceState extends EvidenceSlice, ExportSlice, DataSlice, SettingsSlice, UpdateSlice, GithubSlice {
+export interface WorkspaceState extends AgentsSlice, EvidenceSlice, ExportSlice, DataSlice, SettingsSlice, UpdateSlice, GithubSlice {
   templates: Template[];
   projects: ProjectSummary[];
   project: Project | null;
@@ -295,6 +296,7 @@ export function createWorkspaceStore(repos: Repositories, prefs: Preferences = b
       ...createSettingsSlice(repos, set, get, helpers),
       ...createUpdateSlice(repos, set, get, helpers),
       ...createGithubSlice(repos, set, get, helpers),
+      ...createAgentsSlice(repos, set, get, helpers),
     };
   });
 
