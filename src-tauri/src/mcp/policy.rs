@@ -22,7 +22,12 @@ pub fn check(state: &AppState, group: Option<Group>) -> Result<(), String> {
     }
     Ok(())
 }
+/// Con los agentes apagados no se registra nada: un agente que reintenta en bucle no debe llenar
+/// el registro (máximo 2 000 filas) y desplazar la actividad real.
 pub fn record(state: &AppState, client: &str, tool: &str, ok: bool, meta: &Meta) {
+    if !state.settings().agents.enabled {
+        return;
+    }
     if let Err(e) = agent_activity::insert(
         &state.db(),
         &NewActivity {

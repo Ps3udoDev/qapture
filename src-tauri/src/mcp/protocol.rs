@@ -376,6 +376,7 @@ mod tests {
     fn known_tools_with_invalid_arguments_record_only_the_tool_name() {
         let tmp = TempDir::new();
         let state = state(&tmp);
+        enable(&state);
         let response = request(
             &mut Session::new(),
             &state,
@@ -429,6 +430,40 @@ mod tests {
             false,
             GithubState::for_tests("http://127.0.0.1:9", "http://127.0.0.1:9"),
         )
+    }
+    fn enable(state: &AppState) {
+        let mut prefs = state.settings();
+        prefs.agents.enabled = true;
+        state.set_settings(prefs);
+    }
+    #[test]
+    fn calls_with_agents_off_are_refused_and_not_recorded() {
+        let tmp = TempDir::new();
+        let state = state(&tmp);
+        let mut s = Session::new();
+        for _ in 0..3 {
+            let refused = request(
+                &mut s,
+                &state,
+                "tools/call",
+                json!({"name":"list_projects"}),
+            );
+            assert_eq!(
+                refused["result"]["content"][0]["text"],
+                "Los agentes están desactivados. Actívalos en Ajustes › Agentes."
+            );
+        }
+        request(
+            &mut s,
+            &state,
+            "tools/call",
+            json!({"name":"create_case","arguments":{"bad":1}}),
+        );
+        assert!(
+            crate::repo::agent_activity::list(&state.db(), 10, None)
+                .unwrap()
+                .is_empty()
+        );
     }
     fn request(s: &mut Session, state: &AppState, method: &str, params: Value) -> Value {
         serde_json::from_str(
@@ -484,6 +519,7 @@ mod tests {
     fn lists_only_authorized_and_records_calls() {
         let t = TempDir::new();
         let state = state(&t);
+        enable(&state);
         let mut s = Session::new();
         request(
             &mut s,
