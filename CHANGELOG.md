@@ -1,13 +1,17 @@
 # Cambios
 
-## 1.2.0
+## 1.2.0 — 2026-10-30
 
 ### Nuevo
-- Servidor MCP local y puente qapture-mcp para lectura, escritura, capturas y exportación con permisos apagados por defecto
-- Ajustes › Agentes: permisos por grupo, confirmaciones, configuración para clientes y actividad limitada a 2 000 operaciones
-- Recarga en vivo de proyectos, casos y evidencias y avisos agrupados
-- Prompt documentar_migracion, guía de agentes y ADR 0006
-- Puente incluido en instaladores y ZIP portable; validación manual F9a pendiente según su contrato
+- Agentes de IA en Qapture (MCP): Claude Code, Codex, Claude Desktop o Cursor pueden documentar pruebas en la app. Crean proyectos desde tus plantillas, crean y actualizan casos, adjuntan evidencias, capturan la pantalla y exportan, y la ventana se actualiza en vivo
+- Ajustes › Agentes: interruptor general y permisos por grupo (Lectura, Escritura, Captura de pantalla, Exportar), todos apagados por defecto; configuración lista para copiar en cada cliente, registro de actividad y cambio de clave
+- Capturar la pantalla y exportar piden «Permitir / Rechazar» cada vez (se puede desactivar). La pregunta vence a los 3 minutos y la captura se toma después de cerrarla
+- Los agentes nunca borran nada y solo se conectan desde tu equipo, con una clave local; las exportaciones no sobrescriben archivos
+- Prompt «documentar_migracion» y guía para conectar agentes
+- El puente qapture-mcp se incluye en el instalador, el MSI y el ZIP portable
+
+### Nota al actualizar
+- Si tienes un agente conectado, el instalador cierra su conexión con Qapture: al terminar, reconecta el servidor MCP en el agente (en Claude Code, /mcp)
 
 ## 1.1.0 — 2026-10-20
 
