@@ -46,7 +46,8 @@
         "language": "es-ES"
       },
       "nsis": {
-        "languages": ["Spanish"]
+        "languages": ["Spanish"],
+        "installerHooks": "./windows/hooks.nsh"
       }
     }
   },

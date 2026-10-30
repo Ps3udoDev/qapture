@@ -17,7 +17,7 @@ Los agentes necesitan consultar matrices y registrar evidencias mientras el test
 
 ## Consecuencias
 
-El puente necesita acompañar a la app en instaladores y ZIP portable. Ante reinicio reconecta y repite initialize, descarta la respuesta repetida y devuelve errores a llamadas pendientes, sin repetir escrituras. Versiones incompatibles se presentan como un servidor mínimo con un diagnóstico legible.
+El puente necesita acompañar a la app en instaladores y ZIP portable. Ante reinicio reconecta y repite initialize, descarta la respuesta repetida y devuelve errores a llamadas pendientes, sin repetir escrituras. Solo el primer arranque del puente abre Qapture: al reconectar espera a que vuelva sin relanzarla, porque relanzarla durante una actualización bloqueaba el instalador. El instalador NSIS cierra el puente antes de copiar archivos, así que actualizar exige que el agente vuelva a conectar el MCP. Versiones incompatibles se presentan como un servidor mínimo con un diagnóstico legible.
 
 Los permisos están apagados por defecto y se vuelven a comprobar por llamada. Captura y exportación tienen confirmación por uso. El registro limita filas y excluye rutas, claves y contenido de imágenes. La interfaz se refresca por eventos y agrupa avisos. No se incluye borrado ni las herramientas GitHub y anotaciones de F9b.
 

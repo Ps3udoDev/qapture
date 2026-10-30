@@ -21,3 +21,16 @@ test("the crate bridge is not registered again as an external binary", () => {
   assert.ok(!(config.bundle.externalBin ?? []).some((path) => basename(path) === "qapture-mcp"));
   assert.match(readFileSync(new URL("../src-tauri/Cargo.toml", import.meta.url), "utf8"), /name = "qapture-mcp"/);
 });
+
+// A bridge kept open by an agent session locks qapture-mcp.exe; the installer
+// must close it before replacing files (F9a, checklist row 6).
+test("the NSIS installer closes the bridge before installing and uninstalling", () => {
+  const config = JSON.parse(readFileSync(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"));
+  const hooks = config.bundle.windows.nsis.installerHooks;
+  assert.equal(hooks, "./windows/hooks.nsh");
+  const nsh = readFileSync(new URL(`../src-tauri/${hooks.slice(2)}`, import.meta.url), "utf8");
+  for (const hook of ["NSIS_HOOK_PREINSTALL", "NSIS_HOOK_PREUNINSTALL"]) {
+    const body = nsh.split(`!macro ${hook}`)[1]?.split("!macroend")[0] ?? "";
+    assert.match(body, /RestartManager_ShutdownFile "\$INSTDIR\\qapture-mcp\.exe"/, hook);
+  }
+});

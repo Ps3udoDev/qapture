@@ -47,7 +47,11 @@ La tabla muestra cliente, herramienta, caso y resultado. Filtra por nombre de cl
 | La clave del agente no es válida. Copia de nuevo la configuración desde Ajustes › Agentes. | Vuelve a conectar el cliente a la instalación correcta. |
 | qapture-mcp (…) no es compatible con Qapture (…). Reinstala Qapture para actualizar los dos. | Actualiza app y puente juntos. |
 | Qapture se reinició; vuelve a intentar. | Repite la llamada; el puente reconecta, pero no repite escrituras en vuelo. |
+| Qapture se cerró. Ábrelo y vuelve a intentar. | Al perder la conexión el puente no vuelve a abrir Qapture. Ábrelo y repite la llamada: el puente reconecta solo. |
+| Qapture se actualizó a … Vuelve a conectar el servidor MCP en tu agente (en Claude Code: /mcp). | Reconecta el servidor MCP en el agente (en Claude Code, `/mcp`; en Codex, abre una sesión nueva). |
 | El tester rechazó la captura. / El tester rechazó la exportación. | Respeta la decisión del tester. |
 | El tester no respondió en 3 minutos; no se hizo la captura. / … la exportación. | El diálogo «Permitir / Rechazar» espera como máximo 3 minutos. Si vence, Qapture avisa con una notificación y el diálogo que quede abierto ya no tiene efecto. Pide al tester que esté atento y vuelve a intentar. |
+
+**Actualizar Qapture con un agente conectado:** el instalador cierra el puente `qapture-mcp` y después la app. La sesión del agente pierde el servidor MCP: al terminar, reconéctalo (en Claude Code, `/mcp`; en Codex, una sesión nueva). Si solo reinicias Qapture, sin actualizar, el puente reconecta solo.
 
 **Regenerar clave** solicita confirmación, cambia la clave local y desconecta sesiones abiertas. Vuelve a conectar tus agentes. Las exportaciones evitan sobrescribir archivos: añaden ` (2)`, ` (3)` y así sucesivamente.

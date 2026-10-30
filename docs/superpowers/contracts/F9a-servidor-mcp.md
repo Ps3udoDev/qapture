@@ -84,6 +84,8 @@ El tester conecta Claude Code, Codex, Cursor o Claude Desktop a Qapture por MCP 
 - `No hay ninguna ventana cuyo título contenga «<x>».` · `No existe el monitor <n>. Hay <m>.`
 - `El tester rechazó la captura.` · `El tester rechazó la exportación.`
 - `Qapture se reinició; vuelve a intentar.`
+- `Qapture se cerró. Ábrelo y vuelve a intentar.`
+- `Qapture se actualizó a <v>. Vuelve a conectar el servidor MCP en tu agente (en Claude Code: /mcp).`
 - `Configura tu nombre en Ajustes › Perfil o envía «tester».`
 - Notificación por captura: `Un agente capturó la pantalla.`
 - Panel: `Qapture no pudo abrir el canal para agentes. Reinicia la app.` · `Clave nueva: vuelve a conectar tus agentes.`
@@ -100,7 +102,7 @@ El tester conecta Claude Code, Codex, Cursor o Claude Desktop a Qapture por MCP 
 | 3 | Repetir con Codex | 3 casos con capturas visibles en vivo | ✅ 2026-10-30: Codex CLI 0.166.0 creó EJ-004..006, una captura por ventana cada uno, en estado Aprobado |
 | 4 | `capture_screen` | Pide confirmación y muestra la notificación del sistema; el diálogo no aparece en la evidencia | ⚠️ 2026-10-30: confirmación y notificación correctas en Claude Code y Codex. La captura de monitor incluía el diálogo; corregido, falta repetirlo. La captura por ventana sale limpia |
 | 5 | `export_excel` con un archivo del mismo nombre | Exporta con sufijo y conserva el archivo original | ✅ 2026-10-30: generó `… (2).xlsx` y el original se conservó; `export_package` también |
-| 6 | Actualizar la app con un agente conectado | Reconecta; la llamada en vuelo pide reintentar | ☐ |
+| 6 | Actualizar la app con un agente conectado | El instalador termina sin «Error al abrir el archivo para escribir» (cierra `qapture-mcp.exe` y Qapture no vuelve a abrirse a media instalación). Después, el agente vuelve a conectar el MCP (`/mcp` en Claude Code) y funciona. Aparte: reiniciar Qapture sin actualizar reconecta solo y la llamada en vuelo pide reintentar | ✗ 2026-10-30: el puente relanzó Qapture durante la instalación y el instalador no pudo escribir `qapture.exe`. Corregido (D15 revisada); falta repetirla |
 | 7 | Versión portable | El puente usa los datos junto al exe | ☐ |
 | 8 | Migración completa con Claude Code y Codex | 10+ casos, 20+ capturas y Excel equivalente a la carga manual | ☐ |
 | 9 | Humo Linux (§9 del spec), adicional y no bloqueante | Anotar distribución, versión, escritorio, canal `0600`, persistencia, captura y exportación | ☐ Pendiente |

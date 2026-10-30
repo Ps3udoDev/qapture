@@ -98,7 +98,7 @@ sequenceDiagram
 | D12 | **Saludo con versión del canal:** el primer mensaje del puente es `{ "qapture": "hello", "proto": 1, "key": "…", "bridge": "<versión>" }`; la app responde con su `proto` y versión. Si no coinciden, el puente no se cae: responde al agente con un servidor mínimo cuyo `qapture_status` explica el problema **(decidido, a partir de la revisión)** | Un puente viejo con una app nueva (o al revés, en la portable) debe dar un mensaje claro y no un «el servidor no arrancó». |
 | D13 | **Las herramientas sin permiso no se listan.** `tools/list` solo devuelve las de los grupos activos (más `qapture_status`, siempre); al cambiar permisos se manda `notifications/tools/list_changed`. Si igual llaman a una oculta, error de permiso **(decidido, a partir de la revisión)** | Ofrecerlas y fallar después hace que el agente reintente en bucle. |
 | D14 | **Confirmación por uso en Captura y Exportar:** diálogo nativo «Permitir / Rechazar» en cada llamada, que espera como máximo 3 minutos (sin respuesta cuenta como rechazo: `El tester no respondió en 3 minutos; no se hizo la <captura | exportación>.`, decidido el 2026-10-29), con una casilla en Ajustes para dejar de preguntar (activa por defecto). Escritura no pide confirmación por operación: basta el permiso y el registro **(decidido, a partir de la revisión)** | Diez confirmaciones por migración matarían la automatización; capturar la pantalla o sacar archivos de la app sí merecen un clic. |
-| D15 | **Reinicio de la app sin cortar al agente:** si el canal se cierra (actualización, reinicio), el puente reconecta (lanza la app si hace falta, 10 s), repite el saludo y el `initialize` guardado del cliente sin reenviarle la respuesta. Las llamadas en vuelo se responden con error `Qapture se reinició; vuelve a intentar.` **(llamada del diseño)** | El updater de F7 reinicia la app; el agente no debería tener que reconectar a mano. |
+| D15 | **Reconexión sin relanzar la app (revisada el 2026-10-30):** solo el primer arranque del puente abre Qapture (D6). Si el canal se cierra, el puente espera hasta 10 s a que Qapture vuelva **sin abrirla**; si vuelve, repite el saludo y el `initialize` guardado del cliente sin reenviarle la respuesta. Si no vuelve, contesta `Qapture se cerró. Ábrelo y vuelve a intentar.` y reintenta (sin abrirla) con cada mensaje siguiente del agente. Las llamadas en vuelo se responden con `Qapture se reinició; vuelve a intentar.` **Actualizar corta al agente:** el instalador NSIS cierra `qapture-mcp.exe` antes de copiar archivos (gancho `NSIS_HOOK_PREINSTALL`) y, como el saludo exige la misma versión, un puente viejo tampoco podría seguir; si alcanza a reconectar contra la app nueva responde `Qapture se actualizó a <v>. Vuelve a conectar el servidor MCP en tu agente (en Claude Code: /mcp).` **(decidido)** | En la prueba de la fila 6 el puente relanzó la app en medio de la instalación y el instalador no pudo escribir `qapture.exe`; además el puente en ejecución bloquea su propio archivo. Reiniciar Qapture sin cambiar de versión sigue reconectando solo. |
 | D11 | **Todo lo que hace un agente queda registrado** (herramienta, cliente, proyecto, caso, resultado, fecha) y la ventana muestra un toast «Un agente creó EJ-014» agrupado cada 5 s **(llamada del diseño)** | El tester sabe qué cambió y quién lo cambió. |
 
 ## 4. Arquitectura
@@ -123,7 +123,7 @@ flowchart LR
 
 | Módulo | Responsabilidad |
 |---|---|
-| `src/bin/qapture-mcp.rs` | Segundo binario del mismo crate. Resuelve la carpeta de datos con `system::portable::resolve_data_dir` (como la app), arma el nombre del canal, lanza la app si hace falta (D6), manda `mcp.key` y copia bytes entre stdio y el canal. Sin lógica de negocio. |
+| `src/bin/qapture-mcp.rs` | Segundo binario del mismo crate. Resuelve la carpeta de datos con `system::portable::resolve_data_dir` (como la app), arma el nombre del canal, lanza la app si hace falta solo en su primer arranque (D6, D15), manda `mcp.key` y copia bytes entre stdio y el canal. Sin lógica de negocio. |
 | `src/mcp/channel.rs` | Escucha el pipe o socket (D3), valida el secreto (D4), una tarea por conexión; varias conexiones a la vez. |
 | `src/mcp/server.rs` | `initialize` (nombre `qapture`, versión de la app, `instructions` cortas en español), `tools/list`, `tools/call`, `prompts/list`, `prompts/get`. |
 | `src/mcp/tools.rs` | Una función por herramienta (§5). Valida la entrada, llama a `repo::*` con `state.db()` y devuelve el DTO en JSON. Misma barrera que los comandos: rutas solo vía `EvidenceFiles`. |
@@ -234,6 +234,7 @@ CREATE INDEX agent_activity_at ON agent_activity(at);
   - `El permiso «<grupo>» está desactivado en Ajustes › Agentes.`
   - `Qapture está en modo recuperación: solo se permite leer.`
   - `No se encontró Qapture y no se pudo abrir. Ábrelo y vuelve a intentar.` (puente)
+  - `Qapture se cerró. Ábrelo y vuelve a intentar.` · `Qapture se actualizó a <v>. Vuelve a conectar el servidor MCP en tu agente (en Claude Code: /mcp).` (D15)
   - `La clave del agente no es válida. Copia de nuevo la configuración desde Ajustes › Agentes.` (puente)
   - `El archivo no es una imagen PNG, JPEG o WebP.` · `La imagen supera 25 MB.` · `La ruta debe ser absoluta.`
   - `qapture-mcp (<v>) no es compatible con Qapture (<v>). Reinstala Qapture para actualizar los dos.` (D12)
@@ -251,7 +252,7 @@ CREATE INDEX agent_activity_at ON agent_activity(at);
 - **Protocolo:** `initialize` → `tools/list` comparado con un snapshot (nombres, esquemas, anotaciones) y `tools/call` de punta a punta sobre un pipe de prueba.
 - **Puente:** clave inválida, app cerrada (lanza y reintenta), dos clientes a la vez.
 - **TS:** el slice recarga con `data-changed`; Ajustes › Agentes copia la configuración correcta según instalada o portable.
-- **Manual (checklist):** MCP Inspector; Claude Code y Codex en Windows con el escenario de migración contra un proyecto ficticio; versión portable; actualización con un agente conectado (D15).
+- **Manual (checklist):** MCP Inspector; Claude Code y Codex en Windows con el escenario de migración contra un proyecto ficticio; versión portable; actualización con un agente conectado (D15: el instalador cierra el puente y no falla; el agente vuelve a conectar el MCP).
 - **Linux (no bloquea F9a):** construir el AppImage no basta. Antes de anunciar soporte Linux del MCP se hace una prueba de humo en Ubuntu 22.04 o 24.04 con escritorio (máquina real o virtual): arranque, `qapture-mcp` ejecutable, el puente lanza la app, socket y `mcp.key` con `0600`, `initialize` / `tools/list` / `tools/call`, persistencia, captura y exportación. Se anotan distribución, versión, escritorio y resultado.
 
 ## 10. Documentación
