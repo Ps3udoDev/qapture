@@ -15,6 +15,7 @@ El tester conecta Claude Code, Codex, Cursor o Claude Desktop a Qapture por MCP 
 
 ## Decisiones respecto al spec
 - **D7:** protocolo JSON-RPC escrito a mano (`mcp::protocol`), una línea JSON UTF-8 por mensaje; versiones `2025-06-18`, `2025-03-26` y `2024-11-05`, con la primera como alternativa.
+- **Resultados estructurados:** `structuredContent` siempre es un objeto, como exige el [schema MCP 2025-06-18](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-06-18/schema.json). Las salidas array se envuelven en `{ items: [...] }`; el contenido textual conserva el JSON original con sangría.
 - **Valores:** resolución por id, luego `key`, luego etiqueta; las etiquetas ignoran mayúsculas y tildes con la misma tabla de `slug` de F8b. Una coincidencia ambigua exige el id.
 - **Estados:** globales (`domain::status::STATUSES`); `get_project` los devuelve junto a los campos. Por defecto se usa `DEFAULT_STATUS` (`No ejecutado`).
 - **Evidencias:** `add_evidence` reutiliza `repo::evidence::stage` y `add`, con render PNG normalizado y `annotations = {"version":1,"shapes":[]}`. `position` queda fuera de F9a: siempre se adjunta al final.
@@ -37,7 +38,7 @@ El tester conecta Claude Code, Codex, Cursor o Claude Desktop a Qapture por MCP 
 | ID | Task | Estado |
 |---|---|---|
 | F9a-T1 | Ajustes de agentes, migración 0006 y registro de actividad | ✅ |
-| F9a-T2 | Protocolo MCP, catálogo y prompt | ☐ |
+| F9a-T2 | Protocolo MCP, catálogo y prompt | ✅ |
 | F9a-T3 | Herramientas de lectura, resolución de campos e imágenes | ☐ |
 | F9a-T4 | Herramientas de escritura | ☐ |
 | F9a-T5 | Captura y exportación | ☐ |

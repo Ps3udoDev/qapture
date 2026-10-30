@@ -8,6 +8,7 @@ mod error;
 mod excel;
 mod integrations;
 mod media;
+pub mod mcp;
 mod repo;
 mod settings;
 mod state;
