@@ -52,7 +52,7 @@ El tester conecta su cuenta de GitHub desde Ajustes con Device Flow (sin backend
 ## Tasks
 | ID | Task | Estado |
 |---|---|---|
-| F8a-T0 | Spike manual de imágenes entre repos privados (no bloquea el resto) | ☐ |
+| F8a-T0 | Spike manual de imágenes entre repos privados (no bloquea el resto) | ✅ |
 | F8a-T1 | Migración `0005` y repositorio de integraciones | ✅ |
 | F8a-T2 | Errores de GitHub y cliente HTTP | ✅ |
 | F8a-T3 | Almacén del token (llavero) | ✅ |
@@ -80,7 +80,7 @@ El tester conecta su cuenta de GitHub desde Ajustes con Device Flow (sin backend
 | 5 | Desconectar y reconectar | La cuenta se borra; los vínculos del proyecto se conservan | ☐ |
 | 6 | Revocar en `https://github.com/settings/apps/authorizations` | Al listar repos aparece «Reconectar» | ✅ 2026-10-20 (y reconexión OK) |
 | 7 | Linux AppImage: conectar | Conecta, o muestra el mensaje del llavero antes de abrir el navegador | ☐ (llavero real de Linux pendiente; el de Windows pasó en el test ignorado de la Task 3) |
-| 8 | Cuando el owner apruebe la instalación: ver los repos de TEAMS4SOFT | Aparecen en la lista | ☐ |
-| 9 | Spike de la Task 0 (imágenes entre repos privados) | Resultado anotado: `blob?raw` / `raw` / ❌ | ✅ 2026-10-20: con el repo de evidencias **privado**, en un issue de `Ps3udoDev/testing` (privado) solo se ve `github.com/<owner>/<repo>/blob/<sha>/<ruta>?raw=true`; las dos variantes de `raw.githubusercontent.com` (por SHA y por rama) dan 404. Falta confirmar que alguien sin acceso no la ve (con el owner de TEAMS4SOFT) |
+| 8 | Cuando el owner apruebe la instalación: ver los repos de TEAMS4SOFT | Aparecen en la lista | ✅ 2026-10-29 |
+| 9 | Spike de la Task 0 (imágenes entre repos privados) | Resultado anotado: `blob?raw` / `raw` / ❌ | ✅ 2026-10-20: con el repo de evidencias **privado**, en un issue de `Ps3udoDev/testing` (privado) solo se ve `github.com/<owner>/<repo>/blob/<sha>/<ruta>?raw=true`; las dos variantes de `raw.githubusercontent.com` (por SHA y por rama) dan 404. Confirmado el 2026-10-29 que alguien sin acceso no la ve (F8b, fila 7) |
 
 **Spike de imágenes:** pendiente.

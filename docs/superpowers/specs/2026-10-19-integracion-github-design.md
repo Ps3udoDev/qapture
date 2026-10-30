@@ -2,7 +2,7 @@
 
 > Estado: **borrador para aprobación** · Fecha: 2026-10-19
 > Origen: [propuesta 2026-10-19](../../propuestas/2026-10-19-integracion-github.md). Este spec la convierte en decisiones; donde no dice nada nuevo, vale lo de la propuesta (diagramas de secuencia, tabla de parseo, límites de la API).
-> Entregas: **F8a + F8b → v1.1**, **F8c → v1.2**, **F8d → v1.3**.
+> Entregas: **F8a + F8b → v1.1**, **F8c → v1.3**, **F8d → v1.4** (corrido el 2026-10-29: v1.2 es el [servidor MCP, F9](2026-10-29-mcp-design.md)).
 
 Marcas usadas en el documento:
 - **(decidido)**: lo decidió el dueño del producto en la conversación de diseño.

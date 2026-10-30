@@ -43,7 +43,7 @@ El tester reporta un caso de prueba como issue de GitHub (o comenta un re-test e
 | F8b-T7 | Columna «Issue» en el Excel | ✅ |
 | F8b-T8 | Puerto, adaptadores y slice del reporte | ✅ |
 | F8b-T9 | Diálogo «Reportar en GitHub», chips y panel asistido | ✅ |
-| F8b-T10 | Documentación y prueba real | ☐ |
+| F8b-T10 | Documentación y prueba real | ✅ |
 
 ## Criterios de aceptación
 - [x] **T1** Escritura con las mismas cabeceras y sin filtrar el token: `post_json_sends_body_and_headers`, `patch_json_maps_422_to_validation`, `write_errors_never_contain_the_token`, `blob_posts_get_their_own_longer_timeout`. Operaciones de issues: `repo_info_reads_push_permission_and_default_branch`, `create_issue_returns_number_and_url`, `create_issue_omits_empty_milestone`, `comment_returns_html_url`, `repo_meta_collects_labels_milestones_and_assignees`.
@@ -55,7 +55,7 @@ El tester reporta un caso de prueba como issue de GitHub (o comenta un re-test e
 - [x] **T7** Excel: `no_links_no_issue_column`, `one_link_is_a_hyperlink_with_repo_and_number`, `several_links_are_text_with_a_note_listing_urls`, `issue_column_goes_after_evidencias`, `a_stored_url_outside_github_is_plain_text`.
 - [x] **T8** Slice (`github-slice.test.ts`): `report_success_adds_the_link_and_toasts`, `assisted_report_keeps_pending_items`, `conflict_reloads_links_and_returns_form_error`, `copy_pending_toasts_with_n`, `marking_all_done_clears_the_pending_entry`.
 - [x] **T9** Diálogo (`Report.test.tsx`): «crea el issue y muestra el chip testing#1», «con vínculo existente cambia a «Comentar en Ps3udoDev/testing#1»», «modo asistido abre el panel y «Copiar» copia la captura 1», «doble clic en «Crear issue» crea un solo issue», «avisa si una captura pesa más de 10 MB», «si la descripción no se editó, cambiar las capturas la rearma sola», «si la descripción se editó, avisa que las capturas cambiaron hasta regenerarla».
-- [ ] **T10** Guías revisadas y checklist de pruebas locales (abajo) completa.
+- [x] **T10** Guías revisadas y checklist de pruebas locales (abajo) completa (2026-10-29).
 
 ## Mensajes fijos
 - Validación del reporte: `Se permiten hasta 10 etiquetas.`, `Se permiten hasta 10 asignados.`, `Una de las capturas elegidas no pertenece al caso.`, `«Título» es obligatorio.`, `«Título» supera 256 caracteres.` y `La descripción supera 65 536 caracteres.`
@@ -76,7 +76,7 @@ El tester reporta un caso de prueba como issue de GitHub (o comenta un re-test e
 | 1 | Crear un issue con 2 capturas en `Ps3udoDev/testing`, con evidencias en `Ps3udoDev/qa-evidencias-prueba` | Las imágenes se ven | ✅ 2026-10-20 (instalador local) |
 | 2 | Comentar un re-test con 1 captura | El comentario aparece con la imagen | ✅ 2026-10-20 |
 | 3 | Proyecto sin repo de evidencias | Modo asistido, copiar y pegar | ✅ 2026-10-20 |
-| 4 | Mismo caso hacia un segundo repo | Dos chips | ☐ |
+| 4 | Mismo caso hacia un segundo repo | Dos chips | ✅ 2026-10-29 |
 | 5 | Exportar a Excel | Columna `Issue` | ✅ 2026-10-20 |
-| 6 | Exportar el paquete y abrirlo en otra instalación | Vínculos conservados | ☐ |
-| 7 | Cuando el owner apruebe: `TEAMS4SOFT/GMX-frontend` con `TEAMS4SOFT/qa-evidencias` | Un miembro sin acceso a `qa-evidencias` no ve las imágenes | ☐ |
+| 6 | Exportar el paquete y abrirlo en otra instalación | Vínculos conservados | ✅ 2026-10-29 |
+| 7 | Cuando el owner apruebe: `TEAMS4SOFT/GMX-frontend` con `TEAMS4SOFT/qa-evidencias` | Un miembro sin acceso a `qa-evidencias` no ve las imágenes | ✅ 2026-10-29 (acceso a la organización aprobado) |
