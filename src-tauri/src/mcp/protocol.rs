@@ -340,6 +340,34 @@ mod tests {
     }
 
     #[test]
+    fn successful_write_records_project_and_case_without_argument_content() {
+        let tmp = TempDir::new();
+        let state = state(&tmp);
+        let project = crate::repo::test_support::project(&state.db());
+        let mut prefs = state.settings();
+        prefs.agents.enabled = true;
+        prefs.agents.write = true;
+        state.set_settings(prefs);
+        let result = request(
+            &mut Session::new(),
+            &state,
+            "tools/call",
+            json!({
+            "name":"create_case", "arguments":{"projectId":project.id,"title":"Contenido privado","values":{"Entorno":"QA"}}
+            }),
+        );
+        let case_id = result["result"]["structuredContent"]["id"]
+            .as_str()
+            .unwrap();
+        let activity = crate::repo::agent_activity::list(&state.db(), 1, None)
+            .unwrap()
+            .remove(0);
+        assert_eq!(activity.project_id.as_deref(), Some(project.id.as_str()));
+        assert_eq!(activity.case_id.as_deref(), Some(case_id));
+        assert!(!activity.detail.contains("Contenido privado"));
+    }
+
+    #[test]
     fn default_session_has_the_same_unknown_client_as_new() {
         assert_eq!(Session::default().client, Session::new().client);
     }

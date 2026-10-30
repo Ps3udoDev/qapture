@@ -1,4 +1,5 @@
 pub mod read;
+pub mod write;
 use super::host::AgentHost;
 use crate::state::AppState;
 use serde_json::{Map, Value};
@@ -87,6 +88,11 @@ fn dispatch(
         "list_cases" => read::list_cases(ctx, a),
         "get_case" => read::get_case(ctx, a),
         "get_evidence_image" => read::get_evidence_image(ctx, a),
+        "create_project" => write::create_project(ctx, a),
+        "create_case" => write::create_case(ctx, a),
+        "update_case" => write::update_case(ctx, a),
+        "add_evidence" => write::add_evidence(ctx, a),
+        "update_evidence_description" => write::update_evidence_description(ctx, a),
         _ => Err("Herramienta desconocida.".into()),
     }
 }
