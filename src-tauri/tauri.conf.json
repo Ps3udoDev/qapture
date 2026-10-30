@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "node scripts/clean-bundle.mjs && pnpm build",
+    "beforeBuildCommand": "node scripts/sidecar.mjs && node scripts/clean-bundle.mjs && pnpm build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -32,6 +32,7 @@
     }
   },
   "bundle": {
+    "externalBin": ["binaries/qapture-mcp"],
     "active": true,
     "targets": "all",
     "icon": [

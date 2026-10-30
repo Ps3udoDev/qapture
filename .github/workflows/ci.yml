@@ -85,6 +85,12 @@ jobs:
       - name: Run Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
+      - name: Build MCP bridge
+        run: cargo build --manifest-path src-tauri/Cargo.toml --bin qapture-mcp
+
+      - name: Test build scripts
+        run: node --test scripts/sidecar.test.mjs
+
       - name: El fixture de contrato no cambió
         run: git diff --exit-code -- src/infrastructure/tauri/__fixtures__/contracts.json
 

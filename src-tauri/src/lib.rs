@@ -8,8 +8,8 @@ mod dto;
 mod error;
 mod excel;
 mod integrations;
-mod media;
 pub mod mcp;
+mod media;
 mod repo;
 mod settings;
 mod state;
@@ -66,6 +66,11 @@ pub fn run() {
                     .title("Qapture")
                     .blocking_show();
                 std::process::exit(1);
+            }
+            if let Err(error) =
+                system::portable::prepare_appimage_bridge(&data_dir, &std::env::current_exe()?)
+            {
+                eprintln!("No se pudo preparar el puente MCP: {error}");
             }
             if portable {
                 // El scope de tauri.conf.json solo cubre `$APPDATA`; aquí las imágenes están junto al exe.

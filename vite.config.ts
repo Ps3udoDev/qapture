@@ -30,5 +30,6 @@ export default defineConfig(() => ({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}", "scripts/**/*.test.mjs"],
+    exclude: ["scripts/sidecar.test.mjs"],
   },
 }));

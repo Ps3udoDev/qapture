@@ -37,3 +37,4 @@ evidence/
 
 # Clave privada del updater: nunca al repo
 *.key
+src-tauri/binaries/
