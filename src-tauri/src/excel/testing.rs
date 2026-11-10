@@ -202,6 +202,17 @@ impl Book {
         }
     }
 
+    /// Guarda los bytes en un directorio temporal propio y devuelve el libro.
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let dir = TempDir::new();
+        let path = dir.path().join("libro.xlsx");
+        std::fs::write(&path, bytes).expect("escribir xlsx");
+        Self {
+            path,
+            _dir: Some(dir),
+        }
+    }
+
     pub fn at(path: &Path) -> Self {
         Self {
             path: path.to_path_buf(),

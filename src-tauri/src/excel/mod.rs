@@ -3,6 +3,8 @@
 pub mod cover;
 pub mod data;
 pub mod evidence_sheet;
+#[cfg(test)]
+pub(crate) mod guion_fixture;
 pub mod images;
 pub mod matrix;
 pub mod save;
