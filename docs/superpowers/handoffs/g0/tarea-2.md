@@ -1,6 +1,6 @@
 # Tarea 2 · Partes del xlsx
 
-**Estado:** DONE_WITH_CONCERNS
+**Estado:** DONE_WITH_CONCERNS (inquietud: `#[allow(dead_code)]` en `pub mod origin;` hasta que G4 lo use)
 **Commits:** ver `git log` de la rama (feat(g0): leer y reescribir un xlsx parte por parte sin alterarlo)
 
 ## Qué se implementó
@@ -25,12 +25,14 @@
 - `clippy -D warnings` marcaba código muerto (módulo sin uso en producción); se añadió `#[allow(dead_code)]` en la declaración `pub mod origin;`. Retirarlo cuando Task 3 / G4 lo consuman.
 - `get` y `set` buscan linealmente por nombre (suficiente para el tamaño de un xlsx).
 
-## Revisión (la llena el controlador)
-
-## Correcciones (ronda <R>)
-
 ## Correcciones (ronda 1)
 - Hallazgo Important: la conservación del método de compresión no estaba probada. Se agregó `write_keeps_each_parts_bytes_and_compression_method`: ZIP armado a mano (partes Stored y Deflated, incluidas `[Content_Types].xml` y `xl/workbook.xml`), leído con `XlsxParts`, escrito y releído con `zip::ZipArchive`; compara nombre, orden, `compression()` y bytes contra el original.
 - RED: con `write` usando siempre `Deflated` (mutación temporal) la prueba falla: `assertion left == right failed: xl/workbook.xml  left: Deflated  right: Stored`. Mutación revertida.
 - Minor: el comentario del módulo ya no dice "sin alterarlo"; indica que se conservan contenido, orden y método de compresión, y que no se conservan fechas ni permisos.
 - GREEN: `cargo test excel::origin::parts` -> `5 passed; 0 failed`. `cargo fmt --check` y `cargo clippy --all-targets -- -D warnings` limpios.
+
+## Revisión (controlador)
+- Revisión 1 (Sonnet, `dcb4c6b`… diff `b3e0168..f1febf0`): Spec ✅ · Calidad: necesita correcciones.
+  - Important: la conservación del método de compresión no tenía prueba → corregido en la ronda 1 (`d5f808f`).
+- Re-revisión de la ronda 1 (diff `f1febf0..d5f808f`): los 2 hallazgos ADDRESSED, sin problemas nuevos.
+- Minor anotados para la revisión final: `write` no conserva fechas ni permisos (documentado); entradas duplicadas o de carpeta en el ZIP no se tratan aparte; `read_to_end` sin límite de tamaño; `read` descarta la causa del error de `zip`.
