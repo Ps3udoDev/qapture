@@ -38,3 +38,6 @@ evidence/
 # Clave privada del updater: nunca al repo
 *.key
 src-tauri/binaries/
+
+# Propuestas con información confidencial de clientes: solo locales
+docs/propuestas/guion-a-evidencias/
