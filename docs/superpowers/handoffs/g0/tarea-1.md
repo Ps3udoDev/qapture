@@ -27,3 +27,10 @@
 - Ninguna.
 
 ## Revisión (la llena el controlador)
+
+## Revisión (controlador)
+- Spec: ✅ · Calidad: Aprobada (revisor Sonnet, diff dcb4c6b..d032ece).
+- Comprobado por el controlador: el commit lleva la línea `Co-Authored-By`; `image` ya es dependencia de producción.
+- Hallazgos Minor anotados para la revisión final (no frenan la tarea):
+  - `guion_fixture.rs:97`: `% 256` redundante en el logo.
+  - Las pruebas no comprueban `sqref="H16:H35"` (validación de Criticidad) ni los valores de H por fila.

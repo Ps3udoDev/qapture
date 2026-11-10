@@ -67,7 +67,7 @@ Reglas del reporte: sin rutas personales, contraseñas ni datos de clientes; los
 
 | Tarea | Estado | Commits | Revisión |
 |---|---|---|---|
-| 1 · Guion sintético | ☐ | | |
+| 1 · Guion sintético | ✅ | `d032ece` | Spec ✅ · Calidad aprobada · 2 Minor |
 | 2 · Partes del xlsx | ☐ | | |
 | 3 · Trasplante de hoja | ☐ | | |
 | 4 · Verificación manual y go / no-go | ☐ | | |
