@@ -1,4 +1,5 @@
-//! Partes de un `.xlsx` (ZIP) en su orden original, para reescribirlo sin alterarlo.
+//! Partes de un `.xlsx` (ZIP) en su orden original. Al reescribir se conservan contenido, orden y
+//! método de compresión de cada parte; no se conservan fechas ni permisos.
 
 use std::io::{Cursor, Read, Write};
 
@@ -96,7 +97,7 @@ impl XlsxParts {
 mod tests {
     use std::io::{Cursor, Write};
 
-    use zip::{ZipWriter, write::SimpleFileOptions};
+    use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
     use super::*;
     use crate::excel::guion_fixture;
@@ -144,5 +145,46 @@ mod tests {
         let bytes = zip.finish().unwrap().into_inner();
         let err = XlsxParts::read(&bytes).unwrap_err();
         assert_eq!(err.to_string(), NOT_XLSX);
+    }
+
+    #[test]
+    fn write_keeps_each_parts_bytes_and_compression_method() {
+        let entries: [(&str, &[u8], CompressionMethod); 4] = [
+            (
+                "[Content_Types].xml",
+                b"<Types/>",
+                CompressionMethod::Deflated,
+            ),
+            ("xl/workbook.xml", b"<workbook/>", CompressionMethod::Stored),
+            (
+                "xl/a.xml",
+                b"<a>aaaaaaaaaaaaaaaaaaaaaaaa</a>",
+                CompressionMethod::Deflated,
+            ),
+            ("xl/b.bin", b"\x00\x01\x02\x03", CompressionMethod::Stored),
+        ];
+        let mut zip = ZipWriter::new(Cursor::new(Vec::new()));
+        for (name, data, method) in entries {
+            zip.start_file(
+                name,
+                SimpleFileOptions::default().compression_method(method),
+            )
+            .unwrap();
+            zip.write_all(data).unwrap();
+        }
+        let original = zip.finish().unwrap().into_inner();
+
+        let rewritten = XlsxParts::read(&original).unwrap().write().unwrap();
+
+        let mut archive = zip::ZipArchive::new(Cursor::new(rewritten)).unwrap();
+        assert_eq!(archive.len(), entries.len());
+        for (index, (name, data, method)) in entries.iter().enumerate() {
+            let mut file = archive.by_index(index).unwrap();
+            assert_eq!(file.name().unwrap(), *name);
+            assert_eq!(file.compression(), *method, "{name}");
+            let mut bytes = Vec::new();
+            std::io::Read::read_to_end(&mut file, &mut bytes).unwrap();
+            assert_eq!(bytes.as_slice(), *data, "{name}");
+        }
     }
 }

@@ -28,3 +28,9 @@
 ## Revisión (la llena el controlador)
 
 ## Correcciones (ronda <R>)
+
+## Correcciones (ronda 1)
+- Hallazgo Important: la conservación del método de compresión no estaba probada. Se agregó `write_keeps_each_parts_bytes_and_compression_method`: ZIP armado a mano (partes Stored y Deflated, incluidas `[Content_Types].xml` y `xl/workbook.xml`), leído con `XlsxParts`, escrito y releído con `zip::ZipArchive`; compara nombre, orden, `compression()` y bytes contra el original.
+- RED: con `write` usando siempre `Deflated` (mutación temporal) la prueba falla: `assertion left == right failed: xl/workbook.xml  left: Deflated  right: Stored`. Mutación revertida.
+- Minor: el comentario del módulo ya no dice "sin alterarlo"; indica que se conservan contenido, orden y método de compresión, y que no se conservan fechas ni permisos.
+- GREEN: `cargo test excel::origin::parts` -> `5 passed; 0 failed`. `cargo fmt --check` y `cargo clippy --all-targets -- -D warnings` limpios.
