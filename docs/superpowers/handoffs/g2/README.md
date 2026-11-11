@@ -46,6 +46,6 @@ Sin rutas personales, contraseñas ni datos de clientes. Los comandos indican de
 | 2 · Almacén en disco de archivos de prueba (G2-T1 p1) | DONE | `39bd023` | Pendiente |
 | 3 · Repositorio de archivos de prueba (G2-T1 p2) | DONE | `89287b7` | Pendiente |
 | 4 · Paquete .qapture formato 2 (G2-T3) | DONE | `3e5403b` | Pendiente |
-| 5 · Comandos y contrato (G2-T2) | Pendiente | - | - |
+| 5 · Comandos y contrato (G2-T2) | DONE | `b0ad666` | Pendiente |
 | 6 · Puerto, adaptadores y estado (G2-T4 p1) | Pendiente | - | - |
 | 7 · Sección «Archivos de prueba» y cierre (G2-T4 p2) | Pendiente | - | - |
