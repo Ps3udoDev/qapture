@@ -10,6 +10,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { btn } from "../components/styles";
 import { useWorkspace } from "../store/context";
 import { AssistedPastePanel } from "./AssistedPastePanel";
+import { FixturesSection } from "./FixturesSection";
 import { IssueChips } from "./IssueChips";
 import { ReportIssueDialog } from "./ReportIssueDialog";
 
@@ -120,6 +121,7 @@ export function CaseDetail({ onEdit, onOpenAccountSettings, onOpenProjectGithub 
             </div>
           ))}
         </dl>
+        <FixturesSection caseId={current.id} />
         <EvidenceGallery caseRecord={current} />
       </div>
       {reporting && (

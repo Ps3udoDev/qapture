@@ -1,6 +1,6 @@
 # G — Del guion de pruebas a las evidencias · `v1.3.0`
 
-**Estado:** ✅ Contrato aprobado (2026-11-10). Bloque 0 cerrado con **go** (2026-11-10). Bloque 1 cerrado (2026-11-11): verificación automática y prueba de escritorio aprobadas. Sigue: Bloque 2.
+**Estado:** ✅ Contrato aprobado (2026-11-10). Bloque 0 cerrado con **go** (2026-11-10). Bloque 1 cerrado (2026-11-11). Bloque 2 cerrado (2026-11-11): verificación automática aprobada; prueba manual en escritorio lista. Sigue: Bloque 3 (G4).
 
 **Depende de:** F1–F9a · **Spec:** [2026-11-10-guion-a-evidencias-design](../specs/2026-11-10-guion-a-evidencias-design.md) · **Planes:** uno por bloque, escrito al iniciar el bloque (ver «Orden»). Bloque 0: [2026-11-10-g0-fixture-y-pico](../plans/2026-11-10-g0-fixture-y-pico.md). Bloque 1: [2026-11-10-g1-importar-guion](../plans/2026-11-10-g1-importar-guion.md). Bloque 2: [2026-11-11-g2-archivos-de-prueba](../plans/2026-11-11-g2-archivos-de-prueba.md).
 
@@ -54,10 +54,10 @@ El bloque 0 va primero porque el trasplante de la hoja con imágenes (D10) es el
 ### Bloque 2 · G2 Archivos de prueba
 | ID | Task | Qué entrega | Estado |
 |---|---|---|---|
-| G2-T1 | Almacén de archivos de prueba | `media/fixtures.rs`: guardar, listar, quitar; extensiones y 25 MB de D12; `sha256`; solo lectura | ☐ |
-| G2-T2 | Comandos | `fixture_add`, `fixture_list`, `fixture_remove`, `fixture_reveal`, `fixture_copy_path`; permisos; contrato | ☐ |
-| G2-T3 | Paquetes y respaldos | Paquete `.qapture` formato 2 con origen del guion y archivos de prueba; sigue leyendo formato 1. Los respaldos y la restauración incluyen los archivos | ☐ |
-| G2-T4 | Interfaz | Puerto `FixtureStore`, slice y sección «Archivos de prueba» en el detalle del caso (agregar, arrastrar, mostrar en carpeta, copiar ruta, quitar) | ☐ |
+| G2-T1 | Almacén y repositorio de archivos de prueba | Reparto P3: `media/fixtures.rs` (validación, 25 MB, extensiones D12, solo lectura) y `repo/fixtures.rs` (tabla `case_fixture`, límites y orden por caso) | ✅ 2026-11-11 |
+| G2-T2 | Comandos | `fixture_add`, `fixture_list`, `fixture_remove`, `fixture_reveal`, `fixture_copy_path`; permisos; contrato | ✅ 2026-11-11 |
+| G2-T3 | Paquetes y respaldos | Paquete `.qapture` formato 2 con origen del guion y archivos de prueba; sigue leyendo formato 1. Los respaldos y la restauración incluyen los archivos | ✅ 2026-11-11 |
+| G2-T4 | Interfaz | Puerto `FixtureStore`, slice y sección «Archivos de prueba» en el detalle del caso (agregar, arrastrar, mostrar en carpeta, copiar ruta, quitar) | ✅ 2026-11-11 |
 
 ### Bloque 3 · G4 Formato de origen
 | ID | Task | Qué entrega | Estado |
@@ -98,12 +98,20 @@ G1 produce el perfil JSON v1 (`ProfileDefinition`, columnas, destinos, roles, es
 | `project_source` | Archivo, ruta guardada, `sha256`, hoja, fila de encabezados, `profile_id`, fecha y **`definition TEXT NOT NULL`**: copia de la definición usada, aunque no se guarde el perfil o se borre después (P1). `profile_id` usa `ON DELETE SET NULL` |
 | `case_source` | Fila de origen por caso, independiente de cambios al código |
 
-La migración 0007 también prepara `case_fixture`; su funcionalidad corresponde a G2.
+La migración 0007 también prepara `case_fixture`.
+
+### G2 · Archivos de prueba
+G2 produce los cinco comandos Tauri (`fixture_add`, `fixture_list`, `fixture_remove`, `fixture_reveal`, `fixture_copy_path`), los DTOs `FixtureDto` y `NewFixtureMeta`, el puerto `FixtureStore` con adaptadores Tauri y memoria, el slice `FixtureSlice`, la sección `FixturesSection` en el detalle del caso, y el soporte de paquetes `.qapture` formato 2 (retrocompatible con formato 1). El webview no recibe rutas absolutas (`stored_path` no se expone).
+
+| Tabla / Entidad de G2 | Datos conservados |
+|---|---|
+| `case_fixture` | `id`, `case_id`, `file_name`, `size`, `sha256`, `note`, `position`, `stored_path`, `added_at`. Cascada con caso y proyecto |
+| Paquete formato 2 | `formatVersion: 2`, incluye carpeta `fixtures/<código-caso>/<nombre>` y `guion/` si existen; lectura tolerante de códigos libres |
 
 ## Criterios de aceptación
 - [x] **G-T1–T2:** el fixture reproduce la estructura del spec §8; el libro con la hoja injertada abre sin reparación (verificado a mano en Excel y LibreOffice) y `calamine` lee sus dos hojas.
 - [x] **G1** (pruebas automáticas y de escritorio, 2026-11-11; ver [tarea 8](../handoffs/g1/tarea-8.md)): importar el fixture produce 36 casos con 13 columnas; códigos repetidos o vacíos bloquean el import; «Crìtico» se normaliza; un estado desconocido entra como «No ejecutado» con el original en Condiciones; el perfil guardado importa un segundo guion sin mapear; un fallo a mitad no deja nada en la base ni en disco.
-- [ ] **G2:** extensión no permitida y archivo de más de 25 MB se rechazan; los archivos sobreviven a exportar e importar un paquete y a restaurar un respaldo; un paquete de formato 1 se sigue importando.
+- [x] **G2:** extensión no permitida y archivo de más de 25 MB se rechazan; los archivos sobreviven a exportar e importar un paquete y a restaurar un respaldo; un paquete de formato 1 se sigue importando.
 - [ ] **G4:** ida y vuelta: solo cambian las celdas destino y se agregan la hoja y sus partes; las columnas I, K, L y M quedan llenas según D6 y D7; «Condicionado» se escribe cuando la casilla está activa; copia faltante o con otro `sha256` deshabilita la opción.
 - [ ] Contrato Rust ↔ TS de todos los comandos nuevos; `cargo fmt --check`, `clippy -D warnings`, `cargo test`, lint, typecheck y Vitest en verde.
 
