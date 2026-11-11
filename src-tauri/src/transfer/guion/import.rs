@@ -1,14 +1,129 @@
-//! Construye una vista previa y valores normalizados sin escribir base ni archivos.
+//! Vista previa y alta transaccional de un guion con su copia de origen.
 use std::collections::{BTreeMap, HashMap};
+
+use rusqlite::Connection;
+use sha2::{Digest, Sha256};
 
 use super::{
     profile::{self, FieldRole, ProfileDefinition, Target},
     read::{self, GuionBook},
 };
 use crate::{
-    domain::fields::FieldType,
-    dto::{GuionPreviewCaseDto, GuionPreviewDto, GuionPreviewFieldDto},
+    db::{new_id, now},
+    domain::{fields::FieldType, text::required_text},
+    dto::{
+        GuionPreviewCaseDto, GuionPreviewDto, GuionPreviewFieldDto, ImportSummaryDto,
+        ProjectMetaInput,
+    },
+    error::AppResult,
+    media::storage::EvidenceFiles,
+    repo::guion,
+    transfer::{
+        bundle::{self, BundleCase, BundleField, BundleSource, ImportFiles, ProjectBundle},
+        github_json::GithubPayload,
+    },
 };
+
+pub const GUION_FILE: &str = "guion.xlsx";
+
+pub struct ImportRequest<'a> {
+    pub book: &'a GuionBook,
+    pub bytes: &'a [u8],
+    pub file_name: &'a str,
+    pub def: &'a ProfileDefinition,
+    pub project_name: &'a str,
+    pub save_profile_as: Option<&'a str>,
+}
+
+pub fn import(
+    conn: &Connection,
+    files: &EvidenceFiles,
+    request: ImportRequest<'_>,
+) -> AppResult<ImportSummaryDto> {
+    let planned = plan(request.book, request.def);
+    let mut problems = bundle::Problems::default();
+    for error in &planned.preview.errors {
+        problems.add("", error);
+    }
+    problems.into_result()?;
+    let name = required_text("Nombre del proyecto", request.project_name, 150)?;
+    let id = new_id();
+    let stamp = now();
+    let mut out = ImportFiles::new(files);
+    let stored_path = out.write_file(&id, GUION_FILE, request.bytes)?;
+    let tx = conn.unchecked_transaction()?;
+    let profile_id = request
+        .save_profile_as
+        .map(|name| guion::create_profile(&tx, name, request.def).map(|profile| profile.id))
+        .transpose()?;
+    let bundle = ProjectBundle {
+        source: Some(BundleSource {
+            file_name: request.file_name.into(),
+            stored_path,
+            sha256: format!("{:x}", Sha256::digest(request.bytes)),
+            sheet: request.def.sheet.clone(),
+            header_row: request.def.header_row,
+            profile_id,
+            definition: serde_json::to_string(request.def)?,
+        }),
+        id,
+        meta: ProjectMetaInput {
+            name,
+            client: String::new(),
+            test_type: String::new(),
+            release_version: String::new(),
+            start_date: String::new(),
+            end_date: String::new(),
+        },
+        next_sequence: 1,
+        source_template_id: None,
+        created_at: stamp.clone(),
+        updated_at: stamp.clone(),
+        fields: planned
+            .preview
+            .fields
+            .into_iter()
+            .map(|f| BundleField {
+                key: f.key,
+                label: f.label,
+                field_type: f.field_type,
+                options: f.options,
+                required: false,
+                clear_on_duplicate: false,
+                width: match f.field_type {
+                    FieldType::Text => 24,
+                    FieldType::Longtext => 44,
+                    FieldType::List => 14,
+                    FieldType::Date => 15,
+                    FieldType::Boolean => 12,
+                    FieldType::Number => 24,
+                },
+                archived: false,
+            })
+            .collect(),
+        cases: planned
+            .cases
+            .into_iter()
+            .map(|c| BundleCase {
+                source_row: Some(c.row),
+                code: c.code,
+                title: c.title,
+                status: c.status,
+                created_at: stamp.clone(),
+                updated_at: stamp.clone(),
+                values: c.values,
+                evidence: Vec::new(),
+            })
+            .collect(),
+        versions: Vec::new(),
+        github: GithubPayload::Absent,
+    };
+    let mut summary = bundle::insert_in(&tx, &[bundle])?;
+    summary.warnings = planned.preview.warnings;
+    tx.commit()?;
+    out.commit();
+    Ok(summary)
+}
 
 pub struct Plan {
     pub preview: GuionPreviewDto,
@@ -610,5 +725,211 @@ mod tests {
             read::detect_cover(&sheet, 0),
             profile::CoverCells::default()
         );
+    }
+}
+
+#[cfg(test)]
+mod persistence_tests {
+    use std::{collections::BTreeMap, fs};
+
+    use super::*;
+    use crate::{
+        dto::CaseInput,
+        excel::guion_fixture,
+        media::storage::TempDir,
+        repo::{cases, guion, projects, test_support},
+        transfer::bundle::{IMPORT_FAILED, tests::project_dirs},
+    };
+
+    fn request<'a>(
+        book: &'a GuionBook,
+        bytes: &'a [u8],
+        def: &'a ProfileDefinition,
+        save_profile_as: Option<&'a str>,
+    ) -> ImportRequest<'a> {
+        ImportRequest {
+            book,
+            bytes,
+            file_name: "guion_cliente.xlsx",
+            def,
+            project_name: "guion_cliente",
+            save_profile_as,
+        }
+    }
+
+    fn new_case() -> CaseInput {
+        CaseInput {
+            title: "Un caso nuevo".into(),
+            status: "No ejecutado".into(),
+            values: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn imports_the_reference_guion_with_its_source_and_copy() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let bytes = guion_fixture::build();
+        let book = read::read(&bytes).unwrap();
+        let def = profile::tests::reference();
+        let summary = import(
+            &conn,
+            &files,
+            request(&book, &bytes, &def, Some("Cliente A · v3")),
+        )
+        .unwrap();
+        assert_eq!(summary.cases, 36);
+        let p = projects::get(&conn, &summary.projects[0].id).unwrap();
+        assert_eq!(p.name, "guion_cliente");
+        assert_eq!(p.fields.len(), 11);
+        let list = cases::list(&conn, &p.id).unwrap();
+        assert_eq!(list[0].code, "CP01");
+        let rows = guion::case_rows(&conn, &p.id).unwrap();
+        assert_eq!(rows[0], (list[0].id.clone(), 16));
+        assert_eq!(rows[35].1, 51);
+        let source = guion::source(&conn, &p.id).unwrap().unwrap();
+        assert_eq!(
+            (source.sheet.as_str(), source.header_row),
+            (guion_fixture::SHEET, 15)
+        );
+        assert_eq!(source.definition, def);
+        assert_eq!(
+            fs::read(files.absolute(&source.stored_path)).unwrap(),
+            bytes
+        );
+        assert_eq!(source.sha256.len(), 64);
+        assert!(
+            source
+                .sha256
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        );
+        assert_eq!(
+            guion::list_profiles(&conn).unwrap()[0].id,
+            source.profile_id.unwrap()
+        );
+        let next = cases::create(&conn, &p.id, &new_case()).unwrap();
+        assert_eq!(
+            next.code, "EJ-001",
+            "los casos nuevos siguen la secuencia de Qapture"
+        );
+    }
+
+    #[test]
+    fn a_failed_import_leaves_no_rows_no_profile_and_no_copy() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let bytes = guion_fixture::build();
+        let book = read::read(&bytes).unwrap();
+        let def = profile::tests::reference();
+        guion::create_profile(&conn, "Cliente A · v3", &def).unwrap();
+        let error = import(
+            &conn,
+            &files,
+            request(&book, &bytes, &def, Some("Cliente A · v3")),
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Ya existe un perfil llamado «Cliente A · v3»."
+        );
+        assert!(projects::list(&conn).unwrap().is_empty());
+        assert_eq!(guion::list_profiles(&conn).unwrap().len(), 1);
+        assert_eq!(project_dirs(&files), 0);
+    }
+
+    #[test]
+    fn errors_in_the_preview_stop_the_import() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let bytes = guion_fixture::build_edited(&[(
+            guion_fixture::FIRST_CASE_ROW + 1,
+            2,
+            guion_fixture::Put::Text("CP01"),
+        )]);
+        let book = read::read(&bytes).unwrap();
+        let def = profile::tests::reference();
+        let error = import(
+            &conn,
+            &files,
+            request(&book, &bytes, &def, Some("Nuevo perfil")),
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.starts_with(IMPORT_FAILED));
+        assert!(error.contains("• Hay códigos repetidos: CP01."));
+        assert!(projects::list(&conn).unwrap().is_empty());
+        assert!(guion::list_profiles(&conn).unwrap().is_empty());
+        assert_eq!(project_dirs(&files), 0);
+    }
+
+    #[test]
+    fn a_failure_after_creating_the_profile_rolls_back_rows_and_copy() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let bytes = guion_fixture::build();
+        let book = read::read(&bytes).unwrap();
+        let def = profile::tests::reference();
+        conn.execute_batch("CREATE TRIGGER fail_import_case BEFORE INSERT ON test_case BEGIN SELECT RAISE(FAIL, 'fallo simulado'); END;").unwrap();
+        assert!(
+            import(
+                &conn,
+                &files,
+                request(&book, &bytes, &def, Some("Perfil nuevo"))
+            )
+            .is_err()
+        );
+        assert!(projects::list(&conn).unwrap().is_empty());
+        assert!(guion::list_profiles(&conn).unwrap().is_empty());
+        let sources: i64 = conn
+            .query_row("SELECT COUNT(*) FROM project_source", [], |r| r.get(0))
+            .unwrap();
+        let fields: i64 = conn
+            .query_row("SELECT COUNT(*) FROM project_field", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!((sources, fields), (0, 0));
+        assert_eq!(project_dirs(&files), 0);
+    }
+
+    #[test]
+    fn importing_without_saving_a_profile_keeps_definition_and_warnings() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let bytes = guion_fixture::build_edited(&[(
+            guion_fixture::FIRST_CASE_ROW,
+            10,
+            guion_fixture::Put::Text("Pendiente"),
+        )]);
+        let book = read::read(&bytes).unwrap();
+        let def = profile::tests::reference();
+        let first = import(&conn, &files, request(&book, &bytes, &def, None)).unwrap();
+        let second = import(&conn, &files, request(&book, &bytes, &def, None)).unwrap();
+        assert_eq!(second.projects[0].name, "guion_cliente (importado)");
+        assert_eq!(
+            first.warnings,
+            ["CP01: «Pendiente» no es un estado del perfil; el caso entra como «No ejecutado»."]
+        );
+        let source = guion::source(&conn, &first.projects[0].id)
+            .unwrap()
+            .unwrap();
+        assert!(source.profile_id.is_none());
+        assert_eq!(source.definition, def);
+        assert!(guion::list_profiles(&conn).unwrap().is_empty());
+        let project = projects::get(&conn, &first.projects[0].id).unwrap();
+        assert_eq!(project.source_template_id, None);
+        assert!(project.fields.iter().all(|f| f.width
+            == match f.field_type {
+                FieldType::Text => 24,
+                FieldType::Longtext => 44,
+                FieldType::List => 14,
+                FieldType::Date => 15,
+                FieldType::Boolean => 12,
+                FieldType::Number => 24,
+            }));
     }
 }

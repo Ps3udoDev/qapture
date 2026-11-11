@@ -630,6 +630,7 @@ fn to_bundle<R: Read + Seek>(
             });
         }
         bundle_cases.push(BundleCase {
+            source_row: None,
             code: c.code,
             title: c.title.trim().to_string(),
             status: c.status,
@@ -640,6 +641,7 @@ fn to_bundle<R: Read + Seek>(
         });
     }
     Ok(ProjectBundle {
+        source: None,
         id,
         meta,
         next_sequence: doc.project.next_sequence,
