@@ -3,8 +3,13 @@
 pub mod cover;
 pub mod data;
 pub mod evidence_sheet;
+#[cfg(test)]
+pub(crate) mod guion_fixture;
 pub mod images;
 pub mod matrix;
+// Task 3 (injerto de hoja) y G4 consumen este módulo; hasta entonces no tiene uso en producción.
+#[allow(dead_code)]
+pub mod origin;
 pub mod save;
 pub mod styles;
 pub mod summary;
