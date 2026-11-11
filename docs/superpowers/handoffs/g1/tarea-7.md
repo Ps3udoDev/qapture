@@ -40,3 +40,7 @@ Todos los comandos desde la raíz del proyecto.
 - Minor señalado por revisión: los nombres de cuatro encabezados de ejemplo no coincidían con el fixture de G0. Se alinearon los 13 encabezados de memoria y de las pruebas con `guion_fixture::HEADERS` y el contrato; las 23 pruebas finales siguen verdes.
 
 ## Revisión (la llena el controlador)
+- Spec: ✅ · Calidad: Aprobada. Revisión independiente del diff `1d70655..a13fbe1`.
+- Sin Critical ni Important. Contratos IPC, exclusión, cancelación y descarte de respuestas tardías verificados.
+- Minor corregido antes del cierre: encabezados del ejemplo en memoria y de las pruebas alineados con G0 y el contrato.
+- La implementación en memoria es un doble de pruebas con la firma `importProject(name, count)` indicada en el plan; no replica la persistencia de valores y archivos de Rust. Limitación documentada, sin ampliar el alcance.

@@ -75,7 +75,7 @@ Sin rutas personales, contraseñas ni datos de clientes. Los comandos indican de
 | 4 · Vista previa | ✅ | `fe9ea84` | Spec ✅ · 1 Important corregido en ronda 1 |
 | 5 · Importación transaccional | ✅ | `361397d` | Spec ✅ · Calidad aprobada |
 | 6 · Comandos y contrato | ✅ | `1afa730` | Spec ✅ · Calidad aprobada · 1 Minor |
-| 7 · Puerto y estado | Pendiente | — | Pendiente |
+| 7 · Puerto y estado | ✅ | `a13fbe1` | Spec ✅ · Calidad aprobada · Minor corregido |
 | 8 · Asistente y cierre | Pendiente | — | Pendiente |
 
 ## Notas del controlador
