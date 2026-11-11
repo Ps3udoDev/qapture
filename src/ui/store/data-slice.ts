@@ -1,5 +1,5 @@
 import type { StoreApi } from "zustand/vanilla";
-import { importSummaryMessage, parseImportIssues, restoreMessage, type Backup, type ImportIssues, type ImportSummary, type StartupStatus } from "../../domain/data";
+import { importSummaryMessage, missingFilesMessage, parseImportIssues, restoreMessage, type Backup, type ImportIssues, type ImportSummary, type StartupStatus } from "../../domain/data";
 import { isValidationError } from "../../ports/errors";
 import type { Repositories } from "../../ports/repositories";
 import type { SliceHelpers } from "./evidence-slice";
@@ -86,6 +86,7 @@ export function createDataSlice(repos: Repositories, set: Set, get: Get, h: Slic
             { label: "Abrir carpeta", run: () => void repos.exporter.revealFile(result.path).catch(h.report) },
           ]);
           if (result.missingImages > 0) get().pushToast("error", missingMessage(result.missingImages));
+          if (result.missingFiles > 0) get().pushToast("error", missingFilesMessage(result.missingFiles));
         } catch (error) {
           h.report(error);
         }

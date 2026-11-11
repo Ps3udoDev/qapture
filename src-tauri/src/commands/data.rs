@@ -127,6 +127,7 @@ pub fn export_package(
         cases: export.doc.cases.len() as i64,
         evidence: export.evidence_count(),
         missing_images: export.missing_images,
+        missing_files: export.missing_files,
     }))
 }
 

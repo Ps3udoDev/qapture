@@ -201,6 +201,27 @@ pub struct CaseInput {
     pub values: BTreeMap<String, String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FixtureDto {
+    pub id: String,
+    pub case_id: String,
+    pub file_name: String,
+    pub size: i64,
+    pub sha256: String,
+    pub note: String,
+    pub position: i64,
+    pub added_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct NewFixtureMeta {
+    pub case_id: String,
+    pub file_name: String,
+    pub note: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EvidenceDto {
@@ -358,6 +379,8 @@ pub struct RestoreResultDto {
     pub safety_copy: String,
     /// Capturas del respaldo cuyo archivo ya no existe.
     pub missing_images: i64,
+    /// Archivos de prueba o del guion que ya no están en disco.
+    pub missing_files: i64,
     /// Capturas que el respaldo no conoce, movidas a `evidence-sin-uso/`.
     pub set_aside_files: i64,
 }
@@ -370,6 +393,7 @@ pub struct PackageExportResultDto {
     pub cases: i64,
     pub evidence: i64,
     pub missing_images: i64,
+    pub missing_files: i64,
 }
 
 /// Lo primero que pide el front: si la base está dañada, muestra la pantalla de recuperación.
@@ -590,6 +614,7 @@ mod contract {
                                "includeSummary": true, "imageMaxWidth": 940 },
             "projectGithubInput": project_github_input_json(),
             "reportInput": report_input_json(),
+            "newFixtureMeta": { "caseId": "case-1", "fileName": "datos.csv", "note": "Datos de prueba" },
             "guionImportInput": { "token": "guion-token", "profile": crate::transfer::guion::profile::tests::reference(),
                 "projectName": "guion_sintetico", "saveProfileAs": "Guion sintético · v1" }
         })
@@ -689,13 +714,23 @@ mod contract {
             "packageExportResult": PackageExportResultDto {
                 path: "C:\\Users\\ana\\Documents\\T4S_ACME_Recibos_20261016.qapture".into(),
                 file_name: "T4S_ACME_Recibos_20261016.qapture".into(),
-                cases: 10, evidence: 20, missing_images: 0,
+                cases: 10, evidence: 20, missing_images: 0, missing_files: 0,
             },
             "backup": backup.clone(),
             "restoreResult": RestoreResultDto {
                 restored: backup,
                 safety_copy: "qapture-antes-de-restaurar-20261016-100000.db".into(),
-                missing_images: 0, set_aside_files: 2,
+                missing_images: 0, missing_files: 0, set_aside_files: 2,
+            },
+            "fixture": FixtureDto {
+                id: "fix-1".into(),
+                case_id: "case-1".into(),
+                file_name: "recibos_muestra.xlsx".into(),
+                size: 14_336,
+                sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".into(),
+                note: "Recibos de prueba de la corrida 3".into(),
+                position: 0,
+                added_at: "2026-10-16T12:00:00.000Z".into(),
             },
             "startupStatus": StartupStatusDto { recovery: true, detail: "base dañada: database disk image is malformed".into() },
             "corruptError": AppError::Corrupt("database disk image is malformed".into()),
@@ -868,10 +903,14 @@ mod contract {
         serde_json::from_value::<Settings>(i["saveSettings"].clone()).unwrap();
         serde_json::from_value::<ProjectGithubInput>(i["projectGithubInput"].clone()).unwrap();
         serde_json::from_value::<ReportInputDto>(i["reportInput"].clone()).unwrap();
+        serde_json::from_value::<NewFixtureMeta>(i["newFixtureMeta"].clone()).unwrap();
     }
 
     #[test]
     fn inputs_reject_unknown_fields() {
+        let mut fixture = inputs_json()["newFixtureMeta"].clone();
+        fixture["extra"] = json!(1);
+        assert!(serde_json::from_value::<NewFixtureMeta>(fixture).is_err());
         let mut guion = inputs_json()["guionImportInput"].clone();
         guion["extra"] = json!(1);
         assert!(serde_json::from_value::<GuionImportInput>(guion).is_err());

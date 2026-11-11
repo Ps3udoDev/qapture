@@ -84,6 +84,19 @@ describe("exportar paquete", () => {
     await Promise.resolve();
     expect(repos.exporter.revealed).toEqual(["C:\\Users\\ana\\Documents\\T4S_ACME_Recibos_20261016.qapture"]);
   });
+
+  it("avisa si faltan archivos de prueba o del guion al exportar", async () => {
+    const { repos, store } = await setup(async (r) => void (await seed(r)));
+    const originalExport = repos.data.exportPackage.bind(repos.data);
+    repos.data.exportPackage = async (id) => {
+      const res = await originalExport(id);
+      return res ? { ...res, missingFiles: 1 } : null;
+    };
+    await store.getState().exportPackage();
+    expect(store.getState().toasts.map((t) => t.message)).toContain(
+      "1 archivo de prueba o del guion no está en disco y no se incluyó.",
+    );
+  });
 });
 
 describe("respaldos", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBackupDate, formatSize, importSummaryMessage, parseImportIssues, restoreMessage, type Backup } from "./data";
+import { formatBackupDate, formatSize, importSummaryMessage, missingFilesMessage, parseImportIssues, restoreMessage, type Backup } from "./data";
 
 const backup: Backup = { fileName: "qapture-diario-20261015.db", kind: "daily", createdAt: "2026-10-15T09:00:05", sizeBytes: 98304 };
 
@@ -36,9 +36,17 @@ describe("formatos", () => {
   });
 
   it("mensaje al restaurar", () => {
-    const result = { restored: backup, safetyCopy: "qapture-antes-de-restaurar-20261016-100000.db", missingImages: 0, setAsideFiles: 0 };
+    const result = { restored: backup, safetyCopy: "qapture-antes-de-restaurar-20261016-100000.db", missingImages: 0, missingFiles: 0, setAsideFiles: 0 };
     expect(restoreMessage(result)).toBe("Se restauró el respaldo del 15/10/2026 09:00.");
     expect(restoreMessage({ ...result, missingImages: 2 })).toBe("Se restauró el respaldo del 15/10/2026 09:00. 2 capturas del respaldo ya no tienen imagen.");
     expect(restoreMessage({ ...result, missingImages: 1 })).toBe("Se restauró el respaldo del 15/10/2026 09:00. 1 captura del respaldo ya no tiene imagen.");
+    expect(restoreMessage({ ...result, missingImages: 0, missingFiles: 2 })).toBe(
+      "Se restauró el respaldo del 15/10/2026 09:00. 2 archivos de prueba o del guion del respaldo ya no están en disco.",
+    );
+  });
+
+  it("mensaje de archivos faltantes al exportar paquete", () => {
+    expect(missingFilesMessage(1)).toBe("1 archivo de prueba o del guion no está en disco y no se incluyó.");
+    expect(missingFilesMessage(3)).toBe("3 archivos de prueba o del guion no están en disco y no se incluyeron.");
   });
 });

@@ -9,7 +9,7 @@ import { createMemoryCapture, type MemoryCapture } from "./capture";
 import { createMemoryData, type MemoryData } from "./data";
 import { createMemoryEvidence, type MemoryEvidence } from "./evidence";
 import { createMemoryDocVersions, createMemoryExporter, type MemoryDocVersions, type MemoryExporter } from "./export";
-import { builtinTemplates } from "./fixtures";
+import { builtinTemplates, createMemoryFixtures, type MemoryFixtureStore } from "./fixtures";
 import { createMemoryGithub, type MemoryGithub } from "./github";
 import { createMemorySettings, type MemorySettings } from "./settings";
 import { createMemoryUpdater, type MemoryUpdater } from "./updater";
@@ -17,6 +17,7 @@ import { createMemoryGuion, type MemoryGuion } from "./guion";
 
 export interface MemoryRepositories extends Repositories {
   evidence: MemoryEvidence;
+  fixtures: MemoryFixtureStore;
   capture: MemoryCapture;
   docVersions: MemoryDocVersions;
   exporter: MemoryExporter;
@@ -46,6 +47,7 @@ export function createMemoryRepositories(): MemoryRepositories {
   const templates: Template[] = copy(builtinTemplates);
   const projects = new Map<string, Project>();
   const cases = new Map<string, CaseRecord>();
+  const fixtures = createMemoryFixtures();
 
   const getProject = (projectId: string): Project => {
     const p = projects.get(projectId);
@@ -155,6 +157,7 @@ export function createMemoryRepositories(): MemoryRepositories {
         docVersions.removeForProject(projectId);
         for (const c of projectCases(projectId)) {
           evidence.removeForCase(c.id);
+          fixtures.removeForCase(c.id);
           cases.delete(c.id);
         }
       },
@@ -235,11 +238,13 @@ export function createMemoryRepositories(): MemoryRepositories {
       async remove(caseId) {
         const c = getCase(caseId);
         evidence.removeForCase(caseId);
+        fixtures.removeForCase(caseId);
         cases.delete(caseId);
         touch(getProject(c.projectId));
       },
     },
     evidence,
+    fixtures,
     capture: createMemoryCapture(evidence),
     docVersions,
     exporter: createMemoryExporter((projectId) => {

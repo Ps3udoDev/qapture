@@ -7,6 +7,7 @@ import type { Status } from "../../domain/status";
 import { AppError } from "../../ports/errors";
 import type { Repositories } from "../../ports/repositories";
 import { createEvidenceSlice, type EvidenceSlice } from "./evidence-slice";
+import { createFixtureSlice, type FixtureSlice } from "./fixture-slice";
 import { createDataSlice, type DataSlice } from "./data-slice";
 import { createGuionSlice, type GuionSlice } from "./guion-slice";
 import { createExportSlice, type ExportSlice } from "./export-slice";
@@ -27,7 +28,7 @@ export interface Toast {
   actions?: ToastAction[];
 }
 
-export interface WorkspaceState extends AgentsSlice, EvidenceSlice, ExportSlice, DataSlice, GuionSlice, SettingsSlice, UpdateSlice, GithubSlice {
+export interface WorkspaceState extends AgentsSlice, EvidenceSlice, FixtureSlice, ExportSlice, DataSlice, GuionSlice, SettingsSlice, UpdateSlice, GithubSlice {
   templates: Template[];
   projects: ProjectSummary[];
   project: Project | null;
@@ -292,6 +293,7 @@ export function createWorkspaceStore(repos: Repositories, prefs: Preferences = b
       pushToast: (kind, message, actions) => set((s) => ({ toasts: [...s.toasts, { id: ++toastSeq, kind, message, actions }] })),
       dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
       ...createEvidenceSlice(repos, set, get, helpers),
+      ...createFixtureSlice(repos, set, get, helpers),
       ...createExportSlice(repos, set, get, helpers),
       ...createDataSlice(repos, set, get, helpers),
       ...createGuionSlice(repos, set, get, helpers),

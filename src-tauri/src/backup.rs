@@ -16,7 +16,7 @@ use crate::{
     dto::{BackupDto, BackupKind, RestoreResultDto},
     error::{AppError, AppResult, validation},
     media::storage::EvidenceFiles,
-    repo::evidence,
+    repo::{evidence, fixtures},
 };
 
 pub const BACKUP_DIR: &str = "backups";
@@ -250,12 +250,17 @@ impl Backups {
             .restore(MAIN_DB, &source, None::<fn(Progress)>)
             .map_err(AppError::from)
             .and_then(|()| db::prepare(conn))
-            .and_then(|()| evidence::missing_images(conn, files));
+            .and_then(|()| {
+                let missing_images = evidence::missing_images(conn, files)?;
+                let missing_files = fixtures::missing_files(conn, files)?;
+                Ok((missing_images, missing_files))
+            });
         match installed {
-            Ok(missing_images) => Ok(RestoreResultDto {
+            Ok((missing_images, missing_files)) => Ok(RestoreResultDto {
                 restored,
                 safety_copy,
                 missing_images,
+                missing_files,
                 set_aside_files: aside.count() as i64,
             }),
             Err(error) => {
@@ -285,9 +290,10 @@ mod tests {
             raster::sample_png,
             storage::{TempDir, UNUSED_DIR},
         },
-        repo::{evidence, projects, test_support},
+        repo::{evidence, fixtures, projects, test_support},
         transfer::bundle::EMPTY_ANNOTATIONS,
     };
+    use rusqlite::params;
 
     fn day(d: u32) -> NaiveDate {
         NaiveDate::from_ymd_opt(2026, 10, d).unwrap()
@@ -699,6 +705,38 @@ mod tests {
             .collect();
         assert!(leftovers.is_empty(), "{leftovers:?}");
     }
+
+    #[test]
+    fn a_backup_from_before_the_guion_tables_is_restorable() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let backups = Backups::new(tmp.path());
+        fs::create_dir_all(backups.dir()).unwrap();
+        let backup_name = "qapture-manual-20261110-120000.db";
+        let backup_path = backups.dir().join(backup_name);
+        db::write_version_for_tests(&backup_path, 6).unwrap();
+        {
+            let conn = Connection::open(&backup_path).unwrap();
+            conn.execute(
+                "INSERT INTO project (id, name, created_at, updated_at) VALUES ('p-antiguo', 'Antiguo', '', '')",
+                [],
+            )
+            .unwrap();
+        }
+        let mut conn = open(&tmp);
+        let result = backups
+            .restore(&mut conn, &files, backup_name, at(10, 0, 0))
+            .unwrap();
+        assert_eq!(result.restored.file_name, backup_name);
+        assert_eq!(db::schema_version(&conn).unwrap(), db::latest_version());
+        let names: Vec<String> = projects::list(&conn)
+            .unwrap()
+            .into_iter()
+            .map(|p| p.name)
+            .collect();
+        assert_eq!(names, ["Antiguo"]);
+    }
+
     #[test]
     fn a_backup_from_a_newer_app_is_refused() {
         let tmp = TempDir::new();
@@ -714,5 +752,68 @@ mod tests {
             Backups::check(&path).unwrap_err().to_string(),
             "El respaldo es de una versión más nueva de Qapture. Actualiza la app para restaurarlo."
         );
+    }
+
+    #[test]
+    fn restore_keeps_fixtures_and_the_guion_copy() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let mut conn = open(&tmp);
+        let project = test_support::project(&conn);
+        let case = test_support::case(&conn, &project);
+
+        // Copia de guion en disco y project_source
+        let guion_rel = format!("evidence/{}/guion.xlsx", project.id);
+        let guion_abs = files.absolute(&guion_rel);
+        fs::create_dir_all(guion_abs.parent().unwrap()).unwrap();
+        fs::write(&guion_abs, b"copia guion").unwrap();
+        let def = crate::transfer::guion::profile::tests::reference();
+        conn.execute(
+            "INSERT INTO project_source (project_id, file_name, stored_path, sha256, sheet, header_row, profile_id, definition, imported_at) VALUES (?1, 'guion.xlsx', ?2, 'hash', 'Guión de Pruebas', 15, NULL, ?3, '')",
+            params![project.id, guion_rel, serde_json::to_string(&def).unwrap()],
+        ).unwrap();
+
+        // Fixture 1
+        let f1 = fixtures::add(&conn, &files, &case.id, "f1.txt", "", b"fixture 1").unwrap();
+        let f1_path = fixtures::absolute(&conn, &files, &f1.id).unwrap();
+
+        // Respaldo manual
+        let backups = Backups::new(tmp.path());
+        let saved = backups.create_manual(&conn, at(9, 0, 0)).unwrap();
+
+        // Fixture 2 agregado después del respaldo
+        let f2 = fixtures::add(&conn, &files, &case.id, "f2.txt", "", b"fixture 2").unwrap();
+        let f2_path = fixtures::absolute(&conn, &files, &f2.id).unwrap();
+
+        // Restaurar
+        let result = backups
+            .restore(&mut conn, &files, &saved.file_name, at(10, 0, 0))
+            .unwrap();
+        assert_eq!(result.restored.file_name, saved.file_name);
+        assert_eq!(result.missing_files, 0);
+
+        // Comprobaciones
+        assert!(f1_path.is_file(), "el primer fixture sigue en su ruta");
+        assert!(guion_abs.is_file(), "la copia del guión sigue en su ruta");
+        assert!(
+            !f2_path.exists(),
+            "el segundo fixture ya no está en la ruta activa"
+        );
+
+        // El segundo está en evidence-sin-uso/
+        let aside_f2 = tmp
+            .path()
+            .join(UNUSED_DIR)
+            .join("20261016-100000")
+            .join(&project.id)
+            .join("fixtures")
+            .join(&f2.id)
+            .join("f2.txt");
+        assert!(
+            aside_f2.is_file(),
+            "el segundo fixture fue apartado en evidence-sin-uso"
+        );
+
+        assert_eq!(fixtures::missing_files(&conn, &files).unwrap(), 0);
     }
 }

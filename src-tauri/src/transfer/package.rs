@@ -17,8 +17,8 @@ use zip::{CompressionMethod, ZipArchive, ZipWriter, write::SimpleFileOptions};
 #[cfg(test)]
 use super::bundle;
 use super::bundle::{
-    BundleCase, BundleEvidence, BundleField, BundleVersion, IMPORT_FAILED, ImportFiles, Problems,
-    ProjectBundle, code_number, is_case_code,
+    BundleCase, BundleEvidence, BundleField, BundleFixture, BundleSource, BundleVersion,
+    IMPORT_FAILED, ImportFiles, Problems, ProjectBundle, code_number, is_case_code,
 };
 use super::github_json::{self, GITHUB_JSON, GithubJson, GithubPayload};
 #[cfg(test)]
@@ -33,11 +33,21 @@ use crate::{
     dto::{DocVersionInput, ProjectMetaInput},
     error::{AppError, AppResult, validation},
     excel::{data::file_segment, save::ensure_writable},
-    media::{raster, storage::EvidenceFiles},
-    repo::{cases, doc_versions, evidence, projects},
+    media::{
+        fixtures::{self, MAX_FIXTURE_BYTES},
+        raster,
+        storage::EvidenceFiles,
+    },
+    repo::{cases, doc_versions, evidence, fixtures as repo_fixtures, guion, projects},
+    transfer::guion::{
+        import::GUION_FILE,
+        profile::{self, ProfileDefinition},
+        read::MAX_FILE_BYTES as MAX_GUION_BYTES,
+    },
 };
 
-pub const FORMAT_VERSION: i64 = 1;
+pub const FORMAT_VERSION: i64 = 2;
+pub const FORMAT_V1: i64 = 1;
 pub const PROJECT_JSON: &str = "project.json";
 pub const EXTENSION: &str = "qapture";
 
@@ -63,6 +73,21 @@ pub struct PackageProject {
     pub next_sequence: i64,
     pub created_at: String,
     pub updated_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<PackageSource>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PackageSource {
+    pub file_name: String,
+    pub sha256: String,
+    pub sheet: String,
+    pub header_row: u32,
+    pub definition: ProfileDefinition,
+    pub imported_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -90,6 +115,21 @@ pub struct PackageCase {
     /// Clave de columna → valor.
     pub values: BTreeMap<String, String>,
     pub evidence: Vec<PackageEvidence>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_row: Option<u32>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fixtures: Vec<PackageFixture>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PackageFixture {
+    pub file_name: String,
+    pub note: String,
+    pub size: i64,
+    pub sha256: String,
+    pub added_at: String,
+    pub file: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -123,8 +163,12 @@ pub struct PackageExport {
     pub doc: PackageDoc,
     /// Ruta dentro del ZIP → archivo en `evidence/`.
     pub images: Vec<(String, PathBuf)>,
+    /// Entradas no-imagen en el ZIP (source/guion.xlsx y fixtures/<n>) → archivo en `evidence/`.
+    pub files: Vec<(String, PathBuf)>,
     /// Capturas omitidas porque falta su original o su render.
     pub missing_images: i64,
+    /// Archivos de prueba o de origen del guion omitidos porque no están en disco.
+    pub missing_files: i64,
     /// Entrada opcional `github.json`: solo si el proyecto tiene datos de GitHub.
     pub github: Option<GithubJson>,
 }
@@ -193,6 +237,51 @@ pub fn collect(
     let mut by_case = evidence_by_case(conn, project_id)?;
     let mut images = Vec::new();
     let mut missing_images = 0;
+    let mut package_files = Vec::new();
+    let mut missing_files = 0;
+
+    let proj_source_opt = if evidence::has_table(conn, "project_source")? {
+        guion::source(conn, project_id)?
+    } else {
+        None
+    };
+
+    let package_source = if let Some(proj_source) = &proj_source_opt {
+        let abs = files.absolute(&proj_source.stored_path);
+        let file_entry = if abs.is_file() {
+            let entry_name = format!("source/{GUION_FILE}");
+            package_files.push((entry_name.clone(), abs));
+            Some(entry_name)
+        } else {
+            missing_files += 1;
+            None
+        };
+        Some(PackageSource {
+            file_name: proj_source.file_name.clone(),
+            sha256: proj_source.sha256.clone(),
+            sheet: proj_source.sheet.clone(),
+            header_row: proj_source.header_row,
+            definition: proj_source.definition.clone(),
+            imported_at: proj_source.imported_at.clone(),
+            file: file_entry,
+        })
+    } else {
+        None
+    };
+
+    let fixtures_by_case = if evidence::has_table(conn, "case_fixture")? {
+        repo_fixtures::stored_by_case(conn, project_id)?
+    } else {
+        HashMap::new()
+    };
+
+    let case_rows_map: HashMap<String, u32> = if evidence::has_table(conn, "case_source")? {
+        guion::case_rows(conn, project_id)?.into_iter().collect()
+    } else {
+        HashMap::new()
+    };
+
+    let mut fixture_counter = 0;
     let mut package_cases = Vec::new();
     for case in cases::list(conn, project_id)? {
         let mut evidence = Vec::new();
@@ -219,6 +308,29 @@ pub fn collect(
                 rendered: rendered_name,
             });
         }
+
+        let mut case_fixtures = Vec::new();
+        if let Some(case_fixtures_stored) = fixtures_by_case.get(&case.id) {
+            for (dto, stored_path) in case_fixtures_stored {
+                let abs = files.absolute(stored_path);
+                if abs.is_file() {
+                    fixture_counter += 1;
+                    let zip_entry = format!("fixtures/{fixture_counter}");
+                    package_files.push((zip_entry.clone(), abs));
+                    case_fixtures.push(PackageFixture {
+                        file_name: dto.file_name.clone(),
+                        note: dto.note.clone(),
+                        size: dto.size,
+                        sha256: dto.sha256.clone(),
+                        added_at: dto.added_at.clone(),
+                        file: zip_entry,
+                    });
+                } else {
+                    missing_files += 1;
+                }
+            }
+        }
+
         let values = case
             .values
             .iter()
@@ -227,6 +339,13 @@ pub fn collect(
                     .map(|key| (key.to_string(), value.clone()))
             })
             .collect();
+
+        let source_row = if package_source.is_some() {
+            case_rows_map.get(&case.id).copied()
+        } else {
+            None
+        };
+
         package_cases.push(PackageCase {
             code: case.code,
             title: case.title,
@@ -235,10 +354,21 @@ pub fn collect(
             updated_at: case.updated_at,
             values,
             evidence,
+            source_row,
+            fixtures: case_fixtures,
         });
     }
+
+    let has_source = package_source.is_some();
+    let has_fixtures = package_cases.iter().any(|c| !c.fixtures.is_empty());
+    let format_version = if has_source || has_fixtures {
+        FORMAT_VERSION
+    } else {
+        FORMAT_V1
+    };
+
     let doc = PackageDoc {
-        format_version: FORMAT_VERSION,
+        format_version,
         project: PackageProject {
             name: project.name.clone(),
             client: project.client.clone(),
@@ -249,6 +379,7 @@ pub fn collect(
             next_sequence: project.next_sequence,
             created_at: project.created_at.clone(),
             updated_at: project.updated_at.clone(),
+            source: package_source,
         },
         fields: project
             .fields
@@ -281,7 +412,9 @@ pub fn collect(
     Ok(PackageExport {
         doc,
         images,
+        files: package_files,
         missing_images,
+        missing_files,
         github: github_json::collect(conn, project_id)?,
     })
 }
@@ -309,6 +442,11 @@ fn write_zip(export: &PackageExport, path: &Path) -> AppResult<()> {
     }
     for (name, source) in &export.images {
         zip.start_file(name.as_str(), stored).map_err(zip_error)?;
+        io::copy(&mut File::open(source)?, &mut zip)?;
+    }
+    let deflated = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
+    for (name, source) in &export.files {
+        zip.start_file(name.as_str(), deflated).map_err(zip_error)?;
         io::copy(&mut File::open(source)?, &mut zip)?;
     }
     zip.finish().map_err(zip_error)?.flush()?;
@@ -414,11 +552,21 @@ fn read_doc<R: Read + Seek>(reader: &mut Reader<R>) -> AppResult<PackageDoc> {
         .get("formatVersion")
         .and_then(serde_json::Value::as_i64)
     {
-        Some(FORMAT_VERSION) => {}
         Some(v) if v > FORMAT_VERSION => return Err(validation(NEWER)),
+        Some(v) if v == FORMAT_V1 || v == FORMAT_VERSION => {}
         _ => return Err(validation(NOT_PACKAGE)),
     }
-    serde_json::from_value(value).map_err(|_| validation(NOT_PACKAGE))
+    let doc: PackageDoc = serde_json::from_value(value).map_err(|_| validation(NOT_PACKAGE))?;
+    if doc.format_version == FORMAT_V1
+        && (doc.project.source.is_some()
+            || doc
+                .cases
+                .iter()
+                .any(|c| c.source_row.is_some() || !c.fixtures.is_empty()))
+    {
+        return Err(validation(NOT_PACKAGE));
+    }
+    Ok(doc)
 }
 
 fn meta_of(p: &PackageProject) -> ProjectMetaInput {
@@ -453,6 +601,11 @@ fn is_image_entry(name: &str) -> bool {
                 .bytes()
                 .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_'))
     })
+}
+
+fn is_fixture_entry(file: &str) -> bool {
+    file.strip_prefix("fixtures/")
+        .is_some_and(|digits| !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit()))
 }
 
 fn is_field_key(key: &str) -> bool {
@@ -524,8 +677,13 @@ fn validate_cases(doc: &PackageDoc, problems: &mut Problems) {
     }
     let mut codes = HashSet::new();
     let mut images = HashSet::new();
+    let mut fixture_files = HashSet::new();
     for (index, c) in doc.cases.iter().enumerate() {
-        let valid_code = is_case_code(&c.code);
+        let valid_code = if doc.format_version == FORMAT_V1 {
+            is_case_code(&c.code)
+        } else {
+            !c.code.is_empty() && c.code == c.code.trim() && c.code.chars().count() <= 40
+        };
         let at = if valid_code {
             c.code.clone()
         } else {
@@ -533,7 +691,9 @@ fn validate_cases(doc: &PackageDoc, problems: &mut Problems) {
         };
         if !valid_code || !codes.insert(c.code.as_str()) {
             problems.add(&at, "ID de ejecución repetido o inválido.");
-        } else if code_number(&c.code).is_none_or(|n| n >= doc.project.next_sequence) {
+        } else if doc.format_version == FORMAT_V1
+            && code_number(&c.code).is_none_or(|n| n >= doc.project.next_sequence)
+        {
             problems.add(&at, "La secuencia debe superar los IDs usados.");
         }
         if let Err(e) = required_text("Caso de prueba", &c.title, 300) {
@@ -562,6 +722,68 @@ fn validate_cases(doc: &PackageDoc, problems: &mut Problems) {
                 }
             }
         }
+        if c.fixtures.len() > 50 {
+            problems.add(&at, "El caso ya tiene 50 archivos de prueba.");
+        }
+        let mut case_fixture_names = HashSet::new();
+        for f in &c.fixtures {
+            let clean_res = fixtures::clean_name(&f.file_name);
+            match clean_res {
+                Err(e) => problems.add(&at, &e.to_string()),
+                Ok(clean) => {
+                    if !case_fixture_names.insert(clean.to_lowercase()) {
+                        problems.add(
+                            &at,
+                            &format!("El caso ya tiene un archivo llamado «{clean}»."),
+                        );
+                    }
+                }
+            }
+            if let Err(e) = fixtures::check_size(f.size as u64) {
+                problems.add(&at, &e.to_string());
+            }
+            if f.note.chars().count() > 500 {
+                problems.add(&at, "La nota supera 500 caracteres.");
+            }
+            if f.sha256.len() != 64
+                || !f
+                    .sha256
+                    .chars()
+                    .all(|ch| ch.is_ascii_hexdigit() && !ch.is_ascii_uppercase())
+            {
+                problems.add(&at, "Hash sha256 inválido.");
+            }
+            if !is_fixture_entry(&f.file) || !fixture_files.insert(f.file.as_str()) {
+                problems.add(&at, "Ruta de archivo de prueba inválida o repetida.");
+            }
+        }
+    }
+}
+
+fn validate_source(source: &PackageSource, problems: &mut Problems) {
+    if let Err(e) = required_text("Nombre del archivo de origen", &source.file_name, 200) {
+        problems.add("Proyecto", &e.to_string());
+    }
+    if source.sheet.trim().is_empty() {
+        problems.add("Proyecto", "El nombre de la hoja no puede estar vacío.");
+    }
+    if source.sha256.len() != 64
+        || !source
+            .sha256
+            .chars()
+            .all(|ch| ch.is_ascii_hexdigit() && !ch.is_ascii_uppercase())
+    {
+        problems.add("Proyecto", "Hash sha256 inválido.");
+    }
+    if source
+        .file
+        .as_deref()
+        .is_some_and(|f| f != format!("source/{GUION_FILE}"))
+    {
+        problems.add("Proyecto", "Ruta de archivo de guion inválida.");
+    }
+    for p in profile::problems(&source.definition) {
+        problems.add("Perfil de guion", &p);
     }
 }
 
@@ -588,6 +810,9 @@ fn validate(doc: &PackageDoc) -> AppResult<()> {
     if doc.project.next_sequence < 1 {
         problems.add("Proyecto", "Secuencia inválida.");
     }
+    if let Some(source) = &doc.project.source {
+        validate_source(source, &mut problems);
+    }
     validate_fields(&doc.fields, &mut problems);
     validate_cases(doc, &mut problems);
     validate_versions(&doc.doc_versions, &mut problems);
@@ -608,6 +833,32 @@ fn to_bundle<R: Read + Seek>(
 ) -> AppResult<ProjectBundle> {
     let id = new_id();
     let meta = projects::validate_meta(&meta_of(&doc.project))?;
+
+    let bundle_source = if let Some(source) = doc.project.source {
+        let stored_path = format!("evidence/{id}/{GUION_FILE}");
+        if let Some(entry_path) = &source.file {
+            let bytes = reader.read(entry_path, MAX_GUION_BYTES)?;
+            if fixtures::sha256_hex(&bytes) != source.sha256 {
+                return Err(validation(format!(
+                    "El paquete está dañado: «{entry_path}» no coincide con su registro."
+                )));
+            }
+            out.write_file(&id, GUION_FILE, &bytes)?;
+        }
+        Some(BundleSource {
+            file_name: source.file_name,
+            stored_path,
+            sha256: source.sha256,
+            sheet: source.sheet,
+            header_row: source.header_row,
+            profile_id: None,
+            definition: serde_json::to_string(&source.definition)?,
+            imported_at: Some(source.imported_at),
+        })
+    } else {
+        None
+    };
+
     let mut bundle_cases = Vec::with_capacity(doc.cases.len());
     for c in doc.cases {
         let mut evidence = Vec::with_capacity(c.evidence.len());
@@ -629,8 +880,31 @@ fn to_bundle<R: Read + Seek>(
                 updated_at: e.updated_at,
             });
         }
+
+        let mut bundle_fixtures = Vec::with_capacity(c.fixtures.len());
+        for f in c.fixtures {
+            let bytes = reader.read(&f.file, MAX_FIXTURE_BYTES)?;
+            if bytes.len() as i64 != f.size || fixtures::sha256_hex(&bytes) != f.sha256 {
+                return Err(validation(format!(
+                    "El paquete está dañado: «{}» no coincide con su registro.",
+                    f.file
+                )));
+            }
+            let fixture_id = new_id();
+            let stored_path = out.write_fixture(&id, &fixture_id, &f.file_name, &bytes)?;
+            bundle_fixtures.push(BundleFixture {
+                id: fixture_id,
+                file_name: f.file_name,
+                stored_path,
+                size: f.size,
+                sha256: f.sha256,
+                note: f.note,
+                added_at: f.added_at,
+            });
+        }
+
         bundle_cases.push(BundleCase {
-            source_row: None,
+            source_row: c.source_row,
             code: c.code,
             title: c.title.trim().to_string(),
             status: c.status,
@@ -638,10 +912,11 @@ fn to_bundle<R: Read + Seek>(
             updated_at: c.updated_at,
             values: c.values,
             evidence,
+            fixtures: bundle_fixtures,
         });
     }
     Ok(ProjectBundle {
-        source: None,
+        source: bundle_source,
         id,
         meta,
         next_sequence: doc.project.next_sequence,
@@ -1108,7 +1383,7 @@ pub(crate) mod tests {
             ),
             (
                 Box::new(|src: &Path, dest: &Path| {
-                    with_json(src, dest, |v| v["formatVersion"] = json!(2))
+                    with_json(src, dest, |v| v["formatVersion"] = json!(3))
                 }),
                 NEWER.to_string(),
             ),
@@ -1615,5 +1890,405 @@ pub(crate) mod tests {
             zip_json(&with, PROJECT_JSON)
         );
         assert!(zip_json(&with, PROJECT_JSON).is_some());
+    }
+
+    use crate::excel::guion_fixture;
+    use crate::transfer::guion::{
+        import as guion_import, profile as guion_profile, read as guion_read,
+    };
+
+    #[test]
+    fn a_plain_project_still_writes_format_1() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let p = seeded(&conn, &files);
+        let export = collect(&conn, &files, &p.id).unwrap();
+        assert_eq!(export.doc.format_version, 1);
+        let json = String::from_utf8(project_json(&export.doc).unwrap()).unwrap();
+        assert!(!json.contains("\"source\""));
+        assert!(!json.contains("\"sourceRow\""));
+        assert!(!json.contains("\"fixtures\""));
+    }
+
+    #[test]
+    fn a_guion_project_round_trips_with_its_files() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+
+        let guion_bytes = guion_fixture::build();
+        let book = guion_read::read(&guion_bytes).unwrap();
+        let def = guion_profile::tests::reference();
+        let req = guion_import::ImportRequest {
+            book: &book,
+            bytes: &guion_bytes,
+            file_name: "guion.xlsx",
+            def: &def,
+            project_name: "Guion Test",
+            save_profile_as: None,
+        };
+        let summary = guion_import::import(&conn, &files, req).unwrap();
+        let project_id = &summary.projects[0].id;
+
+        let cp01 = cases::list(&conn, project_id)
+            .unwrap()
+            .into_iter()
+            .find(|c| c.code == "CP01")
+            .unwrap();
+        repo_fixtures::add(
+            &conn,
+            &files,
+            &cp01.id,
+            "datos.csv",
+            "nota 1",
+            b"col1,col2\n1,2",
+        )
+        .unwrap();
+        repo_fixtures::add(&conn, &files, &cp01.id, "extra.txt", "", b"texto de prueba").unwrap();
+
+        let cp05 = cases::list(&conn, project_id)
+            .unwrap()
+            .into_iter()
+            .find(|c| c.code == "CP05")
+            .unwrap();
+        repo_fixtures::add(&conn, &files, &cp05.id, "doc.pdf", "nota 2", b"%PDF-1.4").unwrap();
+
+        let export = collect(&conn, &files, project_id).unwrap();
+        assert_eq!(export.doc.format_version, 2);
+        let path = tmp.path().join("Guion.qapture");
+        write(&export, &path).unwrap();
+
+        let entries = entry_names(&path);
+        assert!(entries.contains(&"source/guion.xlsx".to_string()));
+        assert!(entries.contains(&"fixtures/1".to_string()));
+        assert!(entries.contains(&"fixtures/2".to_string()));
+        assert!(entries.contains(&"fixtures/3".to_string()));
+
+        let other = TempDir::new();
+        let other_files = other.files();
+        let other_conn = test_support::conn();
+        let summary2 = import(&other_conn, &other_files, &path).unwrap();
+        assert_eq!(summary2.cases, 36);
+        let new_id = &summary2.projects[0].id;
+        let cases_list = cases::list(&other_conn, new_id).unwrap();
+        assert_eq!(cases_list.len(), 36);
+        assert_eq!(cases_list[0].code, "CP01");
+        assert_eq!(cases_list[35].code, "CP36");
+
+        let rows = guion::case_rows(&other_conn, new_id).unwrap();
+        assert_eq!(rows.len(), 36);
+        assert_eq!(rows[0].1, 16);
+
+        let src = guion::source(&other_conn, new_id).unwrap().unwrap();
+        assert_eq!(src.definition, def);
+        assert_eq!(src.sha256, fixtures::sha256_hex(&guion_bytes));
+        let copied = other_files.absolute(&src.stored_path);
+        assert_eq!(fs::read(&copied).unwrap(), guion_bytes);
+
+        let new_cp01 = cases_list.iter().find(|c| c.code == "CP01").unwrap();
+        let f1 = repo_fixtures::list(&other_conn, &new_cp01.id).unwrap();
+        assert_eq!(f1.len(), 2);
+        assert_eq!(f1[0].file_name, "datos.csv");
+        assert_eq!(f1[0].note, "nota 1");
+        assert_eq!(
+            fs::read(repo_fixtures::absolute(&other_conn, &other_files, &f1[0].id).unwrap())
+                .unwrap(),
+            b"col1,col2\n1,2"
+        );
+        assert_eq!(f1[1].file_name, "extra.txt");
+        assert_eq!(
+            fs::read(repo_fixtures::absolute(&other_conn, &other_files, &f1[1].id).unwrap())
+                .unwrap(),
+            b"texto de prueba"
+        );
+
+        let new_cp05 = cases_list.iter().find(|c| c.code == "CP05").unwrap();
+        let f5 = repo_fixtures::list(&other_conn, &new_cp05.id).unwrap();
+        assert_eq!(f5.len(), 1);
+        assert_eq!(f5[0].file_name, "doc.pdf");
+        assert_eq!(f5[0].note, "nota 2");
+        assert_eq!(
+            fs::read(repo_fixtures::absolute(&other_conn, &other_files, &f5[0].id).unwrap())
+                .unwrap(),
+            b"%PDF-1.4"
+        );
+
+        let export2 = collect(&other_conn, &other_files, new_id).unwrap();
+        assert_eq!(
+            project_json(&export.doc).unwrap(),
+            project_json(&export2.doc).unwrap()
+        );
+    }
+
+    #[test]
+    fn guion_codes_and_low_sequences_are_accepted_in_format_2() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let doc = PackageDoc {
+            format_version: 2,
+            project: PackageProject {
+                name: "Test Format 2".into(),
+                client: "Cliente".into(),
+                test_type: "Funcional".into(),
+                release_version: "1.0".into(),
+                start_date: "2026-11-10".into(),
+                end_date: "2026-11-11".into(),
+                next_sequence: 1,
+                created_at: "2026-11-10T12:00:00.000Z".into(),
+                updated_at: "2026-11-10T12:00:00.000Z".into(),
+                source: None,
+            },
+            fields: vec![PackageField {
+                key: "obs".into(),
+                label: "Observaciones".into(),
+                field_type: FieldType::Text,
+                options: vec![],
+                required: false,
+                clear_on_duplicate: false,
+                width: 20,
+                archived: false,
+            }],
+            cases: vec![
+                PackageCase {
+                    code: "CP01".into(),
+                    title: "Caso CP01".into(),
+                    status: "No ejecutado".into(),
+                    created_at: "2026-11-10T12:00:00.000Z".into(),
+                    updated_at: "2026-11-10T12:00:00.000Z".into(),
+                    values: BTreeMap::new(),
+                    evidence: vec![],
+                    source_row: None,
+                    fixtures: vec![],
+                },
+                PackageCase {
+                    code: "EJ-001".into(),
+                    title: "Caso EJ-001".into(),
+                    status: "Aprobado".into(),
+                    created_at: "2026-11-10T12:00:00.000Z".into(),
+                    updated_at: "2026-11-10T12:00:00.000Z".into(),
+                    values: BTreeMap::new(),
+                    evidence: vec![],
+                    source_row: None,
+                    fixtures: vec![],
+                },
+            ],
+            doc_versions: vec![],
+        };
+        assert!(validate(&doc).is_ok());
+        let path = tmp.path().join("f2.qapture");
+        let export = PackageExport {
+            doc,
+            images: vec![],
+            files: vec![],
+            missing_images: 0,
+            missing_files: 0,
+            github: None,
+        };
+        write(&export, &path).unwrap();
+        let summary = import(&conn, &files, &path).unwrap();
+        assert_eq!(summary.cases, 2);
+        let loaded = cases::list(&conn, &summary.projects[0].id).unwrap();
+        let codes: Vec<_> = loaded.iter().map(|c| c.code.as_str()).collect();
+        assert_eq!(codes, ["CP01", "EJ-001"]);
+    }
+
+    #[test]
+    fn format_1_with_format_2_fields_is_not_a_package() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let (_, good) = exported(&conn, &files, tmp.path());
+
+        for (name, edit) in [
+            (
+                "source",
+                Box::new(|v: &mut serde_json::Value| {
+                    v["project"]["source"] = json!({
+                        "fileName": "g.xlsx",
+                        "sha256": "a".repeat(64),
+                        "sheet": "Casos",
+                        "headerRow": 1,
+                        "definition": {
+                            "version": 1,
+                            "sheet": "Casos",
+                            "headerRow": 1,
+                            "columns": [{"column": "A", "header": "ID", "target": {"kind": "code"}}],
+                            "statusMap": {"defaultStatus": "No ejecutado", "mappings": []},
+                            "cover": {}
+                        },
+                        "importedAt": "2026-11-10T12:00:00.000Z"
+                    });
+                }) as Box<dyn Fn(&mut serde_json::Value)>,
+            ),
+            (
+                "sourceRow",
+                Box::new(|v: &mut serde_json::Value| {
+                    v["cases"][0]["sourceRow"] = json!(16);
+                }),
+            ),
+            (
+                "fixtures",
+                Box::new(|v: &mut serde_json::Value| {
+                    v["cases"][0]["fixtures"] = json!([{
+                        "fileName": "test.txt",
+                        "note": "",
+                        "size": 4,
+                        "sha256": "b".repeat(64),
+                        "addedAt": "2026-11-10T12:00:00.000Z",
+                        "file": "fixtures/1"
+                    }]);
+                }),
+            ),
+        ] {
+            let bad = tmp.path().join(format!("{name}.qapture"));
+            with_json(&good, &bad, edit);
+            let err = import(&conn, &files, &bad).unwrap_err().to_string();
+            assert_eq!(err, NOT_PACKAGE, "{name}");
+        }
+    }
+
+    #[test]
+    fn tampered_fixture_entries_are_rejected_without_leftovers() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+
+        let guion_bytes = guion_fixture::build();
+        let book = guion_read::read(&guion_bytes).unwrap();
+        let def = guion_profile::tests::reference();
+        let req = guion_import::ImportRequest {
+            book: &book,
+            bytes: &guion_bytes,
+            file_name: "guion.xlsx",
+            def: &def,
+            project_name: "Guion Tamper",
+            save_profile_as: None,
+        };
+        let summary = guion_import::import(&conn, &files, req).unwrap();
+        let p_id = &summary.projects[0].id;
+        let cp01 = cases::list(&conn, p_id)
+            .unwrap()
+            .into_iter()
+            .find(|c| c.code == "CP01")
+            .unwrap();
+        repo_fixtures::add(&conn, &files, &cp01.id, "datos.csv", "nota", b"1,2,3").unwrap();
+
+        let export = collect(&conn, &files, p_id).unwrap();
+        let good = tmp.path().join("good.qapture");
+        write(&export, &good).unwrap();
+
+        type TamperMutate = Box<dyn Fn(&Path, &Path)>;
+        let tests: Vec<(&str, TamperMutate)> = vec![
+            (
+                "sha256 cambiado",
+                Box::new(|src, dest| {
+                    with_json(src, dest, |v| {
+                        v["cases"][0]["fixtures"][0]["sha256"] = json!("0".repeat(64));
+                    });
+                }),
+            ),
+            (
+                "size cambiado",
+                Box::new(|src, dest| {
+                    with_json(src, dest, |v| {
+                        v["cases"][0]["fixtures"][0]["size"] = json!(9999);
+                    });
+                }),
+            ),
+            (
+                "fileName ..\\x.txt",
+                Box::new(|src, dest| {
+                    with_json(src, dest, |v| {
+                        v["cases"][0]["fixtures"][0]["fileName"] = json!("..\\x.txt");
+                    });
+                }),
+            ),
+            (
+                "file fixtures/../a",
+                Box::new(|src, dest| {
+                    with_json(src, dest, |v| {
+                        v["cases"][0]["fixtures"][0]["file"] = json!("fixtures/../a");
+                    });
+                }),
+            ),
+            (
+                "extensión .exe",
+                Box::new(|src, dest| {
+                    with_json(src, dest, |v| {
+                        v["cases"][0]["fixtures"][0]["fileName"] = json!("malware.exe");
+                    });
+                }),
+            ),
+        ];
+
+        for (name, mutate) in tests {
+            let bad = tmp.path().join(format!(
+                "bad_{}.qapture",
+                name.replace([' ', '.', '\\', '/'], "_")
+            ));
+            mutate(&good, &bad);
+
+            let other = TempDir::new();
+            let other_files = other.files();
+            let other_conn = test_support::conn();
+
+            let err = import(&other_conn, &other_files, &bad);
+            assert!(err.is_err(), "{name} debe fallar");
+            assert!(
+                projects::list(&other_conn).unwrap().is_empty(),
+                "{name}: sin proyectos"
+            );
+            assert_eq!(
+                project_dirs(&other_files),
+                0,
+                "{name}: sin carpetas ni restos en evidence"
+            );
+        }
+    }
+
+    #[test]
+    fn missing_files_are_skipped_on_export_and_counted() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+
+        let guion_bytes = guion_fixture::build();
+        let book = guion_read::read(&guion_bytes).unwrap();
+        let def = guion_profile::tests::reference();
+        let req = guion_import::ImportRequest {
+            book: &book,
+            bytes: &guion_bytes,
+            file_name: "guion.xlsx",
+            def: &def,
+            project_name: "Guion Missing",
+            save_profile_as: None,
+        };
+        let summary = guion_import::import(&conn, &files, req).unwrap();
+        let p_id = &summary.projects[0].id;
+        let cp01 = cases::list(&conn, p_id)
+            .unwrap()
+            .into_iter()
+            .find(|c| c.code == "CP01")
+            .unwrap();
+        let f_dto =
+            repo_fixtures::add(&conn, &files, &cp01.id, "datos.csv", "nota", b"1,2,3").unwrap();
+
+        let fixture_abs = repo_fixtures::absolute(&conn, &files, &f_dto.id).unwrap();
+        let src = guion::source(&conn, p_id).unwrap().unwrap();
+        let guion_abs = files.absolute(&src.stored_path);
+
+        crate::media::storage::remove_file(&fixture_abs).unwrap();
+        crate::media::storage::remove_file(&guion_abs).unwrap();
+
+        let export = collect(&conn, &files, p_id).unwrap();
+        assert_eq!(export.missing_files, 2);
+        assert_eq!(export.doc.project.source.as_ref().unwrap().file, None);
+        let cp01_exported = export.doc.cases.iter().find(|c| c.code == "CP01").unwrap();
+        assert!(
+            cp01_exported.fixtures.is_empty(),
+            "el fixture faltante se omite"
+        );
     }
 }

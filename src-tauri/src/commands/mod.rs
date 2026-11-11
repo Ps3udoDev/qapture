@@ -4,6 +4,7 @@ pub mod data;
 pub mod doc_versions;
 pub mod evidence;
 pub mod export;
+pub mod fixtures;
 mod frame;
 pub mod github;
 pub mod guion;

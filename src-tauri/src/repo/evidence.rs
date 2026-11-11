@@ -325,6 +325,12 @@ fn case_files(conn: &Connection, case_id: &str) -> AppResult<Vec<String>> {
     })? {
         out.extend(row?);
     }
+    if has_table(conn, "case_fixture")? {
+        let mut stmt = conn.prepare("SELECT stored_path FROM case_fixture WHERE case_id = ?1")?;
+        for row in stmt.query_map([case_id], |r| r.get::<_, String>(0))? {
+            out.push(row?);
+        }
+    }
     Ok(out)
 }
 
@@ -332,6 +338,11 @@ pub fn delete_case(conn: &Connection, files: &EvidenceFiles, case_id: &str) -> A
     let paths = case_files(conn, case_id)?;
     cases::delete(conn, case_id)?;
     files.remove_files(&paths);
+    for path in &paths {
+        if let Some(parent) = files.absolute(path).parent() {
+            let _ = std::fs::remove_dir(parent);
+        }
+    }
     Ok(())
 }
 
@@ -359,6 +370,14 @@ pub fn missing_images(conn: &Connection, files: &EvidenceFiles) -> AppResult<i64
     Ok(missing)
 }
 
+pub(crate) fn has_table(conn: &Connection, name: &str) -> AppResult<bool> {
+    Ok(conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1)",
+        [name],
+        |r| r.get(0),
+    )?)
+}
+
 /// Rutas relativas que la base referencia y los ids de proyecto existentes.
 pub fn references(conn: &Connection) -> AppResult<(HashSet<String>, HashSet<String>)> {
     let mut referenced = HashSet::new();
@@ -368,9 +387,17 @@ pub fn references(conn: &Connection) -> AppResult<(HashSet<String>, HashSet<Stri
         referenced.insert(original);
         referenced.insert(rendered);
     }
-    let mut stmt = conn.prepare("SELECT stored_path FROM project_source")?;
-    for row in stmt.query_map([], |r| r.get::<_, String>(0))? {
-        referenced.insert(row?);
+    if has_table(conn, "project_source")? {
+        let mut stmt = conn.prepare("SELECT stored_path FROM project_source")?;
+        for row in stmt.query_map([], |r| r.get::<_, String>(0))? {
+            referenced.insert(row?);
+        }
+    }
+    if has_table(conn, "case_fixture")? {
+        let mut stmt = conn.prepare("SELECT stored_path FROM case_fixture")?;
+        for row in stmt.query_map([], |r| r.get::<_, String>(0))? {
+            referenced.insert(row?);
+        }
     }
     let mut stmt = conn.prepare("SELECT id FROM project")?;
     let projects = stmt
@@ -409,6 +436,14 @@ mod tests {
         ).unwrap();
         assert_eq!(sweep_orphans(&conn, &files).unwrap(), 0);
         assert_eq!(fs::read(files.absolute(&rel)).unwrap(), b"copia del guion");
+    }
+
+    #[test]
+    fn has_table_checks_table_existence() {
+        let conn = conn();
+        assert!(has_table(&conn, "project").unwrap());
+        assert!(has_table(&conn, "evidence").unwrap());
+        assert!(!has_table(&conn, "non_existent_table").unwrap());
     }
 
     struct Env {
@@ -754,5 +789,24 @@ mod tests {
         assert!(std::path::Path::new(&ev.original_path).exists());
         assert!(std::path::Path::new(&ev.rendered_path).exists());
         assert!(!stray.exists());
+    }
+
+    #[test]
+    fn sweep_keeps_fixture_files() {
+        let e = env();
+        let fixture =
+            crate::repo::fixtures::add(&e.conn, &e.files, &e.case.id, "datos.csv", "", b"1,2,3")
+                .unwrap();
+        let fixture_path = crate::repo::fixtures::absolute(&e.conn, &e.files, &fixture.id).unwrap();
+
+        let stray = e.files.project_dir(&e.project.id).join("perdido.orig.png");
+        fs::write(&stray, b"x").unwrap();
+
+        assert_eq!(sweep_orphans(&e.conn, &e.files).unwrap(), 1);
+        assert!(
+            fixture_path.is_file(),
+            "el fixture referenciado debe conservarse"
+        );
+        assert!(!stray.exists(), "el archivo huérfano debe ser eliminado");
     }
 }

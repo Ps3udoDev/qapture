@@ -12,6 +12,7 @@ import { tauriGithub } from "./github";
 import { tauriSettings } from "./settings";
 import { tauriUpdater } from "./updater";
 import { tauriGuion } from "./guion";
+import { createTauriFixtures } from "./fixtures";
 
 const nothing = z.null();
 
@@ -62,6 +63,7 @@ export function tauriRepositories(): Repositories {
         await call("delete_evidence", { evidenceId }, nothing);
       },
     },
+    fixtures: createTauriFixtures(),
     capture: tauriScreenCapture(),
     docVersions: tauriDocVersions(),
     exporter: tauriExporter(),

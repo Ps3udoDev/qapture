@@ -8,7 +8,7 @@ import type { EvidenceUpdateInput, NewEvidenceInput } from "../../domain/evidenc
 import type { FieldInput, NewProjectInput } from "../../domain/project";
 import fixture from "./__fixtures__/contracts.json";
 import { guionInspectSchema, guionPreviewSchema, importProfileSchema, profileDefinitionSchema, guionImportInputSchema, type GuionImportInputDto } from "./dto";
-import { activitySchema, agentClientConfigSchema, appErrorSchema, backupSchema, capturedEventSchema, caseIssueLinkSchema, caseSchema, deviceCodeSchema, docVersionSchema, evidenceSchema, exportProgressSchema, exportResultSchema, fieldSchema, ghAccountSchema, ghConnectFailedSchema, ghRepoSchema, importSummarySchema, linkedRepoSchema, packageExportResultSchema, projectGithubInputSchema, projectGithubSchema, projectSchema, projectSummarySchema, repoMetaSchema, reportInputSchema, reportResultSchema, restoreResultSchema, settingsSnapshotSchema, stagedImageSchema, startupStatusSchema, templateSchema, updateInfoSchema, updateProgressSchema } from "./dto";
+import { activitySchema, agentClientConfigSchema, appErrorSchema, backupSchema, capturedEventSchema, caseIssueLinkSchema, caseSchema, deviceCodeSchema, docVersionSchema, evidenceSchema, exportProgressSchema, exportResultSchema, fieldSchema, fixtureSchema, ghAccountSchema, ghConnectFailedSchema, ghRepoSchema, importSummarySchema, linkedRepoSchema, packageExportResultSchema, projectGithubInputSchema, projectGithubSchema, projectSchema, projectSummarySchema, repoMetaSchema, reportInputSchema, reportResultSchema, restoreResultSchema, settingsSnapshotSchema, stagedImageSchema, startupStatusSchema, templateSchema, updateInfoSchema, updateProgressSchema } from "./dto";
 
 describe("contrato Rust → TS", () => {
   it("los ajustes antiguos sin agentes recuperan los permisos por defecto", () => {
@@ -30,6 +30,7 @@ describe("contrato Rust → TS", () => {
     ["projectSummary", projectSummarySchema],
     ["project", projectSchema],
     ["case", caseSchema],
+    ["fixture", fixtureSchema],
     ["evidence", evidenceSchema],
     ["stagedImage", stagedImageSchema],
     ["error", appErrorSchema],

@@ -56,7 +56,7 @@ export function createMemoryData(deps: MemoryDataDeps): MemoryData {
       const fileName = "T4S_ACME_Recibos_20261016.qapture";
       const path = `C:\\Users\\ana\\Documents\\${fileName}`;
       deps.remember(path);
-      return { path, fileName, cases: 2, evidence: 2, missingImages: 0 };
+      return { path, fileName, cases: 2, evidence: 2, missingImages: 0, missingFiles: 0 };
     },
     async listBackups() {
       return structuredClone(data.backups);
@@ -74,7 +74,7 @@ export function createMemoryData(deps: MemoryDataDeps): MemoryData {
       if (!restored) throw new AppError("not_found", "El respaldo no existe.");
       const safety = backup("qapture-antes-de-restaurar-20261016-110000.db", "before-restore", "2026-10-16T11:00:00");
       data.backups = [safety, ...data.backups];
-      return { restored: structuredClone(restored), safetyCopy: safety.fileName, missingImages: 0, setAsideFiles: 0 };
+      return { restored: structuredClone(restored), safetyCopy: safety.fileName, missingImages: 0, missingFiles: 0, setAsideFiles: 0 };
     },
     async recover(fileName) {
       data.calls.push(`recover:${fileName ?? "vacía"}`);
