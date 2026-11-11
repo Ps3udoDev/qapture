@@ -1,7 +1,7 @@
 //! Guion de pruebas sintético con la forma del guion de referencia de un cliente.
 //! Se genera en memoria; nunca se guarda un archivo real de un cliente en el repo.
 
-use rust_xlsxwriter::{Color, DataValidation, Format, Image, Workbook};
+use rust_xlsxwriter::{Color, DataValidation, ExcelDateTime, Format, Image, Workbook};
 
 pub(crate) const SHEET: &str = "Guión de Pruebas";
 pub(crate) const HIDDEN_SHEET: &str = "Hoja1";
@@ -49,6 +49,15 @@ fn logo_png() -> Vec<u8> {
 }
 
 pub(crate) fn build() -> Vec<u8> {
+    build_edited(&[])
+}
+
+pub(crate) enum Put {
+    Text(&'static str),
+    Date(u16, u8, u8),
+}
+
+pub(crate) fn build_edited(puts: &[(u32, u16, Put)]) -> Vec<u8> {
     let mut workbook = Workbook::new();
     let bold = Format::new().set_bold();
     let header = Format::new()
@@ -112,6 +121,24 @@ pub(crate) fn build() -> Vec<u8> {
         .expect("autofiltro");
     ws.set_print_area(0, 0, last_row, 12)
         .expect("área de impresión");
+
+    for (row, col, put) in puts {
+        match put {
+            Put::Text(text) => {
+                ws.write_string(*row, *col, *text).expect("texto editado");
+            }
+            Put::Date(year, month, day) => {
+                let date = ExcelDateTime::from_ymd(*year, *month, *day).expect("fecha editada");
+                ws.write_datetime_with_format(
+                    *row,
+                    *col,
+                    &date,
+                    &Format::new().set_num_format("dd/mm/yyyy"),
+                )
+                .expect("celda de fecha editada");
+            }
+        }
+    }
 
     let hidden = workbook.add_worksheet();
     hidden.set_name(HIDDEN_SHEET).expect("nombre de hoja");
