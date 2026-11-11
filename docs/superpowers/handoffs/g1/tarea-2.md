@@ -35,3 +35,6 @@ Todos los comandos desde `src-tauri/`.
 - La comparación aplica el mapa de acentos existente en `slugify`; no se incorpora una dependencia de normalización Unicode.
 
 ## Revisión (la llena el controlador)
+- Spec: ✅ · Calidad: Aprobada. Revisión independiente del diff `8d2f490..ed09680`.
+- Sin Critical ni Important; firmas, mensajes, pruebas y guardas del plan completos.
+- Minor no bloqueante: pueden existir dos claves distintas de estado que coincidan después de aplicar `fold`. El plan no define el tratamiento de esa ambigüedad.

@@ -35,6 +35,9 @@ Comandos desde `src-tauri/`, salvo `git diff --check` desde la raíz.
 - El enlazador MSVC mantiene su aviso previo `linker_messages`, ajeno a esta tarea.
 
 ## Revisión (la llena el controlador)
+- Spec: ✅ · Calidad: Aprobada. Revisión independiente del diff `ed09680..248d731`.
+- Important corregido en ronda 1: `COLLATE NOCASE` solo reconoce mayúsculas ASCII; se añadió comparación y orden Unicode con `to_lowercase`, conservando la distinción entre letras con y sin acento.
+- La prueba de regresión reprodujo el duplicado antes del cambio y pasó después. Conservación de `definition`, cascadas, orden de casos y protección de la copia verificados; sin hallazgos pendientes.
 
 ## Correcciones (ronda 1)
 - Hallazgo Important: SQLite NOCASE solo compara ASCII y no detectaba perfiles duplicados con mayúsculas españolas (`GUION ÁREA` frente a `guion área`). Se añadió una prueba que también conserva la distinción entre nombres con y sin acento y verifica su orden.

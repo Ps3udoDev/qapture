@@ -70,8 +70,8 @@ Sin rutas personales, contraseñas ni datos de clientes. Los comandos indican de
 | Tarea | Estado | Commits | Revisión |
 |---|---|---|---|
 | 1 · Lector de guion | ✅ | `806a186` | Spec ✅ · Calidad aprobada · 1 Minor |
-| 2 · Perfil de importación | Pendiente | — | Pendiente |
-| 3 · Migración y repositorios | Pendiente | — | Pendiente |
+| 2 · Perfil de importación | ✅ | `ed09680` | Spec ✅ · Calidad aprobada · 1 Minor |
+| 3 · Migración y repositorios | ✅ | `248d731` | Spec ✅ · 1 Important corregido en ronda 1 |
 | 4 · Vista previa | Pendiente | — | Pendiente |
 | 5 · Importación transaccional | Pendiente | — | Pendiente |
 | 6 · Comandos y contrato | Pendiente | — | Pendiente |
