@@ -127,18 +127,31 @@ fn insert_case(
     title: &str,
     status: &str,
 ) -> AppResult<String> {
-    // Una sola sentencia: la secuencia se asigna de forma atómica entre instancias.
-    let seq: i64 = conn.query_row(
-        "UPDATE project SET next_sequence = next_sequence + 1 WHERE id = ?1
-         RETURNING next_sequence - 1",
-        [project_id],
-        |r| r.get(0),
-    )?;
+    // Quien llama ya abrió la transacción. El UPDATE toma el bloqueo de escritura
+    // antes de comprobar el código, y serializa la asignación entre instancias.
+    // Un guion puede traer códigos EJ-NNN aunque next_sequence comience en uno.
+    let code = loop {
+        let seq: i64 = conn.query_row(
+            "UPDATE project SET next_sequence = next_sequence + 1 WHERE id = ?1
+             RETURNING next_sequence - 1",
+            [project_id],
+            |r| r.get(0),
+        )?;
+        let candidate = format!("EJ-{seq:03}");
+        let taken: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM test_case WHERE project_id = ?1 AND code = ?2)",
+            params![project_id, candidate],
+            |r| r.get(0),
+        )?;
+        if !taken {
+            break candidate;
+        }
+    };
     let id = new_id();
     conn.execute(
         "INSERT INTO test_case (id, project_id, code, title, status, created_at, updated_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)",
-        params![id, project_id, format!("EJ-{seq:03}"), title, status, now()],
+        params![id, project_id, code, title, status, now()],
     )?;
     Ok(id)
 }

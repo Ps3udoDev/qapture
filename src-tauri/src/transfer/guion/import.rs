@@ -402,6 +402,32 @@ pub fn plan(book: &GuionBook, def: &ProfileDefinition) -> Plan {
             values,
         });
     }
+    // La importación admite listas del cliente más amplias que las del editor.
+    // Se promueven al terminar para preservar la normalización de todas las filas,
+    // incluidas listas predefinidas sin valores en los casos de este guion.
+    for field in &mut result.preview.fields {
+        if field.field_type == FieldType::List {
+            let reason = if field.options.len() > 50 {
+                Some("la lista supera 50 opciones")
+            } else if field
+                .options
+                .iter()
+                .any(|option| option.chars().count() > FieldType::List.max_len())
+            {
+                Some("una opción supera 100 caracteres")
+            } else {
+                None
+            };
+            if let Some(reason) = reason {
+                result.preview.warnings.push(format!(
+                    "«{}» se importó como texto largo porque {reason}.",
+                    field.label
+                ));
+                field.field_type = FieldType::Longtext;
+                field.options.clear();
+            }
+        }
+    }
     // El perfil admite Conditions en listas y fechas. El texto de auditoría requiere
     // un campo textual; se promueve después de normalizar todas las filas para que
     // las fechas y opciones posteriores sigan interpretándose con el tipo original.
@@ -734,10 +760,10 @@ mod persistence_tests {
 
     use super::*;
     use crate::{
-        dto::CaseInput,
+        dto::{CaseInput, FieldInput},
         excel::guion_fixture,
         media::storage::TempDir,
-        repo::{cases, guion, projects, test_support},
+        repo::{cases, fields, guion, projects, test_support},
         transfer::bundle::{IMPORT_FAILED, tests::project_dirs},
     };
 
@@ -763,6 +789,211 @@ mod persistence_tests {
             status: "No ejecutado".into(),
             values: BTreeMap::new(),
         }
+    }
+
+    fn list_guion(
+        values: &[String],
+        options: Vec<String>,
+    ) -> (Vec<u8>, GuionBook, ProfileDefinition) {
+        let mut workbook = rust_xlsxwriter::Workbook::new();
+        let sheet = workbook.add_worksheet();
+        sheet.set_name("Casos").unwrap();
+        for (col, header) in ["ID", "Título", "Categoría"].iter().enumerate() {
+            sheet.write_string(0, col as u16, *header).unwrap();
+        }
+        for (index, value) in values.iter().enumerate() {
+            let row = index as u32 + 1;
+            sheet.write_string(row, 0, format!("CP{row:02}")).unwrap();
+            sheet.write_string(row, 1, format!("Caso {row}")).unwrap();
+            sheet.write_string(row, 2, value).unwrap();
+        }
+        let bytes = workbook.save_to_buffer().unwrap();
+        let book = read::read(&bytes).unwrap();
+        let def = ProfileDefinition {
+            version: 1,
+            sheet: "Casos".into(),
+            header_row: 1,
+            columns: vec![
+                profile::ColumnMap {
+                    column: "A".into(),
+                    header: "ID".into(),
+                    target: Target::Code,
+                },
+                profile::ColumnMap {
+                    column: "B".into(),
+                    header: "Título".into(),
+                    target: Target::Title,
+                },
+                profile::ColumnMap {
+                    column: "C".into(),
+                    header: "Categoría".into(),
+                    target: Target::Field {
+                        key: "categoria".into(),
+                        label: "Categoría".into(),
+                        field_type: FieldType::List,
+                        options,
+                        role: None,
+                    },
+                },
+            ],
+            status_map: profile::default_status_map(),
+            cover: profile::CoverCells::default(),
+        };
+        (bytes, book, def)
+    }
+
+    fn assert_imported_list_is_editable(
+        values: &[String],
+        options: Vec<String>,
+        expected: Option<&str>,
+    ) {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let (bytes, book, def) = list_guion(values, options);
+        let summary = import(&conn, &files, request(&book, &bytes, &def, None)).unwrap();
+        let project = projects::get(&conn, &summary.projects[0].id).unwrap();
+        let field = project
+            .fields
+            .iter()
+            .find(|f| f.key == "categoria")
+            .unwrap();
+        assert_eq!(field.field_type, FieldType::Longtext);
+        assert!(field.options.is_empty());
+        assert_eq!(
+            summary
+                .warnings
+                .iter()
+                .filter(|w| w.contains("se importó como texto largo"))
+                .count(),
+            1
+        );
+        let source = guion::source(&conn, &project.id).unwrap().unwrap();
+        assert_eq!(source.definition, def, "el perfil de origen no se modifica");
+        let list = cases::list(&conn, &project.id).unwrap();
+        let current = list.last().unwrap();
+        assert_eq!(current.values.get(&field.id).map(String::as_str), expected);
+        let updated = cases::update(
+            &conn,
+            &current.id,
+            &CaseInput {
+                title: "Caso editado".into(),
+                status: "Aprobado".into(),
+                values: current.values.clone(),
+            },
+        )
+        .unwrap();
+        assert_eq!(updated.values, current.values);
+        let inputs = project
+            .fields
+            .iter()
+            .map(|f| FieldInput {
+                id: Some(f.id.clone()),
+                label: f.label.clone(),
+                field_type: f.field_type,
+                options: f.options.clone(),
+                required: f.required,
+                clear_on_duplicate: f.clear_on_duplicate,
+                width: f.width,
+                archived: f.archived,
+            })
+            .collect();
+        fields::save(&conn, &project.id, inputs).unwrap();
+        assert_eq!(
+            cases::get(&conn, &current.id).unwrap().values,
+            current.values
+        );
+    }
+
+    #[test]
+    fn integration_long_list_values_remain_editable_after_import() {
+        let long = "á".repeat(200);
+        assert_imported_list_is_editable(
+            std::slice::from_ref(&long),
+            vec!["Inicial".into()],
+            Some(&long),
+        );
+    }
+
+    #[test]
+    fn integration_lists_with_51_values_remain_editable_after_import() {
+        let values: Vec<_> = (1..=51).map(|n| format!("  Opción {n}  ")).collect();
+        assert_imported_list_is_editable(&values, vec!["Opción 1".into()], Some("Opción 51"));
+    }
+
+    #[test]
+    fn integration_predefined_oversized_lists_are_promoted_without_values() {
+        for options in [
+            vec!["á".repeat(101)],
+            (1..=51).map(|n| format!("Opción {n}")).collect(),
+        ] {
+            assert_imported_list_is_editable(&[String::new()], options, None);
+        }
+    }
+
+    #[test]
+    fn integration_supported_list_boundaries_remain_lists() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let value = "á".repeat(100);
+        let mut options = vec![value.clone()];
+        options.extend((2..=50).map(|n| format!("Opción {n}")));
+        let (bytes, book, def) = list_guion(std::slice::from_ref(&value), options);
+        let summary = import(&conn, &files, request(&book, &bytes, &def, None)).unwrap();
+        let project = projects::get(&conn, &summary.projects[0].id).unwrap();
+        let field = project
+            .fields
+            .iter()
+            .find(|f| f.key == "categoria")
+            .unwrap();
+        assert_eq!(field.field_type, FieldType::List);
+        assert_eq!(field.options.len(), 50);
+        assert!(summary.warnings.is_empty());
+        let current = cases::list(&conn, &project.id).unwrap().remove(0);
+        cases::update(
+            &conn,
+            &current.id,
+            &CaseInput {
+                title: current.title,
+                status: current.status,
+                values: current.values,
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn integration_create_and_duplicate_skip_imported_ej_codes() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = test_support::conn();
+        let bytes = guion_fixture::build_edited(&[
+            (
+                guion_fixture::FIRST_CASE_ROW,
+                2,
+                guion_fixture::Put::Text("EJ-001"),
+            ),
+            (
+                guion_fixture::FIRST_CASE_ROW + 1,
+                2,
+                guion_fixture::Put::Text("EJ-002"),
+            ),
+        ]);
+        let book = read::read(&bytes).unwrap();
+        let def = profile::tests::reference();
+        let summary = import(&conn, &files, request(&book, &bytes, &def, None)).unwrap();
+        let project = projects::get(&conn, &summary.projects[0].id).unwrap();
+        assert_eq!(project.next_sequence, 1);
+        let source_case = cases::list(&conn, &project.id).unwrap().remove(0);
+        let created = cases::create(&conn, &project.id, &new_case()).unwrap();
+        let duplicated = cases::duplicate(&conn, &source_case.id).unwrap();
+        assert_eq!(
+            (created.code.as_str(), duplicated.code.as_str()),
+            ("EJ-003", "EJ-004")
+        );
+        assert_eq!(projects::get(&conn, &project.id).unwrap().next_sequence, 5);
+        assert_eq!(guion::case_rows(&conn, &project.id).unwrap().len(), 36);
     }
 
     #[test]

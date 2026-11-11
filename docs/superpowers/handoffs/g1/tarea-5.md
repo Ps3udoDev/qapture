@@ -39,3 +39,8 @@ Comandos desde `src-tauri/`.
 - Spec: ✅ · Calidad: Aprobada. Revisión independiente del diff `fe9ea84..361397d`.
 - Sin Critical ni Important. La prueba adicional con un trigger demuestra rollback después de crear perfil, proyecto y campos; no quedan filas de origen ni copia del guion.
 - Verificado que `bundle::insert` conserva el procesamiento de GitHub después del commit y que las importaciones legacy y de paquetes siguen pasando. Sin hallazgos pendientes.
+
+## Correcciones (ronda 2 · revisión integrada)
+- Se verificó la edición y guardado de campos después de importar listas que exceden los límites del editor; se promueven sin perder valores.
+- El guion puede traer códigos `EJ-001`/`EJ-002`. Conserva `next_sequence = 1` al importarse, y la creación/duplicado saltan códigos ocupados en la transacción de `repo::cases`.
+- Regresiones y resultados en [correcciones-integracion.md](correcciones-integracion.md).

@@ -45,3 +45,7 @@ Todos los comandos desde `src-tauri/`, salvo `git diff --check` desde la raíz.
 - Decisión del controlador: cuando se anexa ese texto, el campo Condiciones de la vista previa pasa a `longtext` y sus opciones se vacían. La promoción se hace al terminar todas las filas para conservar la normalización original de las fechas y listas siguientes. El perfil guardado conserva su definición.
 - Prueba `conditions_promote_lists_and_dates_after_normalizing_all_rows`: cubre lista y fecha, contenido original más línea de auditoría, opciones vacías, segunda fila normalizada y perfil original intacto.
 - RED de regresión: `cargo test conditions_promote_lists_and_dates_after_normalizing_all_rows`, desactivando temporalmente la promoción, falló `left: List / right: Longtext`. La mutación se revirtió antes del GREEN final.
+
+## Correcciones (ronda 2 · revisión integrada)
+- Las listas que exceden los límites del editor (50 opciones o 100 caracteres por opción) se promueven a texto largo al terminar la normalización, con aviso y opciones vacías. Se preservan sus valores y el perfil de origen.
+- Incluye listas predefinidas sin valores y conserva como listas las de exactamente 50 opciones de 100 caracteres. Ver pruebas y evidencia en [correcciones-integracion.md](correcciones-integracion.md).
