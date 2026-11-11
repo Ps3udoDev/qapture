@@ -7,7 +7,7 @@ import { toSelection } from "../../domain/capture";
 import type { EvidenceUpdateInput, NewEvidenceInput } from "../../domain/evidence";
 import type { FieldInput, NewProjectInput } from "../../domain/project";
 import fixture from "./__fixtures__/contracts.json";
-import { guionInspectSchema, guionPreviewSchema, importProfileSchema, profileDefinitionSchema, guionImportInputSchema, type GuionImportInputDto } from "./dto";
+import { guionInspectSchema, guionPreviewSchema, importProfileSchema, profileDefinitionSchema, guionImportInputSchema, type GuionImportInputDto, originInfoSchema, originExportInputSchema, type OriginExportInputDto } from "./dto";
 import { activitySchema, agentClientConfigSchema, appErrorSchema, backupSchema, capturedEventSchema, caseIssueLinkSchema, caseSchema, deviceCodeSchema, docVersionSchema, evidenceSchema, exportProgressSchema, exportResultSchema, fieldSchema, fixtureSchema, ghAccountSchema, ghConnectFailedSchema, ghRepoSchema, importSummarySchema, linkedRepoSchema, packageExportResultSchema, projectGithubInputSchema, projectGithubSchema, projectSchema, projectSummarySchema, repoMetaSchema, reportInputSchema, reportResultSchema, restoreResultSchema, settingsSnapshotSchema, stagedImageSchema, startupStatusSchema, templateSchema, updateInfoSchema, updateProgressSchema } from "./dto";
 
 describe("contrato Rust → TS", () => {
@@ -39,6 +39,7 @@ describe("contrato Rust → TS", () => {
     ["docVersion", docVersionSchema],
     ["exportResult", exportResultSchema],
     ["exportProgress", exportProgressSchema],
+    ["originInfo", originInfoSchema],
     ["lockedError", appErrorSchema],
     ["exportError", appErrorSchema],
     ["importSummary", importSummarySchema],
@@ -105,5 +106,13 @@ describe("contrato TS → Rust", () => {
     const input: GuionImportInputDto = { token: "", profile: profileDefinitionSchema.parse(fixture.inputs.guionImportInput.profile), projectName: "", saveProfileAs: null };
     expect(sortedKeys(input)).toEqual(sortedKeys(fixture.inputs.guionImportInput));
     expect(() => guionImportInputSchema.parse(fixture.inputs.guionImportInput)).not.toThrow();
+    const originExport: OriginExportInputDto = {
+      tester: "",
+      observations: "",
+      includeEvidence: true,
+      imageMaxWidth: 940,
+    };
+    expect(sortedKeys(originExport)).toEqual(sortedKeys(fixture.inputs.originExportInput));
+    expect(() => originExportInputSchema.parse(fixture.inputs.originExportInput)).not.toThrow();
   });
 });

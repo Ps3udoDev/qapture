@@ -61,7 +61,6 @@ pub fn save_atomic(workbook: &mut Workbook, dest: &Path) -> AppResult<()> {
 }
 
 /// Escribe los bytes dados en un temporal junto al destino y lo renombra de forma atómica.
-#[allow(dead_code)] // Consumido por el comando export_origin (G4-T5).
 pub fn save_bytes_atomic(bytes: &[u8], dest: &Path) -> AppResult<()> {
     ensure_writable(dest)?;
     let tmp = dest.with_extension(format!("{}.tmp", new_id()));

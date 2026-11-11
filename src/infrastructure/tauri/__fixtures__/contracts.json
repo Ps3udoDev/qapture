@@ -1712,6 +1712,12 @@
       },
       "templateId": "tpl-funcional"
     },
+    "originExportInput": {
+      "imageMaxWidth": 940,
+      "includeEvidence": true,
+      "observations": "Corrida funcional completada.",
+      "tester": "Ana Pérez"
+    },
     "projectGithubInput": {
       "evidenceRepo": "TEAMS4SOFT/qa-evidencias",
       "repos": [
@@ -1812,6 +1818,20 @@
     "code": "file_locked",
     "detail": "archivo en uso: C:\\Users\\ana\\Documents\\matriz.xlsx",
     "message": "Cierra el archivo en Excel y vuelve a intentar."
+  },
+  "originInfo": {
+    "casesWritten": 36,
+    "evidence": 12,
+    "fileName": "guion_sintetico.xlsx",
+    "formulas": [
+      "I16"
+    ],
+    "sheet": "Guión de Pruebas",
+    "suggestedName": "guion_sintetico_ejecutado.xlsx",
+    "unavailable": null,
+    "unmapped": [
+      "CP99"
+    ]
   },
   "packageExportResult": {
     "cases": 10,

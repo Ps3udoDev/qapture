@@ -129,6 +129,28 @@ export const exportProgressSchema = z.strictObject({
   total: z.number().int(),
 });
 
+export const originInfoSchema = z.strictObject({
+  fileName: z.string(),
+  sheet: z.string(),
+  casesWritten: z.number().int(),
+  unmapped: z.array(z.string()),
+  evidence: z.number().int(),
+  formulas: z.array(z.string()),
+  unavailable: z.string().nullable(),
+  suggestedName: z.string(),
+});
+
+export type OriginInfoDto = z.infer<typeof originInfoSchema>;
+
+export const originExportInputSchema = z.strictObject({
+  tester: z.string(),
+  observations: z.string(),
+  includeEvidence: z.boolean(),
+  imageMaxWidth: z.number().int(),
+});
+
+export type OriginExportInputDto = z.infer<typeof originExportInputSchema>;
+
 export const importSummarySchema = z.strictObject({
   projects: z.array(z.strictObject({ id: z.string(), name: z.string() })),
   cases: z.number().int(),
