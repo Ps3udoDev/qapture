@@ -1,5 +1,7 @@
 # G · Bloque 1 — Importar guion de pruebas (G1) · Implementation Plan
 
+> **Seguimiento de ejecución (2026-11-11):** T1–T7 completadas y revisadas; T8 tiene código y verificación automática completos. La prueba de escritorio y el cierre del criterio G1 siguen pendientes de resultado humano. Ver [handoffs G1](../handoffs/g1/README.md) y [revisión final](../handoffs/g1/revision-final.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** El tester elige el `.xlsx` del guion del cliente en «Datos › Importar guion de pruebas…», mapea sus columnas en un asistente de 3 pasos y obtiene un proyecto con un caso por fila, la copia del archivo guardada y, si quiere, un perfil reutilizable para el siguiente guion.
@@ -71,11 +73,11 @@
   - `read::column_letter(index: u32) -> String` (`0 → "A"`, `26 → "AA"`) y `read::column_index(letter: &str) -> Option<u32>` (solo `A`–`XFD`, mayúsculas).
   - `guion_fixture::Put { Text(&'static str), Date(u16, u8, u8) }` y `guion_fixture::build_edited(puts: &[(u32, u16, Put)]) -> Vec<u8>` (fila y columna 0-based; escribe sobre el fixture base). `build()` pasa a ser `build_edited(&[])`.
 
-- [ ] **Step 1: Mover `calamine` a `[dependencies]`**
+- [x] **Step 1: Mover `calamine` a `[dependencies]`**
 
 Quitarla de `[dev-dependencies]` y agregar `calamine = "0.36.1"` en `[dependencies]`, junto a `rust_xlsxwriter`, con el comentario `# Lectura del guion del cliente (G1).` Run: `cargo test excel::guion_fixture` → 3 passed (el resto del árbol compila igual).
 
-- [ ] **Step 2: Write the failing tests** (`read.rs`, `mod tests`)
+- [x] **Step 2: Write the failing tests** (`read.rs`, `mod tests`)
 
 ```rust
 #[test]
@@ -141,12 +143,12 @@ fn column_letters_round_trip() {
 
 También `read::parse_date(cell: &Cell) -> Option<String>` en las Interfaces: `Date` tal cual; `Text` con `AAAA-MM-DD` o `dd/mm/aaaa` válidos; `Number` entre 1 y 2 958 465 como número de serie de Excel (base 1899-12-30); el resto, `None`.
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `cargo test transfer::guion::read`
 Expected: FAIL de compilación (`read`, `Cell`, `build_edited` no existen).
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 - `read`: si los bytes empiezan con la firma CFB `D0 CF 11 E0 A1 B1 1A E1` → `PROTECTED` si contienen `EncryptedPackage` en UTF-16LE; si no, `NOT_XLSX`. Si no, `calamine::open_workbook_from_rs::<Xlsx<_>, _>(Cursor::new(bytes))`; cualquier error de calamine → `NOT_XLSX`. Hojas con `SheetVisible::Visible` de `sheets_metadata()`. `load_merged_regions()` antes de leer; `merged_regions_by_sheet`.
 - Conversión de `calamine::Data`: `String` → `Text`; `Float`/`Int` → `Number`; `Bool` → `Text("true"|"false")`; `DateTime(d)` → `Date` con `d.to_ymd_hms_milli()` (sin feature `chrono` de calamine); `DateTimeIso(s)` → `Date` si sus 10 primeros caracteres pasan `is_iso_date`, si no `Text(s)`; `Error`/`Empty`/`DurationIso` → `Empty`. Los textos solo de espacios → `Empty`.
@@ -154,11 +156,11 @@ Expected: FAIL de compilación (`read`, `Cell`, `build_edited` no existen).
 - `suggest_header_row`: la primera fila (de las 200 primeras) con al menos 4 celdas `Text` seguidas y alguna celda no vacía en la fila siguiente.
 - `guion_fixture::build_edited`: el contenido de `build()` y luego cada `Put` (`Date` con `ExcelDateTime::from_ymd` y formato `dd/mm/yyyy`).
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `cargo test transfer::guion::read` → 5 passed. `cargo test excel::` → todo verde (el fixture no cambió).
 
-- [ ] **Step 6: Lint y commit**
+- [x] **Step 6: Lint y commit**
 
 ```bash
 git add src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/src/transfer src-tauri/src/excel/guion_fixture.rs
@@ -191,7 +193,7 @@ git commit -m "feat(g1): leer el guion del cliente con calamine"
   - `profile::uses_conditioned(def: &ProfileDefinition) -> bool`.
   - `profile::match_option(options: &[String], raw: &str) -> Option<String>`: la opción cuyo `fold` coincide.
 
-- [ ] **Step 1: Write the failing tests** (`profile.rs`, en un `#[cfg(test)] pub(crate) mod tests`, con `pub(crate) fn reference() -> ProfileDefinition`. Es el perfil del spec §5 completado a las 13 columnas del fixture: C código, F título, K estado y campos A, B, D, E, G, H — lista `["Crítico", "Importante"]` —, I — fecha, `executionDate` —, J, L — `tester` — y M — `longtext`, `conditions` —, con `default_status_map()` y la carátula `D5`/`D6`/`D8`. Las Tasks 3 a 5 lo reutilizan)
+- [x] **Step 1: Write the failing tests** (`profile.rs`, en un `#[cfg(test)] pub(crate) mod tests`, con `pub(crate) fn reference() -> ProfileDefinition`. Es el perfil del spec §5 completado a las 13 columnas del fixture: C código, F título, K estado y campos A, B, D, E, G, H — lista `["Crítico", "Importante"]` —, I — fecha, `executionDate` —, J, L — `tester` — y M — `longtext`, `conditions` —, con `default_status_map()` y la carátula `D5`/`D6`/`D8`. Las Tasks 3 a 5 lo reutilizan)
 
 ```rust
 #[test]
@@ -252,17 +254,17 @@ fn structural_problems_are_listed() {
 
 `with_column` (copia de un `ColumnMap` con otra letra) y `field_mut(def, letra)` son helpers del módulo de pruebas. `field_mut` devuelve un `FieldMut { options: &mut Vec<String>, role: &mut Option<FieldRole> }` del `Target::Field` de esa columna. Los demás problemas que `problems` también revisa, con estos textos: `La fila de encabezados debe ser 1 o mayor.`, `Solo una columna puede ser el código.` / `… el título.`, `La clave «<key>» se repite.`, `«<label>» necesita un nombre.`, `«condicionado» está reservado para la casilla Condicionado.` (si un campo usa `CONDITIONED_KEY` y el mapa usa `CONDITIONED`), `El rol «<rol>» está en dos columnas.`, `El tipo «<tipo>» no se puede importar.` (P5). Etiquetas de rol: «Fecha de ejecución», «Tester», «Condiciones».
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cargo test transfer::guion::profile` → FAIL de compilación.
 
-- [ ] **Step 3: Implement** los tipos y funciones de las Interfaces. `fold` en `domain/text.rs` con su test (`fold("  Crìtico   Alto ") == "critico alto"`); `slugify` usa el mismo mapa de acentos, y sus pruebas siguen iguales.
+- [x] **Step 3: Implement** los tipos y funciones de las Interfaces. `fold` en `domain/text.rs` con su test (`fold("  Crìtico   Alto ") == "critico alto"`); `slugify` usa el mismo mapa de acentos, y sus pruebas siguen iguales.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cargo test transfer::guion::profile domain::text` → verde.
 
-- [ ] **Step 5: Lint y commit** — `feat(g1): perfil de importación del guion`
+- [x] **Step 5: Lint y commit** — `feat(g1): perfil de importación del guion`
 
 ---
 
@@ -287,7 +289,7 @@ Run: `cargo test transfer::guion::profile domain::text` → verde.
   - `repo::guion::case_rows(conn, project_id: &str) -> AppResult<Vec<(String, u32)>>` (`case_id`, fila), en el orden de los casos.
   - `repo::evidence::references` agrega cada `project_source.stored_path` al conjunto de rutas referenciadas.
 
-- [ ] **Step 1: Write the failing tests** (`repo/guion.rs` y `repo/evidence.rs`)
+- [x] **Step 1: Write the failing tests** (`repo/guion.rs` y `repo/evidence.rs`)
 
 ```rust
 #[test]
@@ -316,13 +318,13 @@ fn source_rows_go_away_with_their_project_and_cases() { /* borrar un caso quita 
 
 En `repo/evidence.rs`: `sweep_keeps_the_guion_copy`. Con un `project_source` cuyo `stored_path` es `evidence/<p>/guion.xlsx` y el archivo en disco, `sweep_orphans` devuelve 0 y el archivo sigue ahí. En `db/mod.rs`, `migrations_are_idempotent` también comprueba `SELECT project_id, definition FROM project_source`.
 
-- [ ] **Step 2: Run tests to verify they fail** — `cargo test repo::guion repo::evidence db::` → FAIL.
+- [x] **Step 2: Run tests to verify they fail** — `cargo test repo::guion repo::evidence db::` → FAIL.
 
-- [ ] **Step 3: Implement** la migración, el DTO y el repositorio. Los tests de `case_rows` y `source` insertan las filas con SQL directo; la escritura real llega en la Task 5.
+- [x] **Step 3: Implement** la migración, el DTO y el repositorio. Los tests de `case_rows` y `source` insertan las filas con SQL directo; la escritura real llega en la Task 5.
 
-- [ ] **Step 4: Run tests to verify they pass** — `cargo test repo:: db::` → verde.
+- [x] **Step 4: Run tests to verify they pass** — `cargo test repo:: db::` → verde.
 
-- [ ] **Step 5: Lint y commit** — `feat(g1): tablas y repositorios del origen del guion`
+- [x] **Step 5: Lint y commit** — `feat(g1): tablas y repositorios del origen del guion`
 
 ---
 
@@ -350,7 +352,7 @@ Reglas de `plan`, en este orden:
 6. Campos: `list` → `match_option`; sin coincidencia → la opción se agrega a la lista del campo (una vez) y se avisa `«<valor>» no estaba en la lista de «<label>»; se agregó como opción.`. `date` → `read::parse_date`; si da `None` con la celda llena, el valor queda vacío y se avisa `<código>: «<valor>» no es una fecha en «<label>»; se deja vacía.`. `text` con algún valor de más de 500 caracteres → el campo pasa a `longtext` (como `legacy::columns_for`). Valor de más de 16 000 → error `<código>: «<label>» supera 16000 caracteres.`
 7. `fields`: los campos del perfil en el orden de sus columnas y, si `uses_conditioned`, al final `condicionado` / `Condicionado` / `boolean`.
 
-- [ ] **Step 1: Write the failing tests** (`import.rs`)
+- [x] **Step 1: Write the failing tests** (`import.rs`)
 
 ```rust
 #[test]
@@ -410,13 +412,13 @@ fn detects_the_cover_cells() {
 
 El aviso de filas vacías tiene singular y plural: `Se omitió 1 fila vacía.` / `Se omitieron <n> filas vacías.`
 
-- [ ] **Step 2: Run tests to verify they fail** — `cargo test transfer::guion::import` → FAIL.
+- [x] **Step 2: Run tests to verify they fail** — `cargo test transfer::guion::import` → FAIL.
 
-- [ ] **Step 3: Implement** `plan` y `detect_cover`. Para vaciar celdas en las pruebas, `guion_fixture::Put` suma la variante `Blank`.
+- [x] **Step 3: Implement** `plan` y `detect_cover`. Para vaciar celdas en las pruebas, `guion_fixture::Put` suma la variante `Blank`.
 
-- [ ] **Step 4: Run tests to verify they pass** — `cargo test transfer::guion` → verde.
+- [x] **Step 4: Run tests to verify they pass** — `cargo test transfer::guion` → verde.
 
-- [ ] **Step 5: Lint y commit** — `feat(g1): vista previa del guion con avisos y errores`
+- [x] **Step 5: Lint y commit** — `feat(g1): vista previa del guion con avisos y errores`
 
 ---
 
@@ -443,7 +445,7 @@ Comportamiento de `import`:
 - Copia: `write_file(project_id, GUION_FILE, bytes)`; `sha256` en hex minúsculas (`sha2`).
 - Una transacción: `create_profile` si `save_profile_as` (su id va a `BundleSource.profile_id`), `insert_in`, commit y `files.commit()`. Si algo falla, `ImportFiles` borra la carpeta al soltarse.
 
-- [ ] **Step 1: Write the failing tests** (`import.rs`)
+- [x] **Step 1: Write the failing tests** (`import.rs`)
 
 ```rust
 #[test]
@@ -488,13 +490,13 @@ fn errors_in_the_preview_stop_the_import() {
 
 `request` arma un `ImportRequest` con `file_name = "guion_cliente.xlsx"` y `project_name = "guion_cliente"`. En `bundle.rs`, los tests existentes siguen verdes sin cambios de aserciones.
 
-- [ ] **Step 2: Run tests to verify they fail** — `cargo test transfer::guion::import transfer::bundle` → FAIL.
+- [x] **Step 2: Run tests to verify they fail** — `cargo test transfer::guion::import transfer::bundle` → FAIL.
 
-- [ ] **Step 3: Implement** según las Interfaces.
+- [x] **Step 3: Implement** según las Interfaces.
 
-- [ ] **Step 4: Run tests to verify they pass** — `cargo test transfer::` → verde (legacy y package incluidos).
+- [x] **Step 4: Run tests to verify they pass** — `cargo test transfer::` → verde (legacy y package incluidos).
 
-- [ ] **Step 5: Lint y commit** — `feat(g1): importar el guion como proyecto, todo o nada`
+- [x] **Step 5: Lint y commit** — `feat(g1): importar el guion como proyecto, todo o nada`
 
 ---
 
@@ -520,17 +522,17 @@ fn errors_in_the_preview_stop_the_import() {
     - `import_profiles_list(state) -> AppResult<Vec<ImportProfileDto>>` y `import_profile_delete(state, id: String) -> AppResult<()>`.
   - Muestras en `data_samples()`: `guionInspect`, `guionPreview`, `importProfile` e `inputs.guionImportInput`. Esquemas `zod` estrictos en `dto.ts`: `guionInspectSchema`, `guionPreviewSchema`, `importProfileSchema` y `profileDefinitionSchema` (con `target` como `z.discriminatedUnion("kind", …)`).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - Rust: `state.rs` → `a_pending_guion_is_only_reachable_with_its_token` (token correcto devuelve el nombre; otro token y tras `clear_guion` dan `Vuelve a elegir el archivo del guion.`). `dto.rs` → `inputs_deserialize_from_ts_shape` y `inputs_reject_unknown_fields` cubren `guionImportInput`, con `profile` incluido. `commands/guion.rs` → `suggests_a_profile_whose_headers_match` sobre una función pura `suggested_profile(book, profiles) -> Option<String>` (coincide con el fixture; con un encabezado cambiado, no).
   - TS: `contract.test.ts` agrega `["guionInspect", guionInspectSchema]`, `["guionPreview", guionPreviewSchema]` y `["importProfile", importProfileSchema]`. En «TS → Rust», `profileDefinitionSchema.parse(fixture.inputs.guionImportInput.profile)`, y las claves de un `GuionImportInput` de TS son exactamente las del fixture.
 
-- [ ] **Step 2: Run tests to verify they fail** — `cargo test commands::guion state dto` y `npx vitest run src/infrastructure/tauri/contract.test.ts` → FAIL.
+- [x] **Step 2: Run tests to verify they fail** — `cargo test commands::guion state dto` y `npx vitest run src/infrastructure/tauri/contract.test.ts` → FAIL.
 
-- [ ] **Step 3: Implement**, registrar los 5 comandos en `names.rs`, `generate_handler!` y `main.json` (`allow-guion-inspect`, …), y regenerar el fixture: `UPDATE_CONTRACTS=1 cargo test contract` (PowerShell: `$env:UPDATE_CONTRACTS=1; cargo test contract; Remove-Item Env:UPDATE_CONTRACTS`).
+- [x] **Step 3: Implement**, registrar los 5 comandos en `names.rs`, `generate_handler!` y `main.json` (`allow-guion-inspect`, …), y regenerar el fixture: `UPDATE_CONTRACTS=1 cargo test contract` (PowerShell: `$env:UPDATE_CONTRACTS=1; cargo test contract; Remove-Item Env:UPDATE_CONTRACTS`).
 
-- [ ] **Step 4: Run tests to verify they pass** — `cargo test` (todo, incluidos los de `names.rs`) y `npx vitest run src/infrastructure/tauri/contract.test.ts` → verde.
+- [x] **Step 4: Run tests to verify they pass** — `cargo test` (todo, incluidos los de `names.rs`) y `npx vitest run src/infrastructure/tauri/contract.test.ts` → verde.
 
-- [ ] **Step 5: Lint y commit** — `feat(g1): comandos del asistente de guion y su contrato`
+- [x] **Step 5: Lint y commit** — `feat(g1): comandos del asistente de guion y su contrato`
 
 ---
 
@@ -559,17 +561,17 @@ fn errors_in_the_preview_stop_the_import() {
   - Casos de uso: `importGuion(repos, input): Promise<Outcome<ImportSummary>>` (error de validación → `{ ok: false, errors: { _form } }`).
   - Slice `GuionSlice`: `guionWizard: { inspection: GuionInspection; preview: GuionPreview | null; profiles: ImportProfile[] } | null`, `openGuionImport(): Promise<void>` (exclusivo con `dataBusy`; cancelar el diálogo no abre nada), `previewGuion(profile): Promise<void>`, `importGuion(input): Promise<FormResult>` (si sale bien, cierra el asistente, recarga y selecciona el proyecto y muestra el toast `importSummaryMessage` y los `warnings`), `closeGuionImport(): void` y `deleteImportProfile(id): Promise<void>`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `guion.test.ts`: `suggestTarget` sobre los 13 `HEADERS` del fixture con 36 valores de ejemplo da `code` para «ID», `title` para «Escenario de Prueba», `status` para «Status», `list` para «Criticidad», `date` + `executionDate` para «Fecha de Prueba», `tester` para «Nombre del tester» y `conditions` para «Condiciones». `fold("  Crìtico   Alto ") === "critico alto"`. `columnLetter(26) === "AA"`. `buildProfile` arma un perfil cuyo JSON coincide con `fixture.inputs.guionImportInput.profile` en la forma (claves).
   - `guion-slice.test.ts`: abrir, previsualizar e importar con el repositorio en memoria; tras importar, `project.name` es el importado y el asistente queda cerrado. Con `mode = "cancel"`, `guionWizard` sigue en `null`. Un error de validación al importar vuelve como `{ ok: false }` y el asistente sigue abierto.
 
-- [ ] **Step 2: Run tests to verify they fail** — `npx vitest run src/domain/guion.test.ts src/ui/store/guion-slice.test.ts` → FAIL.
+- [x] **Step 2: Run tests to verify they fail** — `npx vitest run src/domain/guion.test.ts src/ui/store/guion-slice.test.ts` → FAIL.
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
 
-- [ ] **Step 4: Run tests to verify they pass** — los dos archivos, más `npm run typecheck` y `npm run lint`.
+- [x] **Step 4: Run tests to verify they pass** — los dos archivos, más `npm run typecheck` y `npm run lint`.
 
-- [ ] **Step 5: Commit** — `feat(g1): puerto, casos de uso y estado del import de guion`
+- [x] **Step 5: Commit** — `feat(g1): puerto, casos de uso y estado del import de guion`
 
 ---
 
@@ -589,18 +591,18 @@ Contenido de cada paso (textos fijos entre comillas):
 2. **«Columnas»**: campo numérico «Fila de encabezados» (precargado con `suggestedHeaderRow`; si es `null`, vacío y el aviso `No se encontró la fila de encabezados. Elígela a mano.`). Una fila por columna con encabezado: letra, encabezado, `select` de destino («Código», «Título», «Estado», «Campo nuevo», «No importar»), tipo («Texto», «Texto largo», «Lista», «Fecha») y rol para exportar («Ninguno», «Fecha de ejecución», «Tester», «Condiciones»), precargados con `suggestTarget`. Si hay columna de estado, la tabla «Estados» lista cada valor de `statusValues` con un `select` de `QAPTURE_STATUS_TARGETS`. Si se detectó la carátula, la línea «Carátula: fecha en <celda> · responsable en <celda> · observaciones en <celda>» y la casilla «Usar estas celdas» (marcada). Botón «Vista previa».
 3. **«Vista previa»**: «<n> casos» y una tabla con fila, código, título y estado. Los errores en rojo y los avisos aparte. Campo «Nombre del proyecto» (el nombre del archivo sin `.xlsx`), casilla «Guardar como perfil» con su campo «Nombre del perfil». «Importar» queda deshabilitado si hay errores o si el nombre del proyecto está vacío. Los errores de validación del import se muestran en el diálogo.
 
-- [ ] **Step 1: Write the failing tests** (`ImportGuion.test.tsx`, con `renderWithStore` de `test-utils` y repositorios en memoria)
+- [x] **Step 1: Write the failing tests** (`ImportGuion.test.tsx`, con `renderWithStore` de `test-utils` y repositorios en memoria)
   - `el menú Datos abre el asistente y cancelar el archivo no abre nada`.
   - `recorre los tres pasos e importa`: elige la hoja, comprueba la fila 15 precargada y que «ID» tenga «Código», pasa a la vista previa («3 casos»), escribe el nombre del proyecto e importa. El proyecto queda abierto y el diálogo, cerrado.
   - `con códigos repetidos Importar queda deshabilitado y se ve el error` (`Hay códigos repetidos: CP01.`).
   - `sin columna de código la vista previa lo dice` (`Falta asignar la columna del código del caso.`).
   - `un perfil sugerido salta al paso 3 y se puede borrar`.
 
-- [ ] **Step 2: Run tests to verify they fail** — `npx vitest run src/ui/screens/ImportGuion.test.tsx` → FAIL.
+- [x] **Step 2: Run tests to verify they fail** — `npx vitest run src/ui/screens/ImportGuion.test.tsx` → FAIL.
 
-- [ ] **Step 3: Implement** el diálogo y el ítem de menú; `AppShell` monta `ImportGuionDialog` cuando `guionWizard` no es `null`.
+- [x] **Step 3: Implement** el diálogo y el ítem de menú; `AppShell` monta `ImportGuionDialog` cuando `guionWizard` no es `null`.
 
-- [ ] **Step 4: Run tests to verify they pass** — el archivo, más `npx vitest run` (toda la suite), `npm run typecheck`, `npm run lint` y, desde `src-tauri/`, `cargo test`, `cargo fmt --check` y `cargo clippy --all-targets -- -D warnings`.
+- [x] **Step 4: Run tests to verify they pass** — el archivo, más `npx vitest run` (toda la suite), `npm run typecheck`, `npm run lint` y, desde `src-tauri/`, `cargo test`, `cargo fmt --check` y `cargo clippy --all-targets -- -D warnings`.
 
 - [ ] **Step 5: Prueba manual (la pide el implementador a una persona)**
 

@@ -51,3 +51,7 @@ Con `npm run tauri dev`, elegir «Datos › Importar guion de pruebas…» e imp
 El controlador solicitará esta comprobación a una persona y agregará la evidencia; el criterio G1 permanece sin marcar hasta entonces.
 
 ## Revisión (la llena el controlador)
+- Spec: ✅ · Calidad: Aprobada. Revisión independiente del diff `1609889..f5a4d3e`, completada junto con la auditoría global.
+- Sin Critical ni Important. Navegación, perfiles, confirmación de borrado, mapeo, errores y exclusión de operaciones verificados.
+- Minor aceptado: seleccionar manualmente una fila de encabezados no recalcula la carátula cuando la inspección no la detectó; queda documentado para G4.
+- Prueba manual solicitada a una persona mediante la conversación el 2026-11-11; sin resultado recibido. No se marca el criterio G1 como aceptado.

@@ -39,3 +39,6 @@ Todos los comandos desde `src-tauri/`.
 - Los límites siguen siendo los de los editores existentes (100 caracteres por opción y 50 opciones). La promoción evita imponer al tester una limpieza manual de su guion.
 
 ## Revisión (la llena el controlador)
+- Spec: ✅ · Calidad: Aprobada. Revisión independiente de `1609889`.
+- Ambos Important resueltos: los casos y columnas importados siguen siendo editables al superar los límites de listas; crear y duplicar saltan códigos ocupados bajo la misma transacción.
+- Las cinco regresiones comprueban conservación de valores, definición original, límites válidos y asignación de códigos. Sin hallazgos pendientes.

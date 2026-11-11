@@ -72,11 +72,21 @@ Sin rutas personales, contraseñas ni datos de clientes. Los comandos indican de
 | 1 · Lector de guion | ✅ | `806a186` | Spec ✅ · Calidad aprobada · 1 Minor |
 | 2 · Perfil de importación | ✅ | `ed09680` | Spec ✅ · Calidad aprobada · 1 Minor |
 | 3 · Migración y repositorios | ✅ | `248d731` | Spec ✅ · 1 Important corregido en ronda 1 |
-| 4 · Vista previa | ✅ | `fe9ea84` | Spec ✅ · 1 Important corregido en ronda 1 |
-| 5 · Importación transaccional | ✅ | `361397d` | Spec ✅ · Calidad aprobada |
+| 4 · Vista previa | ✅ | `fe9ea84`, `1609889` | Spec ✅ · Important corregidos en rondas 1 y 2 |
+| 5 · Importación transaccional | ✅ | `361397d`, `1609889` | Spec ✅ · Calidad aprobada · Integración corregida |
 | 6 · Comandos y contrato | ✅ | `1afa730` | Spec ✅ · Calidad aprobada · 1 Minor |
 | 7 · Puerto y estado | ✅ | `a13fbe1` | Spec ✅ · Calidad aprobada · Minor corregido |
-| 8 · Asistente y cierre | Pendiente | — | Pendiente |
+| 8 · Asistente y cierre | ✅ código y pruebas automáticas; manual pendiente | `f5a4d3e` | Spec ✅ · Calidad aprobada · 1 Minor |
+
+## Cierre de implementación · 2026-11-11
+
+- [Tarea 1](tarea-1.md), [tarea 2](tarea-2.md), [tarea 3](tarea-3.md), [tarea 4](tarea-4.md), [tarea 5](tarea-5.md), [tarea 6](tarea-6.md), [tarea 7](tarea-7.md) y [tarea 8](tarea-8.md): implementación, pruebas y revisión por tarea.
+- [Correcciones de integración](correcciones-integracion.md): listas grandes conservadas como texto largo y generación de códigos que salta los `EJ-NNN` ocupados. Se conserva la definición del perfil de origen y `next_sequence = 1` al importar.
+- [Revisión final independiente](revision-final.md): veredicto de la rama y limitaciones para el siguiente revisor.
+- Verificación final: **405 pruebas TS** en 58 archivos; **543 pruebas Rust de biblioteca y 4 de integración**, todas correctas. Las 4 pruebas Rust ignoradas requieren condiciones especiales y no se contabilizan como realizadas.
+- `npm run typecheck`, `npm run lint`, `npm run build`, `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` y `git diff --check`: correctos. El build avisa de un chunk principal de 505,92 kB; no bloquea la compilación. El aviso de enlace MSVC está documentado en los reportes.
+- **Pendiente:** prueba de escritorio y tiempo menor de un minuto, incluida la reutilización del perfil. Se solicitó a una persona en la conversación; no hay resultado recibido al cerrar esta implementación. El criterio G1 del contrato sigue pendiente.
+- G2, G4, cambios de versión y release quedan fuera de este bloque. El formato 1 de paquetes todavía no permite reimportar códigos arbitrarios del guion; G2 debe resolverlo junto con el traslado de los archivos de origen.
 
 ## Notas del controlador
 
