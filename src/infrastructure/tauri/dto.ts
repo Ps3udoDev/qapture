@@ -61,6 +61,17 @@ export const caseSchema = z.strictObject({
   updatedAt: z.string(),
 });
 
+export const fixtureSchema = z.strictObject({
+  id: z.string(),
+  caseId: z.string(),
+  fileName: z.string(),
+  size: z.number().int(),
+  sha256: z.string(),
+  note: z.string(),
+  position: z.number().int(),
+  addedAt: z.string(),
+});
+
 export const appErrorSchema = z.strictObject({
   code: z.enum(["validation", "not_found", "db", "io", "capture", "file_locked", "export", "corrupt", "internal",
     "gh_auth", "gh_forbidden", "gh_not_found", "gh_rate_limited", "gh_offline", "gh_keyring", "gh_validation", "gh_conflict"]),
@@ -131,6 +142,7 @@ export const packageExportResultSchema = z.strictObject({
   cases: z.number().int(),
   evidence: z.number().int(),
   missingImages: z.number().int(),
+  missingFiles: z.number().int(),
 });
 
 export const backupSchema = z.strictObject({
@@ -144,6 +156,7 @@ export const restoreResultSchema = z.strictObject({
   restored: backupSchema,
   safetyCopy: z.string(),
   missingImages: z.number().int(),
+  missingFiles: z.number().int(),
   setAsideFiles: z.number().int(),
 });
 

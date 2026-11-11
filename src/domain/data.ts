@@ -19,6 +19,7 @@ export interface PackageExportResult {
   cases: number;
   evidence: number;
   missingImages: number;
+  missingFiles: number;
 }
 
 export const BACKUP_KINDS = ["daily", "manual", "before-restore", "before-migration"] as const;
@@ -36,6 +37,7 @@ export interface RestoreResult {
   restored: Backup;
   safetyCopy: string;
   missingImages: number;
+  missingFiles: number;
   setAsideFiles: number;
 }
 
@@ -86,9 +88,18 @@ export function formatSize(bytes: number): string {
   return `${(kb / 1024).toFixed(1).replace(".", ",")} MB`;
 }
 
+export function missingFilesMessage(n: number): string {
+  return `${count(n, "archivo de prueba o del guion", "archivos de prueba o del guion")} no ${n === 1 ? "está" : "están"} en disco y no se ${n === 1 ? "incluyó" : "incluyeron"}.`;
+}
+
 export function restoreMessage(result: RestoreResult): string {
-  const base = `Se restauró el respaldo del ${formatBackupDate(result.restored.createdAt)}.`;
+  let message = `Se restauró el respaldo del ${formatBackupDate(result.restored.createdAt)}.`;
   const n = result.missingImages;
-  if (n === 0) return base;
-  return `${base} ${count(n, "captura", "capturas")} del respaldo ya no ${n === 1 ? "tiene" : "tienen"} imagen.`;
+  if (n > 0) {
+    message += ` ${count(n, "captura", "capturas")} del respaldo ya no ${n === 1 ? "tiene" : "tienen"} imagen.`;
+  }
+  if (result.missingFiles > 0) {
+    message += ` ${count(result.missingFiles, "archivo de prueba o del guion", "archivos de prueba o del guion")} del respaldo ya no ${result.missingFiles === 1 ? "está" : "están"} en disco.`;
+  }
+  return message;
 }

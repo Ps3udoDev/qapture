@@ -184,6 +184,10 @@ impl AppState {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
+    pub fn with_conn<T>(&self, run: impl FnOnce(&Connection) -> AppResult<T>) -> AppResult<T> {
+        run(&self.db())
+    }
+
     /// El mutex de la base, para código async que solo la bloquea entre `.await`
     /// (p. ej. `auth::complete`). Nunca retener el candado durante un `.await`.
     pub fn db_mutex(&self) -> &Mutex<Connection> {

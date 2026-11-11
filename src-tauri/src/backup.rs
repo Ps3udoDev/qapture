@@ -16,7 +16,7 @@ use crate::{
     dto::{BackupDto, BackupKind, RestoreResultDto},
     error::{AppError, AppResult, validation},
     media::storage::EvidenceFiles,
-    repo::evidence,
+    repo::{evidence, fixtures},
 };
 
 pub const BACKUP_DIR: &str = "backups";
@@ -250,12 +250,17 @@ impl Backups {
             .restore(MAIN_DB, &source, None::<fn(Progress)>)
             .map_err(AppError::from)
             .and_then(|()| db::prepare(conn))
-            .and_then(|()| evidence::missing_images(conn, files));
+            .and_then(|()| {
+                let missing_images = evidence::missing_images(conn, files)?;
+                let missing_files = fixtures::missing_files(conn, files)?;
+                Ok((missing_images, missing_files))
+            });
         match installed {
-            Ok(missing_images) => Ok(RestoreResultDto {
+            Ok((missing_images, missing_files)) => Ok(RestoreResultDto {
                 restored,
                 safety_copy,
                 missing_images,
+                missing_files,
                 set_aside_files: aside.count() as i64,
             }),
             Err(error) => {
@@ -785,6 +790,7 @@ mod tests {
             .restore(&mut conn, &files, &saved.file_name, at(10, 0, 0))
             .unwrap();
         assert_eq!(result.restored.file_name, saved.file_name);
+        assert_eq!(result.missing_files, 0);
 
         // Comprobaciones
         assert!(f1_path.is_file(), "el primer fixture sigue en su ruta");
