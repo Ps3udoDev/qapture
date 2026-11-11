@@ -1,7 +1,7 @@
 # Tarea 7 · Sección «Archivos de prueba» y cierre de G2 (G2-T4, parte 2)
 
 **Estado:** DONE
-**Commits:** `275860c` (`feat(g2): sección de archivos de prueba en el detalle del caso`)
+**Commits:** `93d1ccd` (`feat(g2): sección de archivos de prueba en el detalle del caso`)
 
 ## Qué se implementó
 - **Componente `FixturesSection` (`src/ui/screens/FixturesSection.tsx`)**:

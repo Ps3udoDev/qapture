@@ -1,6 +1,3 @@
-// Elementos consumidos en Task 3 (repo::fixtures) y Task 4 (transfer::package).
-#![allow(dead_code)]
-
 use std::fs;
 
 use sha2::{Digest, Sha256};

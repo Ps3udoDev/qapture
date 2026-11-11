@@ -1,6 +1,3 @@
-// Elementos consumidos en Task 4 (transfer::package) y Task 5 (commands::fixtures).
-#![allow(dead_code)]
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 

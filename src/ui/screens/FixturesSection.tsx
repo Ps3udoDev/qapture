@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatSize } from "../../domain/data";
 import { FIXTURE_ACCEPT, type Fixture } from "../../domain/fixtures";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { hasFiles } from "../gallery/files";
 import { btn } from "../components/styles";
 import { useWorkspace } from "../store/context";
 
@@ -27,12 +28,14 @@ export function FixturesSection({ caseId }: { caseId: string }) {
       aria-label="Archivos de prueba"
       className={`mt-6 rounded-xl transition-colors ${dropping ? "bg-t4s-blue/5 outline-2 outline-dashed outline-t4s-blue" : ""}`}
       onDragOver={(e) => {
+        if (!hasFiles(e.dataTransfer)) return;
         e.preventDefault();
         e.stopPropagation();
         setDropping(true);
       }}
       onDragLeave={() => setDropping(false)}
       onDrop={async (e) => {
+        if (!hasFiles(e.dataTransfer)) return;
         e.preventDefault();
         e.stopPropagation();
         setDropping(false);

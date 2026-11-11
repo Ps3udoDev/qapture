@@ -28,7 +28,8 @@ export function createFixtureSlice(
     fixturesCaseId: null,
 
     async loadFixtures(caseId: string): Promise<void> {
-      set({ fixturesCaseId: caseId });
+      // Al cambiar de caso se vacía la lista: nunca se muestran (ni se quitan) archivos de otro caso.
+      if (get().fixturesCaseId !== caseId) set({ fixturesCaseId: caseId, fixtures: [] });
       try {
         const fixtures = await repos.fixtures.list(caseId);
         if (get().fixturesCaseId !== caseId) return;

@@ -116,4 +116,17 @@ describe("fixture slice", () => {
     expect(store.getState().fixturesCaseId).toBe("case-2");
     expect(store.getState().fixtures.map((f) => f.fileName)).toEqual(["caso2.csv"]);
   });
+
+  it("al cambiar de caso no muestra la lista del anterior aunque la carga falle", async () => {
+    const { store, repos } = await setup();
+    await repos.fixtures.add("case-1", "caso1.csv", new Uint8Array([1]));
+    await store.getState().loadFixtures("case-1");
+    expect(store.getState().fixtures).toHaveLength(1);
+
+    repos.fixtures.list = () => Promise.reject(new Error("fallo"));
+    await store.getState().loadFixtures("case-2");
+
+    expect(store.getState().fixturesCaseId).toBe("case-2");
+    expect(store.getState().fixtures).toEqual([]);
+  });
 });

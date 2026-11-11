@@ -168,7 +168,6 @@ pub struct PackageExport {
     /// Capturas omitidas porque falta su original o su render.
     pub missing_images: i64,
     /// Archivos de prueba o de origen del guion omitidos porque no están en disco.
-    #[allow(dead_code)]
     pub missing_files: i64,
     /// Entrada opcional `github.json`: solo si el proyecto tiene datos de GitHub.
     pub github: Option<GithubJson>,

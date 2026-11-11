@@ -42,10 +42,27 @@ Sin rutas personales, contraseñas ni datos de clientes. Los comandos indican de
 
 | Tarea | Estado | Commits | Revisión |
 |---|---|---|---|
-| 1 · Restaurar respaldos anteriores a las tablas del guion | DONE | `b399c5f` | Pendiente |
-| 2 · Almacén en disco de archivos de prueba (G2-T1 p1) | DONE | `39bd023` | Pendiente |
-| 3 · Repositorio de archivos de prueba (G2-T1 p2) | DONE | `89287b7` | Pendiente |
-| 4 · Paquete .qapture formato 2 (G2-T3) | DONE | `3e5403b` | Pendiente |
-| 5 · Comandos y contrato (G2-T2) | DONE | `b0ad666` | Pendiente |
-| 6 · Puerto, adaptadores y estado (G2-T4 p1) | DONE | `28170d9` | Pendiente |
-| 7 · Sección «Archivos de prueba» y cierre (G2-T4 p2) | DONE | `93d1ccd` | Pendiente |
+| 1 · Restaurar respaldos anteriores a las tablas del guion | DONE | `b399c5f` | Aprobada (revisión de rama) |
+| 2 · Almacén en disco de archivos de prueba (G2-T1 p1) | DONE | `39bd023` | Aprobada (revisión de rama) |
+| 3 · Repositorio de archivos de prueba (G2-T1 p2) | DONE | `89287b7` | Aprobada (revisión de rama) |
+| 4 · Paquete .qapture formato 2 (G2-T3) | DONE | `3e5403b` | Aprobada (revisión de rama) |
+| 5 · Comandos y contrato (G2-T2) | DONE | `b0ad666` | Aprobada (revisión de rama) |
+| 6 · Puerto, adaptadores y estado (G2-T4 p1) | DONE | `28170d9` | Aprobada (revisión de rama) |
+| 7 · Sección «Archivos de prueba» y cierre (G2-T4 p2) | DONE | `93d1ccd` | Aprobada (revisión de rama) |
+
+## Revisión de la rama
+
+**Veredicto:** aprobada con correcciones menores (sin hallazgos Critical). Diff completo `main..feat/g2-archivos-de-prueba` revisado contra el plan, el spec y los tests del «Review Focus»; todos existen y pasan.
+
+Correcciones aplicadas en `fix(g2): correcciones de la revisión de la rama`:
+
+| # | Severidad | Hallazgo | Corrección |
+|---|---|---|---|
+| 1 | Important | `loadFixtures` conservaba la lista del caso anterior mientras cargaba (y para siempre si la carga fallaba): «Quitar» podía actuar sobre un archivo de otro caso | Al cambiar de caso la lista se vacía. Test `al cambiar de caso no muestra la lista del anterior aunque la carga falle` (RED → GREEN) |
+| 2 | Minor | La sección aceptaba como zona de soltar cualquier arrastre (p. ej. reordenar capturas) y mostraba el contorno | `onDragOver`/`onDrop` usan `hasFiles`, igual que `CaseDetail` |
+| 3 | Minor | Quedaban `allow(dead_code)` de tareas intermedias en `media/fixtures.rs`, `repo/fixtures.rs` y `PackageExport.missing_files` | Eliminados; clippy sigue limpio |
+| 4 | Minor | `tarea-7.md` citaba un SHA inexistente (`275860c`) | Corregido a `93d1ccd` |
+
+Verificación final (desde `src-tauri/`): `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ · `cargo test` → 564 + 4 passed, 4 ignored. Desde la raíz: `npm run typecheck` ✅ · `npm run lint` ✅ · `npx vitest run` → 61 archivos, 427 tests.
+
+Pendiente antes del PR: la **prueba manual** de la Task 7 (Step 5) con `npm run tauri dev`. El contrato ya marca G2 como completado; según el plan eso se confirma cuando esa prueba pase.
