@@ -34,3 +34,7 @@ Todos los comandos desde `src-tauri/`.
 - El enlazador MSVC puede emitir el aviso previo `linker_messages` de la DLL; no corresponde al lector.
 
 ## Revisión (la llena el controlador)
+- Spec: ✅ · Calidad: Aprobada. Revisión independiente del diff `7b9eab6..806a186`.
+- Sin Critical ni Important. Las cinco pruebas del plan mantienen sus aserciones; se añadió cobertura Unicode y NaN.
+- Minor no bloqueante: ampliar pruebas de rangos desplazados y de encabezados ausentes o fuera de las primeras 200 filas. La implementación inspeccionada cumple esos casos.
+- Integración pendiente en T6: retirar el `allow(dead_code)` temporal cuando se conecten los comandos.
