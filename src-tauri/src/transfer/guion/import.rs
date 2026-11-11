@@ -2,7 +2,6 @@
 use std::collections::{BTreeMap, HashMap};
 
 use rusqlite::Connection;
-use sha2::{Digest, Sha256};
 
 use super::{
     profile::{self, FieldRole, ProfileDefinition, Target},
@@ -60,7 +59,7 @@ pub fn import(
         source: Some(BundleSource {
             file_name: request.file_name.into(),
             stored_path,
-            sha256: format!("{:x}", Sha256::digest(request.bytes)),
+            sha256: crate::media::fixtures::sha256_hex(request.bytes),
             sheet: request.def.sheet.clone(),
             header_row: request.def.header_row,
             profile_id,

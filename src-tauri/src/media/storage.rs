@@ -97,7 +97,7 @@ impl EvidenceFiles {
     /// Borrado de mejor esfuerzo: la base ya no referencia estos archivos y `sweep` limpia lo que quede.
     pub fn remove_files(&self, rels: &[String]) {
         for rel in rels {
-            let _ = fs::remove_file(self.absolute(rel));
+            let _ = remove_file(&self.absolute(rel));
         }
     }
 
@@ -109,7 +109,14 @@ impl EvidenceFiles {
         if !safe {
             return;
         }
-        let _ = fs::remove_dir_all(self.project_dir(project_id));
+        let dir = self.project_dir(project_id);
+        if !dir.exists() {
+            return;
+        }
+        if fs::remove_dir_all(&dir).is_err() {
+            clear_readonly_recursive(&dir);
+            let _ = fs::remove_dir_all(&dir);
+        }
     }
 
     /// Borra lo que la base de datos no referencia: restos de fallos, cierres bruscos
@@ -133,24 +140,29 @@ impl EvidenceFiles {
             }
             if !path.is_dir() || !projects.contains(&name) {
                 let _ = if path.is_dir() {
-                    fs::remove_dir_all(&path)
+                    if fs::remove_dir_all(&path).is_err() {
+                        clear_readonly_recursive(&path);
+                        fs::remove_dir_all(&path)
+                    } else {
+                        Ok(())
+                    }
                 } else {
-                    fs::remove_file(&path)
+                    remove_file(&path)
                 };
                 removed += 1;
                 continue;
             }
-            for file in fs::read_dir(&path)? {
-                let file = file?;
-                let rel = format!(
-                    "{EVIDENCE_DIR}/{name}/{}",
-                    file.file_name().to_string_lossy()
-                );
+            for file_path in collect_files_recursive(&path) {
+                let Ok(rel_from_data) = file_path.strip_prefix(&self.data_dir) else {
+                    continue;
+                };
+                let rel = rel_from_data.to_string_lossy().replace('\\', "/");
                 if !referenced.contains(&rel) {
-                    let _ = fs::remove_file(file.path());
+                    let _ = remove_file(&file_path);
                     removed += 1;
                 }
             }
+            remove_empty_subdirs(&path);
         }
         Ok(removed)
     }
@@ -194,23 +206,29 @@ impl EvidenceFiles {
                 continue;
             }
             let known_project = projects.contains(&name);
-            for file in fs::read_dir(&path)? {
-                let file = file?;
+            for file_path in collect_files_recursive(&path) {
+                let Ok(rel_from_root) = file_path.strip_prefix(&root) else {
+                    continue;
+                };
                 let rel = format!(
-                    "{EVIDENCE_DIR}/{name}/{}",
-                    file.file_name().to_string_lossy()
+                    "{EVIDENCE_DIR}/{}",
+                    rel_from_root.to_string_lossy().replace('\\', "/")
                 );
                 if known_project && referenced.contains(&rel) {
                     continue;
                 }
-                let dest = target.join(&name);
-                fs::create_dir_all(&dest)?;
-                let moved_to = dest.join(file.file_name());
-                fs::rename(file.path(), &moved_to)?;
-                aside.moves.push((file.path(), moved_to));
+                let dest = target.join(rel_from_root);
+                if let Some(parent) = dest.parent() {
+                    fs::create_dir_all(parent)?;
+                }
+                fs::rename(&file_path, &dest)?;
+                aside.moves.push((file_path, dest));
             }
             if !known_project {
+                remove_empty_subdirs(&path);
                 let _ = fs::remove_dir(&path);
+            } else {
+                remove_empty_subdirs(&path);
             }
         }
         Ok(())
@@ -239,10 +257,19 @@ impl SetAside {
                 .map_or(Ok(()), fs::create_dir_all)
                 .and_then(|()| fs::rename(&moved_to, &original));
             match back {
-                // Quita `<stamp>/<proyecto>/` y `<stamp>/` si quedaron vacías (si no, falla y se quedan).
                 Ok(()) => {
-                    for dir in moved_to.ancestors().skip(1).take(2) {
-                        let _ = fs::remove_dir(dir);
+                    if let Some(parent) = moved_to.parent() {
+                        let mut current = parent;
+                        while current.file_name().is_some_and(|name| name != UNUSED_DIR) {
+                            if fs::remove_dir(current).is_err() {
+                                break;
+                            }
+                            if let Some(next) = current.parent() {
+                                current = next;
+                            } else {
+                                break;
+                            }
+                        }
                     }
                 }
                 Err(error) => eprintln!(
@@ -250,6 +277,73 @@ impl SetAside {
                     moved_to.display(),
                     original.display()
                 ),
+            }
+        }
+    }
+}
+
+/// Si existe el archivo, quita la marca de solo lectura si la tiene y lo borra.
+#[allow(clippy::permissions_set_readonly_false)]
+pub(crate) fn remove_file(path: &Path) -> std::io::Result<()> {
+    if path.exists() {
+        if let Ok(meta) = fs::metadata(path) {
+            let mut permissions = meta.permissions();
+            if permissions.readonly() {
+                permissions.set_readonly(false);
+                let _ = fs::set_permissions(path, permissions);
+            }
+        }
+        fs::remove_file(path)
+    } else {
+        Ok(())
+    }
+}
+
+#[allow(clippy::permissions_set_readonly_false)]
+fn clear_readonly_recursive(dir: &Path) {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                clear_readonly_recursive(&path);
+            }
+            if let Ok(meta) = fs::metadata(&path) {
+                let mut p = meta.permissions();
+                if p.readonly() {
+                    p.set_readonly(false);
+                    let _ = fs::set_permissions(&path, p);
+                }
+            }
+        }
+    }
+}
+
+fn collect_files_recursive(dir: &Path) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    collect_files_recursive_into(dir, &mut files);
+    files
+}
+
+fn collect_files_recursive_into(dir: &Path, out: &mut Vec<PathBuf>) {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                collect_files_recursive_into(&path, out);
+            } else if path.is_file() {
+                out.push(path);
+            }
+        }
+    }
+}
+
+fn remove_empty_subdirs(dir: &Path) {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                remove_empty_subdirs(&path);
+                let _ = fs::remove_dir(&path);
             }
         }
     }
@@ -451,5 +545,88 @@ mod tests {
             files.remove_project(id);
         }
         assert!(files.staging_dir().exists());
+    }
+
+    #[test]
+    fn readonly_files_are_removed() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let rel1 = "evidence/p1/fixtures/f1/a.txt".to_string();
+        let path1 = files.absolute(&rel1);
+        fs::create_dir_all(path1.parent().unwrap()).unwrap();
+        fs::write(&path1, b"x").unwrap();
+        let mut p = fs::metadata(&path1).unwrap().permissions();
+        p.set_readonly(true);
+        fs::set_permissions(&path1, p).unwrap();
+        assert!(fs::metadata(&path1).unwrap().permissions().readonly());
+
+        files.remove_files(&[rel1]);
+        assert!(!path1.exists());
+
+        let rel2 = "evidence/p1/fixtures/f2/b.txt".to_string();
+        let path2 = files.absolute(&rel2);
+        fs::create_dir_all(path2.parent().unwrap()).unwrap();
+        fs::write(&path2, b"y").unwrap();
+        let mut p = fs::metadata(&path2).unwrap().permissions();
+        p.set_readonly(true);
+        fs::set_permissions(&path2, p).unwrap();
+
+        files.remove_project("p1");
+        assert!(!files.project_dir("p1").exists());
+    }
+
+    #[test]
+    fn sweep_handles_nested_files() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let keep_rel = "evidence/p1/fixtures/f1/keep.csv".to_string();
+        let orphan_rel = "evidence/p1/fixtures/f2/orphan.csv".to_string();
+        put(&files, &keep_rel);
+        put(&files, &orphan_rel);
+
+        let removed = files
+            .sweep(
+                &HashSet::from([keep_rel.clone()]),
+                &HashSet::from(["p1".to_string()]),
+            )
+            .unwrap();
+        assert_eq!(removed, 1);
+        assert!(files.absolute(&keep_rel).exists());
+        assert!(!files.absolute(&orphan_rel).exists());
+        assert!(!files.project_dir("p1").join("fixtures").join("f2").exists());
+        assert!(files.project_dir("p1").join("fixtures").join("f1").exists());
+    }
+
+    #[test]
+    fn set_aside_handles_nested_files() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let keep_rel = "evidence/p1/fixtures/f1/keep.csv".to_string();
+        let orphan_rel = "evidence/p1/fixtures/f2/orphan.csv".to_string();
+        put(&files, &keep_rel);
+        put(&files, &orphan_rel);
+
+        let aside = files
+            .set_aside(
+                &HashSet::from([keep_rel.clone()]),
+                &HashSet::from(["p1".to_string()]),
+                "20261016-110000",
+            )
+            .unwrap();
+        assert_eq!(aside.count(), 1);
+        assert!(files.absolute(&keep_rel).exists());
+        assert!(!files.absolute(&orphan_rel).exists());
+
+        let target = tmp.path().join(UNUSED_DIR).join("20261016-110000");
+        let moved_file = target
+            .join("p1")
+            .join("fixtures")
+            .join("f2")
+            .join("orphan.csv");
+        assert!(moved_file.exists());
+
+        aside.undo();
+        assert!(files.absolute(&orphan_rel).exists());
+        assert!(!target.exists());
     }
 }
