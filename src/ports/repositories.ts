@@ -21,6 +21,7 @@ import type { IssueTracker } from "./issue-tracker";
 import type { SettingsStore, AgentSettings } from "./settings";
 import type { Updater } from "./updater";
 import type { GuionImporter } from "./guion";
+import type { Fixture } from "../domain/fixtures";
 
 export interface TemplateRepository {
   list(): Promise<Template[]>;
@@ -63,11 +64,20 @@ export interface EvidenceStore {
   remove(evidenceId: string): Promise<void>;
 }
 
+export interface FixtureStore {
+  list(caseId: string): Promise<Fixture[]>;
+  add(caseId: string, fileName: string, bytes: Uint8Array): Promise<Fixture>;
+  remove(id: string): Promise<void>;
+  reveal(id: string): Promise<void>;
+  copyPath(id: string): Promise<void>;
+}
+
 export interface Repositories {
   templates: TemplateRepository;
   projects: ProjectRepository;
   cases: CaseRepository;
   evidence: EvidenceStore;
+  fixtures: FixtureStore;
   capture: ScreenCapture;
   docVersions: DocVersionRepository;
   exporter: Exporter;
