@@ -1,7 +1,7 @@
 # Tarea 7 · Cierre del bloque (G4-T7)
 
 **Estado:** DONE
-**Commits:** `3e7f817` (`docs(g4): cierre del bloque y verificación manual`)
+**Commits:** `235e202` (`docs(g4): cierre del bloque y verificación manual`)
 
 ## Qué se implementó
 

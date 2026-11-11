@@ -48,7 +48,7 @@ Sin rutas personales, contraseñas ni datos de clientes. Los comandos indican de
 | 4 · Exportación completa y prueba de ida y vuelta (G4-T4) | DONE | `6d18041` | Aprobada (revisión de rama) |
 | 5 · Comandos y contrato (G4-T5) | DONE | `78277f4` | Aprobada (revisión de rama) |
 | 6 · Opción «Formato de origen» en el diálogo de exportar (G4-T6) | DONE | `655eb84` | Aprobada (revisión de rama) |
-| 7 · Cierre del bloque | DONE | `3e7f817` | Aprobada (revisión de rama) |
+| 7 · Cierre del bloque | DONE | `235e202` | Aprobada (revisión de rama) |
 
 ## Revisión de la rama
 
