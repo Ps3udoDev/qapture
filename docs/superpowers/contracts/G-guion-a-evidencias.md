@@ -1,6 +1,6 @@
 # G — Del guion de pruebas a las evidencias · `v1.3.0`
 
-**Estado:** ✅ Contrato aprobado (2026-11-10). Bloque 0 cerrado con **go** (2026-11-10). Sigue: Bloque 1.
+**Estado:** ✅ Contrato aprobado (2026-11-10). Bloque 0 cerrado con **go** (2026-11-10). Bloque 1 implementado y verificado automáticamente (2026-11-11); validación manual de G1 pendiente.
 
 **Depende de:** F1–F9a · **Spec:** [2026-11-10-guion-a-evidencias-design](../specs/2026-11-10-guion-a-evidencias-design.md) · **Planes:** uno por bloque, escrito al iniciar el bloque (ver «Orden»). Bloque 0: [2026-11-10-g0-fixture-y-pico](../plans/2026-11-10-g0-fixture-y-pico.md). Bloque 1: [2026-11-10-g1-importar-guion](../plans/2026-11-10-g1-importar-guion.md).
 
@@ -42,14 +42,14 @@ El bloque 0 va primero porque el trasplante de la hoja con imágenes (D10) es el
 ### Bloque 1 · G1 Importar guion
 | ID | Task | Qué entrega | Estado |
 |---|---|---|---|
-| G1-T1 | Lector de guion | `calamine` a dependencias de producción; `transfer/guion/read.rs`: hojas visibles, celdas como texto, fechas como fecha, fila de encabezados sugerida | ☐ |
-| G1-T2 | Perfil de importación | `transfer/guion/profile.rs`: tipos del JSON v1 (spec §5), validación, aplicación del mapeo, equivalencia de estados D4 sin acentos ni mayúsculas, normalización de listas («Crìtico» → «Crítico») | ☐ |
-| G1-T3 | Migración 0007 y repositorios | `0007_guion.sql` con `import_profile`, `project_source`, `case_source`, `case_fixture`; repositorio de perfiles (crear, listar, renombrar, borrar) y de origen | ☐ |
-| G1-T4 | Vista previa | Casos que se crearán y avisos: filas vacías, códigos vacíos o repetidos, valores fuera de lista, estados desconocidos; detección de carátula D8 | ☐ |
-| G1-T5 | Importar todo o nada | Proyecto, campos (incluida la casilla «Condicionado»), casos, valores, `case_source` y copia del `.xlsx` con `sha256`, en una transacción; perfil guardado si se pidió | ☐ |
-| G1-T6 | Comandos y contrato | `guion_inspect`, `guion_preview`, `guion_import`, `import_profiles_list`, `import_profile_delete`; permisos en la capability; DTO y test de contrato Rust ↔ TS | ☐ |
-| G1-T7 | Puerto y estado | `GuionImporter` (memoria y Tauri), casos de uso y slice | ☐ |
-| G1-T8 | Asistente «Importar guion de pruebas…» | Pantalla de 3 pasos en el menú Datos (spec §6) | ☐ |
+| G1-T1 | Lector de guion | `calamine` a dependencias de producción; `transfer/guion/read.rs`: hojas visibles, celdas como texto, fechas como fecha, fila de encabezados sugerida | ✅ 2026-11-11 |
+| G1-T2 | Perfil de importación | `transfer/guion/profile.rs`: tipos del JSON v1 (spec §5), validación, aplicación del mapeo, equivalencia de estados D4 sin acentos ni mayúsculas, normalización de listas («Crìtico» → «Crítico») | ✅ 2026-11-11 |
+| G1-T3 | Migración 0007 y repositorios | `0007_guion.sql` con `import_profile`, `project_source`, `case_source`, `case_fixture`; repositorio de perfiles (crear, listar, borrar; sin renombrar, P4) y de origen | ✅ 2026-11-11 |
+| G1-T4 | Vista previa | Casos que se crearán y avisos: filas vacías, códigos vacíos o repetidos, valores fuera de lista, estados desconocidos; detección de carátula D8 | ✅ 2026-11-11 |
+| G1-T5 | Importar todo o nada | Proyecto, campos (incluida la casilla «Condicionado»), casos, valores, `case_source` y copia del `.xlsx` con `sha256`, en una transacción; perfil guardado si se pidió | ✅ 2026-11-11 |
+| G1-T6 | Comandos y contrato | `guion_inspect`, `guion_preview`, `guion_import`, `import_profiles_list`, `import_profile_delete`; permisos en la capability; DTO y test de contrato Rust ↔ TS | ✅ 2026-11-11 |
+| G1-T7 | Puerto y estado | `GuionImporter` (memoria y Tauri), casos de uso y slice | ✅ 2026-11-11 |
+| G1-T8 | Asistente «Importar guion de pruebas…» | Pantalla de 3 pasos en el menú Datos (spec §6) | ✅ 2026-11-11 · automática; manual pendiente |
 
 ### Bloque 2 · G2 Archivos de prueba
 | ID | Task | Qué entrega | Estado |
@@ -90,11 +90,19 @@ No bloquea las tasks, pero sí la entrega al cliente.
 O4 puede empezar con G1 y G2 listos: las evidencias quedan en Qapture y G4 solo las escribe al final.
 
 ## Interfaces producidas
-Se completan al cerrar cada bloque, como en F9a: tipos del perfil, DTO de vista previa e importación, repositorios de origen y archivos de prueba, comandos y puertos.
+G1 produce el perfil JSON v1 (`ProfileDefinition`, columnas, destinos, roles, estados y carátula), los DTO de inspección/vista previa/importación, los cinco comandos Tauri y el puerto `GuionImporter` con adaptadores Tauri y memoria. El asistente se conecta mediante un token; el webview no envía rutas.
+
+| Tabla de G1 | Datos conservados |
+|---|---|
+| `import_profile` | Nombre único sin distinguir mayúsculas y definición JSON versionada |
+| `project_source` | Archivo, ruta guardada, `sha256`, hoja, fila de encabezados, `profile_id`, fecha y **`definition TEXT NOT NULL`**: copia de la definición usada, aunque no se guarde el perfil o se borre después (P1). `profile_id` usa `ON DELETE SET NULL` |
+| `case_source` | Fila de origen por caso, independiente de cambios al código |
+
+La migración 0007 también prepara `case_fixture`; su funcionalidad corresponde a G2.
 
 ## Criterios de aceptación
 - [x] **G-T1–T2:** el fixture reproduce la estructura del spec §8; el libro con la hoja injertada abre sin reparación (verificado a mano en Excel y LibreOffice) y `calamine` lee sus dos hojas.
-- [ ] **G1:** importar el fixture produce 36 casos con 13 columnas; códigos repetidos o vacíos bloquean el import; «Crìtico» se normaliza; un estado desconocido entra como «No ejecutado» con el original en Condiciones; el perfil guardado importa un segundo guion sin mapear; un fallo a mitad no deja nada en la base ni en disco.
+- [ ] **G1 (automático verificado; pendiente prueba de escritorio y tiempo, ver [tarea 8](../handoffs/g1/tarea-8.md)):** importar el fixture produce 36 casos con 13 columnas; códigos repetidos o vacíos bloquean el import; «Crìtico» se normaliza; un estado desconocido entra como «No ejecutado» con el original en Condiciones; el perfil guardado importa un segundo guion sin mapear; un fallo a mitad no deja nada en la base ni en disco.
 - [ ] **G2:** extensión no permitida y archivo de más de 25 MB se rechazan; los archivos sobreviven a exportar e importar un paquete y a restaurar un respaldo; un paquete de formato 1 se sigue importando.
 - [ ] **G4:** ida y vuelta: solo cambian las celdas destino y se agregan la hoja y sus partes; las columnas I, K, L y M quedan llenas según D6 y D7; «Condicionado» se escribe cuando la casilla está activa; copia faltante o con otro `sha256` deshabilita la opción.
 - [ ] Contrato Rust ↔ TS de todos los comandos nuevos; `cargo fmt --check`, `clippy -D warnings`, `cargo test`, lint, typecheck y Vitest en verde.
