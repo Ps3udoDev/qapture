@@ -549,4 +549,19 @@ mod tests {
         assert_eq!(next_free(&names, "xl/worksheets/sheet", ".xml"), 8);
         assert_eq!(next_free(&[], "xl/drawings/drawing", ".xml"), 1);
     }
+
+    #[test]
+    #[ignore = "genera archivos para abrir a mano"]
+    fn write_files_for_manual_check() {
+        let dir = std::env::var("QAPTURE_SPIKE_OUT")
+            .expect("Define QAPTURE_SPIKE_OUT con una carpeta existente.");
+        let dir = std::path::Path::new(&dir);
+        assert!(
+            dir.is_dir(),
+            "Define QAPTURE_SPIKE_OUT con una carpeta existente."
+        );
+        std::fs::write(dir.join("guion_sintetico.xlsx"), guion_fixture::build()).unwrap();
+        let with = graft_sheet(&guion_fixture::build(), &donor(3), "Evidencias").unwrap();
+        std::fs::write(dir.join("guion_con_evidencias.xlsx"), with).unwrap();
+    }
 }
