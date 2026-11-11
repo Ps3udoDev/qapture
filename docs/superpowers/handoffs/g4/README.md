@@ -43,7 +43,7 @@ Sin rutas personales, contraseñas ni datos de clientes. Los comandos indican de
 | Tarea | Estado | Commits | Revisión |
 |---|---|---|---|
 | 1 · Escritura de celdas (G4-T1) | DONE | `c1875b0` | Aprobada |
-| 2 · Valores por fila y carátula (G4-T2) | Pendiente | — | — |
+| 2 · Valores por fila y carátula (G4-T2) | DONE | `6b6c4fc` | Pendiente |
 | 3 · Hoja «Evidencias» injertada (G4-T3) | Pendiente | — | — |
 | 4 · Exportación completa y prueba de ida y vuelta (G4-T4) | Pendiente | — | — |
 | 5 · Comandos y contrato (G4-T5) | Pendiente | — | — |
