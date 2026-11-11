@@ -122,7 +122,7 @@ Estrategia de no sobreescritura:
 - [x] **G1** (pruebas automáticas y de escritorio, 2026-11-11; ver [tarea 8](../handoffs/g1/tarea-8.md)): importar el fixture produce 36 casos con 13 columnas; códigos repetidos o vacíos bloquean el import; «Crìtico» se normaliza; un estado desconocido entra como «No ejecutado» con el original en Condiciones; el perfil guardado importa un segundo guion sin mapear; un fallo a mitad no deja nada en la base ni en disco.
 - [x] **G2:** extensión no permitida y archivo de más de 25 MB se rechazan; los archivos sobreviven a exportar e importar un paquete y a restaurar un respaldo; un paquete de formato 1 se sigue importando.
 - [x] **G4:** ida y vuelta: solo cambian las celdas destino y se agregan la hoja y sus partes; las columnas I, K, L y M quedan llenas según D6 y D7; «Condicionado» se escribe cuando la casilla está activa; copia faltante o con otro sha256 deshabilita la opción; verificado con prueba manual sintética.
-- [ ] Contrato Rust ↔ TS de todos los comandos nuevos; `cargo fmt --check`, `clippy -D warnings`, `cargo test`, lint, typecheck y Vitest en verde.
+- [x] Contrato Rust ↔ TS de todos los comandos nuevos; `cargo fmt --check`, `clippy -D warnings`, `cargo test`, lint, typecheck y Vitest en verde.
 
 ## Mensajes fijos
 - `El archivo no es un libro de Excel (.xlsx) válido.`
