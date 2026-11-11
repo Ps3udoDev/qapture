@@ -1,7 +1,7 @@
 # Tarea 1 · Restaurar respaldos anteriores a las tablas del guion
 
 **Estado:** DONE
-**Commits:** ver `git log` (`fix(g2): restaurar respaldos anteriores a las tablas del guion`).
+**Commits:** `b399c5f` (`fix(g2): restaurar respaldos anteriores a las tablas del guion`).
 
 ## Qué se implementó
 - `repo::evidence::has_table(conn: &Connection, name: &str) -> AppResult<bool>` (`pub(crate)`): comprueba la existencia de una tabla en la base de datos consultando `sqlite_master`.
