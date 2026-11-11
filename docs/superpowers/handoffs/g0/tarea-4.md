@@ -1,6 +1,6 @@
 # Tarea 4 · Verificación manual y go / no-go
 
-**Estado:** Pasos 1 y 2 hechos. Pasos 3 a 5 pendientes (verificación humana en Excel y LibreOffice, handoff final y actualización del contrato).
+**Estado:** DONE. Veredicto **go**. El detalle está en [pico-trasplante.md](pico-trasplante.md).
 
 ## Qué se agregó
 - `src-tauri/src/excel/origin/evidence_graft.rs`: test ignorado `write_files_for_manual_check` (`#[ignore = "genera archivos para abrir a mano"]`) dentro del módulo `tests`. Lee `QAPTURE_SPIKE_OUT` (si falta o no es una carpeta, falla con `Define QAPTURE_SPIKE_OUT con una carpeta existente.`) y escribe:
@@ -17,8 +17,8 @@
 - `cargo clippy --all-targets -- -D warnings`: sin errores (exit 0).
 - `cargo test excel::origin`: `12 passed; 0 failed; 1 ignored` (el ignorado es `write_files_for_manual_check`).
 
-## Verificación manual (Paso 3, pendiente)
-La tabla de Excel de escritorio y LibreOffice Calc queda para una persona. No se completó nada de esa tabla.
+## Verificación manual (Paso 3)
+Una persona la hizo en Excel de escritorio y en LibreOffice Calc. No salió ningún aviso, y el guardado desde Excel se volvió a abrir sin problemas. La tabla está en [pico-trasplante.md](pico-trasplante.md).
 
 ## Commit
 Solo el `.rs` y este handoff. Los `.xlsx` generados están fuera del repo (en `%TEMP%\g0`) y no se incluyen.

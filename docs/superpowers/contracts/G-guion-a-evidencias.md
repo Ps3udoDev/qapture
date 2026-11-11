@@ -1,6 +1,6 @@
 # G — Del guion de pruebas a las evidencias · `v1.3.0`
 
-**Estado:** ✅ Contrato aprobado (2026-11-10). En curso: Bloque 0.
+**Estado:** ✅ Contrato aprobado (2026-11-10). Bloque 0 cerrado con **go** (2026-11-10). Sigue: Bloque 1.
 
 **Depende de:** F1–F9a · **Spec:** [2026-11-10-guion-a-evidencias-design](../specs/2026-11-10-guion-a-evidencias-design.md) · **Planes:** uno por bloque, escrito al iniciar el bloque (ver «Orden»). Bloque 0: [2026-11-10-g0-fixture-y-pico](../plans/2026-11-10-g0-fixture-y-pico.md).
 
@@ -36,8 +36,8 @@ El bloque 0 va primero porque el trasplante de la hoja con imágenes (D10) es el
 ### Bloque 0 · Base de pruebas y pico técnico
 | ID | Task | Qué entrega | Estado |
 |---|---|---|---|
-| G-T1 | Fixture sintético de guion | Helper de pruebas que genera un `.xlsx` con la forma del guion de referencia: carátula filas 1–12, encabezados fila 15, 36 casos, celdas combinadas, validación de datos en filas 16–35 con «Crìtico», hoja oculta, autofiltro `A15:M15`, área de impresión, logo. Sin datos reales | ☐ |
-| G-T2 | Pico: trasplante de hoja «Evidencias» | Prototipo de D10 sobre el fixture: hoja generada con `rust_xlsxwriter` (2 imágenes) injertada en el libro; el resultado abre sin reparación en Excel y LibreOffice. Nota de resultado (go / no-go) en el handoff | ☐ |
+| G-T1 | Fixture sintético de guion | Helper de pruebas que genera un `.xlsx` con la forma del guion de referencia: carátula filas 1–12, encabezados fila 15, 36 casos, celdas combinadas, validación de datos en filas 16–35 con «Crìtico», hoja oculta, autofiltro `A15:M15`, área de impresión, logo. Sin datos reales | ✅ 2026-11-10 |
+| G-T2 | Pico: trasplante de hoja «Evidencias» | Prototipo de D10 sobre el fixture: hoja generada con `rust_xlsxwriter` (2 imágenes) injertada en el libro; el resultado abre sin reparación en Excel y LibreOffice. Nota de resultado (go / no-go) en el handoff | ✅ 2026-11-10 · **go** ([pico-trasplante](../handoffs/g0/pico-trasplante.md)) |
 
 ### Bloque 1 · G1 Importar guion
 | ID | Task | Qué entrega | Estado |
@@ -93,7 +93,7 @@ O4 puede empezar con G1 y G2 listos: las evidencias quedan en Qapture y G4 solo 
 Se completan al cerrar cada bloque, como en F9a: tipos del perfil, DTO de vista previa e importación, repositorios de origen y archivos de prueba, comandos y puertos.
 
 ## Criterios de aceptación
-- [ ] **G-T1–T2:** el fixture reproduce la estructura del spec §8; el libro con la hoja injertada abre sin reparación (verificado a mano en Excel y LibreOffice) y `calamine` lee sus dos hojas.
+- [x] **G-T1–T2:** el fixture reproduce la estructura del spec §8; el libro con la hoja injertada abre sin reparación (verificado a mano en Excel y LibreOffice) y `calamine` lee sus dos hojas.
 - [ ] **G1:** importar el fixture produce 36 casos con 13 columnas; códigos repetidos o vacíos bloquean el import; «Crìtico» se normaliza; un estado desconocido entra como «No ejecutado» con el original en Condiciones; el perfil guardado importa un segundo guion sin mapear; un fallo a mitad no deja nada en la base ni en disco.
 - [ ] **G2:** extensión no permitida y archivo de más de 25 MB se rechazan; los archivos sobreviven a exportar e importar un paquete y a restaurar un respaldo; un paquete de formato 1 se sigue importando.
 - [ ] **G4:** ida y vuelta: solo cambian las celdas destino y se agregan la hoja y sus partes; las columnas I, K, L y M quedan llenas según D6 y D7; «Condicionado» se escribe cuando la casilla está activa; copia faltante o con otro `sha256` deshabilita la opción.
