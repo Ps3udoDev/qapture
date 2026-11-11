@@ -7,6 +7,7 @@ import { toSelection } from "../../domain/capture";
 import type { EvidenceUpdateInput, NewEvidenceInput } from "../../domain/evidence";
 import type { FieldInput, NewProjectInput } from "../../domain/project";
 import fixture from "./__fixtures__/contracts.json";
+import { guionInspectSchema, guionPreviewSchema, importProfileSchema, profileDefinitionSchema, guionImportInputSchema, type GuionImportInputDto } from "./dto";
 import { activitySchema, agentClientConfigSchema, appErrorSchema, backupSchema, capturedEventSchema, caseIssueLinkSchema, caseSchema, deviceCodeSchema, docVersionSchema, evidenceSchema, exportProgressSchema, exportResultSchema, fieldSchema, ghAccountSchema, ghConnectFailedSchema, ghRepoSchema, importSummarySchema, linkedRepoSchema, packageExportResultSchema, projectGithubInputSchema, projectGithubSchema, projectSchema, projectSummarySchema, repoMetaSchema, reportInputSchema, reportResultSchema, restoreResultSchema, settingsSnapshotSchema, stagedImageSchema, startupStatusSchema, templateSchema, updateInfoSchema, updateProgressSchema } from "./dto";
 
 describe("contrato Rust → TS", () => {
@@ -19,6 +20,9 @@ describe("contrato Rust → TS", () => {
     }).settings.agents).toEqual({ ...DEFAULT_SETTINGS.agents, read: true });
   });
   it.each([
+    ["guionInspect", guionInspectSchema],
+    ["guionPreview", guionPreviewSchema],
+    ["importProfile", importProfileSchema],
     ["activity", activitySchema],
     ["agentClientConfig", agentClientConfigSchema],
     ["field", fieldSchema],
@@ -64,6 +68,16 @@ describe("contrato Rust → TS", () => {
 describe("contrato TS → Rust", () => {
   const sortedKeys = (o: object) => Object.keys(o).sort();
 
+  it("los perfiles y las muestras de guion rechazan propiedades ajenas", () => {
+    expect(() => profileDefinitionSchema.parse({ ...fixture.importProfile.definition, extra: 1 })).toThrow();
+    const profile = structuredClone(fixture.importProfile.definition);
+    Object.assign(profile.columns[0].target, { extra: 1 });
+    expect(() => profileDefinitionSchema.parse(profile)).toThrow();
+    expect(() => guionInspectSchema.parse({ ...fixture.guionInspect, extra: 1 })).toThrow();
+    expect(() => guionPreviewSchema.parse({ ...fixture.guionPreview, extra: 1 })).toThrow();
+    expect(() => importProfileSchema.parse({ ...fixture.importProfile, extra: 1 })).toThrow();
+  });
+
   it("los inputs de TS tienen exactamente las claves que Rust acepta", () => {
     const meta = { name: "", client: "", testType: "", releaseVersion: "", startDate: "", endDate: "" };
     const newProject: NewProjectInput = { meta, templateId: "" };
@@ -87,5 +101,8 @@ describe("contrato TS → Rust", () => {
     expect(() => projectGithubInputSchema.parse(fixture.inputs.projectGithubInput)).not.toThrow();
     expect(() => reportInputSchema.parse(fixture.inputs.reportInput)).not.toThrow();
     expect(sortedKeys(reportInputSchema.shape)).toEqual(sortedKeys(fixture.inputs.reportInput));
+    const input: GuionImportInputDto = { token: "", profile: profileDefinitionSchema.parse(fixture.inputs.guionImportInput.profile), projectName: "", saveProfileAs: null };
+    expect(sortedKeys(input)).toEqual(sortedKeys(fixture.inputs.guionImportInput));
+    expect(() => guionImportInputSchema.parse(fixture.inputs.guionImportInput)).not.toThrow();
   });
 });

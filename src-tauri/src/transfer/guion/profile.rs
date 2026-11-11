@@ -84,6 +84,7 @@ pub struct CoverCells {
     pub observations: Option<String>,
 }
 
+#[allow(dead_code)] // Referencia del contrato y del asistente TS; los comandos reciben el mapa del perfil.
 pub fn default_status_map() -> StatusMap {
     StatusMap {
         import: [

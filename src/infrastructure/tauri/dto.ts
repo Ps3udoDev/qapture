@@ -291,3 +291,55 @@ export const reportResultSchema = z.strictObject({
 });
 
 export const agentDataChangedSchema = z.strictObject({ projectId: z.string().nullable(), caseId: z.string().nullable(), summary: z.string() });
+
+export const coverCellsSchema = z.strictObject({
+  executionDate: z.string().nullable(),
+  responsible: z.string().nullable(),
+  observations: z.string().nullable(),
+});
+
+export const profileTargetSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("code") }),
+  z.strictObject({ kind: z.literal("title") }),
+  z.strictObject({ kind: z.literal("status") }),
+  z.strictObject({
+    kind: z.literal("field"), key: z.string(), label: z.string(), type: z.enum(["text", "longtext", "list", "date"]),
+    options: z.array(z.string()), role: z.enum(["executionDate", "tester", "conditions"]).nullable(),
+  }),
+]);
+
+export const profileDefinitionSchema = z.strictObject({
+  version: z.number().int().nonnegative(),
+  sheet: z.string(),
+  headerRow: z.number().int().nonnegative(),
+  columns: z.array(z.strictObject({ column: z.string(), header: z.string(), target: profileTargetSchema })),
+  statusMap: z.strictObject({ import: z.record(z.string(), z.string()), export: z.record(z.string(), z.string()) }),
+  cover: coverCellsSchema,
+});
+
+export const guionInspectSchema = z.strictObject({
+  token: z.string(), fileName: z.string(),
+  sheets: z.array(z.strictObject({
+    name: z.string(), rows: z.array(z.array(z.string()).max(52)).max(200),
+    suggestedHeaderRow: z.number().int().positive().nullable(), cover: coverCellsSchema,
+  })),
+  suggestedProfileId: z.string().nullable(),
+});
+
+export const guionPreviewSchema = z.strictObject({
+  cases: z.array(z.strictObject({
+    row: z.number().int().positive(), code: z.string(), title: z.string(), status: z.enum(STATUSES), conditioned: z.boolean(),
+  })),
+  fields: z.array(z.strictObject({ key: z.string(), label: z.string(), type: z.enum(FIELD_TYPES), options: z.array(z.string()) })),
+  warnings: z.array(z.string()), errors: z.array(z.string()),
+});
+
+export const importProfileSchema = z.strictObject({
+  id: z.string(), name: z.string(), definition: profileDefinitionSchema, createdAt: z.string(), updatedAt: z.string(),
+});
+
+export const guionImportInputSchema = z.strictObject({
+  token: z.string(), profile: profileDefinitionSchema, projectName: z.string(), saveProfileAs: z.string().nullable(),
+});
+
+export type GuionImportInputDto = z.infer<typeof guionImportInputSchema>;

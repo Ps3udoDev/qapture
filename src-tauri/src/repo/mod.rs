@@ -3,7 +3,6 @@ pub mod cases;
 pub mod doc_versions;
 pub mod evidence;
 pub mod fields;
-#[allow(dead_code)] // Consumido por los comandos del asistente en G1-T6.
 pub mod guion;
 pub mod integrations;
 pub mod projects;
