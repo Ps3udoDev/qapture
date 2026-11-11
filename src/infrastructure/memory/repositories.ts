@@ -13,6 +13,7 @@ import { builtinTemplates } from "./fixtures";
 import { createMemoryGithub, type MemoryGithub } from "./github";
 import { createMemorySettings, type MemorySettings } from "./settings";
 import { createMemoryUpdater, type MemoryUpdater } from "./updater";
+import { createMemoryGuion, type MemoryGuion } from "./guion";
 
 export interface MemoryRepositories extends Repositories {
   evidence: MemoryEvidence;
@@ -20,6 +21,7 @@ export interface MemoryRepositories extends Repositories {
   docVersions: MemoryDocVersions;
   exporter: MemoryExporter;
   data: MemoryData;
+  guion: MemoryGuion;
   settings: MemorySettings;
   agents: MemoryAgents;
   updater: MemoryUpdater;
@@ -253,6 +255,25 @@ export function createMemoryRepositories(): MemoryRepositories {
       remember: (path) => repos.exporter.remember(path),
     }),
     settings: createMemorySettings(),
+    guion: createMemoryGuion({
+      importProject: async (name, count) => {
+        let unique = name;
+        let suffix = 0;
+        while ([...projects.values()].some((p) => p.name.toLowerCase() === unique.toLowerCase())) {
+          suffix += 1;
+          const ending = suffix === 1 ? " (importado)" : ` (importado ${suffix})`;
+          unique = [...name].slice(0, 150 - ending.length).join("") + ending;
+        }
+        const stamp = now();
+        const project: Project = { ...emptyMeta(), name: unique, id: id("prj"), nextSequence: 1, sourceTemplateId: null, createdAt: stamp, updatedAt: stamp, fields: [] };
+        projects.set(project.id, project);
+        for (let i = 1; i <= count; i++) {
+          const record: CaseRecord = { id: id("case"), projectId: project.id, code: `CP${String(i).padStart(2, "0")}`, title: `Escenario ${i}`, status: DEFAULT_STATUS, values: {}, evidenceCount: 0, createdAt: stamp, updatedAt: stamp };
+          cases.set(record.id, record);
+        }
+        return { id: project.id, name: project.name };
+      },
+    }),
     agents: createMemoryAgents(),
     updater: createMemoryUpdater(),
     github: createMemoryGithub((projectId) => projects.get(projectId)?.fields ?? [], (caseId) => cases.get(caseId)?.projectId),

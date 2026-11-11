@@ -20,6 +20,7 @@ import type { DocVersionRepository, Exporter } from "./export";
 import type { IssueTracker } from "./issue-tracker";
 import type { SettingsStore, AgentSettings } from "./settings";
 import type { Updater } from "./updater";
+import type { GuionImporter } from "./guion";
 
 export interface TemplateRepository {
   list(): Promise<Template[]>;
@@ -71,6 +72,7 @@ export interface Repositories {
   docVersions: DocVersionRepository;
   exporter: Exporter;
   data: DataTransfer;
+  guion: GuionImporter;
   settings: SettingsStore;
   agents: AgentSettings;
   updater: Updater;

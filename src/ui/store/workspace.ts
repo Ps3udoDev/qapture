@@ -8,6 +8,7 @@ import { AppError } from "../../ports/errors";
 import type { Repositories } from "../../ports/repositories";
 import { createEvidenceSlice, type EvidenceSlice } from "./evidence-slice";
 import { createDataSlice, type DataSlice } from "./data-slice";
+import { createGuionSlice, type GuionSlice } from "./guion-slice";
 import { createExportSlice, type ExportSlice } from "./export-slice";
 import { createSettingsSlice, type SettingsSlice } from "./settings-slice";
 import { createGithubSlice, type GithubSlice } from "./github-slice";
@@ -26,7 +27,7 @@ export interface Toast {
   actions?: ToastAction[];
 }
 
-export interface WorkspaceState extends AgentsSlice, EvidenceSlice, ExportSlice, DataSlice, SettingsSlice, UpdateSlice, GithubSlice {
+export interface WorkspaceState extends AgentsSlice, EvidenceSlice, ExportSlice, DataSlice, GuionSlice, SettingsSlice, UpdateSlice, GithubSlice {
   templates: Template[];
   projects: ProjectSummary[];
   project: Project | null;
@@ -293,6 +294,7 @@ export function createWorkspaceStore(repos: Repositories, prefs: Preferences = b
       ...createEvidenceSlice(repos, set, get, helpers),
       ...createExportSlice(repos, set, get, helpers),
       ...createDataSlice(repos, set, get, helpers),
+      ...createGuionSlice(repos, set, get, helpers),
       ...createSettingsSlice(repos, set, get, helpers),
       ...createUpdateSlice(repos, set, get, helpers),
       ...createGithubSlice(repos, set, get, helpers),

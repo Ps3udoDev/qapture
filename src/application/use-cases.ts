@@ -15,8 +15,14 @@ import {
 } from "../domain/project";
 import { AppError, isValidationError } from "../ports/errors";
 import type { Repositories } from "../ports/repositories";
+import type { GuionImportInput } from "../domain/guion";
+import type { ImportSummary } from "../domain/data";
 
 export type Outcome<T> = { ok: true; value: T } | { ok: false; errors: FormErrors };
+
+export function importGuion(repos: Repositories, input: GuionImportInput): Promise<Outcome<ImportSummary>> {
+  return guard(() => repos.guion.import(input));
+}
 
 const invalid = (errors: FormErrors) => Object.keys(errors).length > 0;
 
