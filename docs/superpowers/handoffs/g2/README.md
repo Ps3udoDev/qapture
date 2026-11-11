@@ -43,7 +43,7 @@ Sin rutas personales, contraseñas ni datos de clientes. Los comandos indican de
 | Tarea | Estado | Commits | Revisión |
 |---|---|---|---|
 | 1 · Restaurar respaldos anteriores a las tablas del guion | DONE | `b399c5f` | Pendiente |
-| 2 · Almacén en disco de archivos de prueba (G2-T1 p1) | Pendiente | - | - |
+| 2 · Almacén en disco de archivos de prueba (G2-T1 p1) | DONE | `39bd023` | Pendiente |
 | 3 · Repositorio de archivos de prueba (G2-T1 p2) | Pendiente | - | - |
 | 4 · Paquete .qapture formato 2 (G2-T3) | Pendiente | - | - |
 | 5 · Comandos y contrato (G2-T2) | Pendiente | - | - |
