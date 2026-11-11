@@ -11,6 +11,7 @@ import { encodeFrame } from "./frame";
 import { tauriGithub } from "./github";
 import { tauriSettings } from "./settings";
 import { tauriUpdater } from "./updater";
+import { tauriGuion } from "./guion";
 
 const nothing = z.null();
 
@@ -65,6 +66,7 @@ export function tauriRepositories(): Repositories {
     docVersions: tauriDocVersions(),
     exporter: tauriExporter(),
     data: tauriData(),
+    guion: tauriGuion(),
     settings: tauriSettings(),
     agents: tauriAgents(),
     updater: tauriUpdater(),

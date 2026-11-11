@@ -19,6 +19,7 @@ use crate::{
     media::storage::EvidenceFiles,
     settings::Settings,
     system::shortcuts::ShortcutRegistrar,
+    transfer::guion::read::GuionBook,
 };
 
 /// Se invoca tras guardar los ajustes (el arranque sincroniza el inicio con Windows).
@@ -94,6 +95,13 @@ impl GithubState {
     }
 }
 
+pub struct PendingGuion {
+    pub token: String,
+    pub file_name: String,
+    pub bytes: Vec<u8>,
+    pub book: GuionBook,
+}
+
 pub struct AppState {
     db: Mutex<Connection>,
     files: EvidenceFiles,
@@ -111,6 +119,7 @@ pub struct AppState {
     on_saved: Mutex<Option<SavedHook>>,
     /// Última versión nueva encontrada (la muestra la bandeja hasta instalarla).
     pending_update: Mutex<Option<UpdateInfoDto>>,
+    pending_guion: Mutex<Option<PendingGuion>>,
     github: GithubState,
 }
 
@@ -137,12 +146,35 @@ impl AppState {
             registrar: Mutex::new(Box::new(NullRegistrar)),
             on_saved: Mutex::new(None),
             pending_update: Mutex::new(None),
+            pending_guion: Mutex::new(None),
             github,
         }
     }
 
     pub fn github(&self) -> &GithubState {
         &self.github
+    }
+
+    pub fn set_guion(&self, pending: PendingGuion) {
+        *self.pending_guion.lock().unwrap_or_else(|p| p.into_inner()) = Some(pending);
+    }
+
+    /// El libro solo puede usarse con el token elegido en esta sesión del asistente.
+    pub fn with_guion<T>(
+        &self,
+        token: &str,
+        run: impl FnOnce(&PendingGuion) -> AppResult<T>,
+    ) -> AppResult<T> {
+        let guard = self.pending_guion.lock().unwrap_or_else(|p| p.into_inner());
+        let pending = guard
+            .as_ref()
+            .filter(|p| p.token == token)
+            .ok_or_else(|| validation("Vuelve a elegir el archivo del guion."))?;
+        run(pending)
+    }
+
+    pub fn clear_guion(&self) {
+        *self.pending_guion.lock().unwrap_or_else(|p| p.into_inner()) = None;
     }
 
     /// Una sola conexión serializada: SQLite + WAL es suficiente para una app de escritorio de un usuario.
@@ -286,6 +318,46 @@ impl AppState {
 mod tests {
     use super::*;
     use crate::{db, media::storage::TempDir};
+
+    #[test]
+    fn a_pending_guion_is_only_reachable_with_its_token() {
+        let tmp = TempDir::new();
+        let state = AppState::new(
+            db::open_in_memory().unwrap(),
+            tmp.files(),
+            tmp.path(),
+            None,
+            false,
+            GithubState::for_tests("http://127.0.0.1:9", "http://127.0.0.1:9"),
+        );
+        state.set_guion(PendingGuion {
+            token: "token-1".into(),
+            file_name: "guion.xlsx".into(),
+            bytes: vec![],
+            book: crate::transfer::guion::read::GuionBook { sheets: vec![] },
+        });
+        assert_eq!(
+            state
+                .with_guion("token-1", |p| Ok(p.file_name.clone()))
+                .unwrap(),
+            "guion.xlsx"
+        );
+        assert_eq!(
+            state
+                .with_guion("other", |_| Ok(()))
+                .unwrap_err()
+                .to_string(),
+            "Vuelve a elegir el archivo del guion."
+        );
+        state.clear_guion();
+        assert_eq!(
+            state
+                .with_guion("token-1", |_| Ok(()))
+                .unwrap_err()
+                .to_string(),
+            "Vuelve a elegir el archivo del guion."
+        );
+    }
 
     #[test]
     fn recovery_blocks_data_commands_until_a_new_db_is_installed() {

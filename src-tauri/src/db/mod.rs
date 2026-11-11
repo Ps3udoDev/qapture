@@ -31,6 +31,7 @@ pub(crate) const MIGRATIONS: &[&str] = &[
     include_str!("migrations/0004_setting.sql"),
     include_str!("migrations/0005_integrations.sql"),
     include_str!("migrations/0006_agents.sql"),
+    include_str!("migrations/0007_guion.sql"),
 ];
 
 pub fn open(path: &Path) -> AppResult<Connection> {
@@ -134,6 +135,12 @@ mod tests {
             .unwrap()
             .column_count();
         assert_eq!(columns, 8);
+        assert_eq!(
+            conn.prepare("SELECT project_id, definition FROM project_source")
+                .unwrap()
+                .column_count(),
+            2
+        );
         migrate(&conn).unwrap();
         assert_eq!(schema_version(&conn).unwrap(), MIGRATIONS.len() as i64);
     }

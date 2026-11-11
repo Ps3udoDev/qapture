@@ -47,6 +47,7 @@ pub struct BundleEvidence {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BundleCase {
+    pub source_row: Option<u32>,
     pub code: String,
     pub title: String,
     pub status: String,
@@ -65,6 +66,7 @@ pub struct BundleVersion {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProjectBundle {
+    pub source: Option<BundleSource>,
     pub id: String,
     pub meta: ProjectMetaInput,
     pub next_sequence: i64,
@@ -75,6 +77,17 @@ pub struct ProjectBundle {
     pub cases: Vec<BundleCase>,
     pub versions: Vec<BundleVersion>,
     pub github: GithubPayload,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BundleSource {
+    pub file_name: String,
+    pub stored_path: String,
+    pub sha256: String,
+    pub sheet: String,
+    pub header_row: u32,
+    pub profile_id: Option<String>,
+    pub definition: String,
 }
 
 /// Problemas de validación con su ubicación; se informan los primeros 10 (spec §8).
@@ -167,7 +180,22 @@ impl<'a> ImportFiles<'a> {
         write_atomic(&render_path, rendered)
     }
 
-    fn commit(mut self) {
+    pub fn write_file(&mut self, project_id: &str, name: &str, bytes: &[u8]) -> AppResult<String> {
+        if name.is_empty() || name.contains(['/', '\\', ':']) || matches!(name, "." | "..") {
+            return Err(validation(
+                "El nombre del archivo de importación no es válido.",
+            ));
+        }
+        if !self.projects.iter().any(|p| p == project_id) {
+            self.projects.push(project_id.to_string());
+            std::fs::create_dir_all(self.files.project_dir(project_id))?;
+        }
+        let relative = format!("evidence/{project_id}/{name}");
+        write_atomic(&self.files.absolute(&relative), bytes)?;
+        Ok(relative)
+    }
+
+    pub fn commit(mut self) {
         self.committed = true;
     }
 }
@@ -231,6 +259,13 @@ fn insert_project(conn: &Connection, b: &ProjectBundle, name: &str) -> AppResult
             b.updated_at
         ],
     )?;
+    if let Some(source) = &b.source {
+        conn.execute(
+            "INSERT INTO project_source (project_id, file_name, stored_path, sha256, sheet, header_row, profile_id, definition, imported_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![b.id, source.file_name, source.stored_path, source.sha256, source.sheet, source.header_row, source.profile_id, source.definition, b.created_at],
+        )?;
+    }
     Ok(())
 }
 
@@ -275,6 +310,12 @@ fn insert_case(
             c.updated_at
         ],
     )?;
+    if let Some(row) = c.source_row {
+        conn.execute(
+            "INSERT INTO case_source (case_id, row) VALUES (?1, ?2)",
+            params![case_id, row],
+        )?;
+    }
     for (key, value) in &c.values {
         if value.is_empty() {
             continue;
@@ -331,6 +372,33 @@ fn insert_versions(conn: &Connection, b: &ProjectBundle) -> AppResult<()> {
     Ok(())
 }
 
+/// Escribe las filas dentro de la transacción que administra quien llama.
+/// No confirma archivos ni aplica integraciones externas.
+pub fn insert_in(conn: &Connection, bundles: &[ProjectBundle]) -> AppResult<ImportSummaryDto> {
+    let mut summary = ImportSummaryDto {
+        projects: Vec::new(),
+        cases: 0,
+        evidence: 0,
+        warnings: Vec::new(),
+    };
+    for b in bundles {
+        let name = unique_name(conn, &b.meta.name)?;
+        insert_project(conn, b, &name)?;
+        let field_ids = insert_fields(conn, b)?;
+        for c in &b.cases {
+            insert_case(conn, &b.id, &field_ids, c)?;
+            summary.cases += 1;
+            summary.evidence += c.evidence.len() as i64;
+        }
+        insert_versions(conn, b)?;
+        summary.projects.push(ImportedProjectDto {
+            id: b.id.clone(),
+            name,
+        });
+    }
+    Ok(summary)
+}
+
 /// Inserta todos los proyectos en una sola transacción. Si algo falla, se revierte y
 /// `files` (al soltarse) borra las imágenes ya escritas.
 pub fn insert(
@@ -339,27 +407,7 @@ pub fn insert(
     files: ImportFiles,
 ) -> AppResult<ImportSummaryDto> {
     let tx = conn.unchecked_transaction()?;
-    let mut summary = ImportSummaryDto {
-        projects: Vec::new(),
-        cases: 0,
-        evidence: 0,
-        warnings: Vec::new(),
-    };
-    for b in &bundles {
-        let name = unique_name(&tx, &b.meta.name)?;
-        insert_project(&tx, b, &name)?;
-        let field_ids = insert_fields(&tx, b)?;
-        for c in &b.cases {
-            insert_case(&tx, &b.id, &field_ids, c)?;
-            summary.cases += 1;
-            summary.evidence += c.evidence.len() as i64;
-        }
-        insert_versions(&tx, b)?;
-        summary.projects.push(ImportedProjectDto {
-            id: b.id.clone(),
-            name,
-        });
-    }
+    let mut summary = insert_in(&tx, &bundles)?;
     tx.commit()?;
     files.commit();
     // Los datos de GitHub se aplican con la importación ya confirmada (sus helpers abren
@@ -436,6 +484,7 @@ pub(crate) mod tests {
         let png = sample_png(40, 30);
         out.write(&id, &evidence_id, &png, &png).unwrap();
         ProjectBundle {
+            source: None,
             id,
             meta: meta(name),
             next_sequence: 4,
@@ -447,6 +496,7 @@ pub(crate) mod tests {
                 field("datos_entrada", "Datos de entrada", FieldType::Longtext, 48),
             ],
             cases: vec![BundleCase {
+                source_row: None,
                 code: "EJ-003".into(),
                 title: "Aplicar recibo".into(),
                 status: "Aprobado".into(),

@@ -27,6 +27,7 @@ export function DataMenu({ onBackups }: { onBackups: () => void }) {
   const busy = useWorkspace((s) => s.dataBusy);
   const importLegacy = useWorkspace((s) => s.importLegacy);
   const importPackage = useWorkspace((s) => s.importPackage);
+  const openGuionImport = useWorkspace((s) => s.openGuionImport);
   const exportPackage = useWorkspace((s) => s.exportPackage);
 
   const items = () => Array.from(menu.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? []);
@@ -81,6 +82,7 @@ export function DataMenu({ onBackups }: { onBackups: () => void }) {
         <div ref={menu} role="menu" aria-label="Datos" onKeyDown={onMenuKey} className="absolute right-0 z-30 mt-1 w-64 rounded-lg border border-t4s-line bg-white py-1 shadow-lg">
           <MenuItem onClick={run(() => void importLegacy())}>Importar Bitácora v1…</MenuItem>
           <MenuItem onClick={run(() => void importPackage())}>Importar paquete .qapture…</MenuItem>
+          <MenuItem onClick={run(() => void openGuionImport())}>Importar guion de pruebas…</MenuItem>
           <MenuItem disabled={!project} onClick={run(() => void exportPackage())}>
             Exportar paquete .qapture…
           </MenuItem>

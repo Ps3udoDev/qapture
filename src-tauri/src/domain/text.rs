@@ -22,11 +22,12 @@ fn check_max(label: &str, value: &str, max: usize) -> AppResult<()> {
     Ok(())
 }
 
-/// Clave estable para una columna: minúsculas ASCII, sin acentos, separada por `_`, máximo 40.
-pub fn slugify(label: &str) -> String {
-    let mut out = String::new();
-    for ch in label.trim().to_lowercase().chars() {
-        let c = match ch {
+/// Comparación sin acentos ni mayúsculas, con espacios internos normalizados.
+pub fn fold(value: &str) -> String {
+    let folded: String = value
+        .to_lowercase()
+        .chars()
+        .map(|ch| match ch {
             'á' | 'à' | 'ä' | 'â' => 'a',
             'é' | 'è' | 'ë' | 'ê' => 'e',
             'í' | 'ì' | 'ï' | 'î' => 'i',
@@ -34,7 +35,15 @@ pub fn slugify(label: &str) -> String {
             'ú' | 'ù' | 'ü' | 'û' => 'u',
             'ñ' => 'n',
             other => other,
-        };
+        })
+        .collect();
+    folded.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Clave estable para una columna: minúsculas ASCII, sin acentos, separada por `_`, máximo 40.
+pub fn slugify(label: &str) -> String {
+    let mut out = String::new();
+    for c in fold(label).chars() {
         if c.is_ascii_alphanumeric() {
             out.push(c);
         } else if !out.is_empty() && !out.ends_with('_') {
@@ -54,6 +63,11 @@ pub fn slugify(label: &str) -> String {
 mod tests {
     use super::*;
 
+    #[test]
+    fn folding_normalizes_accents_case_and_spaces() {
+        assert_eq!(fold("  Crìtico   Alto "), "critico alto");
+        assert_eq!(fold("  ACEPTADO\t\n "), "aceptado");
+    }
     #[test]
     fn slugify_strips_accents_and_symbols() {
         assert_eq!(slugify("Fecha de ejecución"), "fecha_de_ejecucion");

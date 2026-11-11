@@ -7,6 +7,7 @@ import { EmptyState } from "./EmptyState";
 import { ExportDialog } from "./ExportDialog";
 import { AppSettingsDialog } from "./AppSettingsDialog";
 import { ImportIssuesDialog } from "./ImportIssuesDialog";
+import { ImportGuionDialog } from "./ImportGuionDialog";
 import { NewProjectDialog } from "./NewProjectDialog";
 import { ProjectSettingsDialog } from "./ProjectSettingsDialog";
 import { RecoveryScreen } from "./RecoveryScreen";
@@ -151,6 +152,7 @@ export function AppShell() {
       {dialog === "backups" && <BackupsDialog onClose={() => setDialog(null)} />}
       {updatePrompt && <UpdateDialog />}
       <ImportIssuesDialog />
+      <ImportGuionDialog />
       <Toasts />
     </div>
   );

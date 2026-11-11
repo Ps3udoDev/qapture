@@ -164,6 +164,1294 @@
     "owner": "TEAMS4SOFT",
     "private": true
   },
+  "guionInspect": {
+    "fileName": "guion_sintetico.xlsx",
+    "sheets": [
+      {
+        "cover": {
+          "executionDate": "D5",
+          "observations": "D8",
+          "responsible": "D6"
+        },
+        "name": "Guión de Pruebas",
+        "rows": [
+          [
+            "Guion de pruebas",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "Código:",
+            "",
+            "GP-001",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "Formato:",
+            "",
+            "Guion de pruebas v3.0",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "Fecha de la prueba:",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "Responsable:",
+            "",
+            "Pendiente de asignación",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "Versión:",
+            "",
+            "1.0",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "Observaciones:",
+            "",
+            "Guion propuesto; pendiente de ejecución",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "Módulo",
+            "SubMódulo",
+            "ID",
+            "Opción",
+            "RN",
+            "Escenario de Prueba",
+            "Resultado Esperado",
+            "Criticidad",
+            "Fecha de Prueba",
+            "Version",
+            "Status",
+            "Nombre del tester",
+            "Condiciones"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP01",
+            "Acceso",
+            "RN01",
+            "Escenario 1",
+            "Resultado esperado 1",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP02",
+            "Archivo",
+            "RN02",
+            "Escenario 2",
+            "Resultado esperado 2",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP03",
+            "Estructura",
+            "RN03",
+            "Escenario 3",
+            "Resultado esperado 3",
+            "Crítico",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP04",
+            "Validación",
+            "RN04",
+            "Escenario 4",
+            "Resultado esperado 4",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP05",
+            "Acceso",
+            "RN05",
+            "Escenario 5",
+            "Resultado esperado 5",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP06",
+            "Archivo",
+            "RN06",
+            "Escenario 6",
+            "Resultado esperado 6",
+            "Crítico",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP07",
+            "Estructura",
+            "RN07",
+            "Escenario 7",
+            "Resultado esperado 7",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP08",
+            "Validación",
+            "RN08",
+            "Escenario 8",
+            "Resultado esperado 8",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP09",
+            "Acceso",
+            "RN09",
+            "Escenario 9",
+            "Resultado esperado 9",
+            "Crítico",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP10",
+            "Archivo",
+            "RN10",
+            "Escenario 10",
+            "Resultado esperado 10",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP11",
+            "Estructura",
+            "RN11",
+            "Escenario 11",
+            "Resultado esperado 11",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP12",
+            "Validación",
+            "RN12",
+            "Escenario 12",
+            "Resultado esperado 12",
+            "Crítico",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP13",
+            "Acceso",
+            "RN13",
+            "Escenario 13",
+            "Resultado esperado 13",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP14",
+            "Archivo",
+            "RN14",
+            "Escenario 14",
+            "Resultado esperado 14",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP15",
+            "Estructura",
+            "RN15",
+            "Escenario 15",
+            "Resultado esperado 15",
+            "Crítico",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP16",
+            "Validación",
+            "RN01",
+            "Escenario 16",
+            "Resultado esperado 16",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP17",
+            "Acceso",
+            "RN02",
+            "Escenario 17",
+            "Resultado esperado 17",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP18",
+            "Archivo",
+            "RN03",
+            "Escenario 18",
+            "Resultado esperado 18",
+            "Crítico",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP19",
+            "Estructura",
+            "RN04",
+            "Escenario 19",
+            "Resultado esperado 19",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP20",
+            "Validación",
+            "RN05",
+            "Escenario 20",
+            "Resultado esperado 20",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP21",
+            "Acceso",
+            "RN06",
+            "Escenario 21",
+            "Resultado esperado 21",
+            "Crítico",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP22",
+            "Archivo",
+            "RN07",
+            "Escenario 22",
+            "Resultado esperado 22",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP23",
+            "Estructura",
+            "RN08",
+            "Escenario 23",
+            "Resultado esperado 23",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP24",
+            "Validación",
+            "RN09",
+            "Escenario 24",
+            "Resultado esperado 24",
+            "Crítico",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP25",
+            "Acceso",
+            "RN10",
+            "Escenario 25",
+            "Resultado esperado 25",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP26",
+            "Archivo",
+            "RN11",
+            "Escenario 26",
+            "Resultado esperado 26",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP27",
+            "Estructura",
+            "RN12",
+            "Escenario 27",
+            "Resultado esperado 27",
+            "Crítico",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP28",
+            "Validación",
+            "RN13",
+            "Escenario 28",
+            "Resultado esperado 28",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP29",
+            "Acceso",
+            "RN14",
+            "Escenario 29",
+            "Resultado esperado 29",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP30",
+            "Archivo",
+            "RN15",
+            "Escenario 30",
+            "Resultado esperado 30",
+            "Crítico",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP31",
+            "Estructura",
+            "RN01",
+            "Escenario 31",
+            "Resultado esperado 31",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP32",
+            "Validación",
+            "RN02",
+            "Escenario 32",
+            "Resultado esperado 32",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP33",
+            "Acceso",
+            "RN03",
+            "Escenario 33",
+            "Resultado esperado 33",
+            "Crítico",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP34",
+            "Archivo",
+            "RN04",
+            "Escenario 34",
+            "Resultado esperado 34",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP35",
+            "Estructura",
+            "RN05",
+            "Escenario 35",
+            "Resultado esperado 35",
+            "Importante",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ],
+          [
+            "Sistema",
+            "Herramientas / Carga",
+            "CP36",
+            "Validación",
+            "RN06",
+            "Escenario 36",
+            "Resultado esperado 36",
+            "Crítico",
+            "",
+            "1.0",
+            "",
+            "",
+            "Condiciones generales"
+          ]
+        ],
+        "suggestedHeaderRow": 15
+      }
+    ],
+    "suggestedProfileId": "profile-1",
+    "token": "guion-token"
+  },
+  "guionPreview": {
+    "cases": [
+      {
+        "code": "CP01",
+        "conditioned": false,
+        "row": 16,
+        "status": "No ejecutado",
+        "title": "Escenario 1"
+      },
+      {
+        "code": "CP02",
+        "conditioned": false,
+        "row": 17,
+        "status": "No ejecutado",
+        "title": "Escenario 2"
+      },
+      {
+        "code": "CP03",
+        "conditioned": false,
+        "row": 18,
+        "status": "No ejecutado",
+        "title": "Escenario 3"
+      },
+      {
+        "code": "CP04",
+        "conditioned": false,
+        "row": 19,
+        "status": "No ejecutado",
+        "title": "Escenario 4"
+      },
+      {
+        "code": "CP05",
+        "conditioned": false,
+        "row": 20,
+        "status": "No ejecutado",
+        "title": "Escenario 5"
+      },
+      {
+        "code": "CP06",
+        "conditioned": false,
+        "row": 21,
+        "status": "No ejecutado",
+        "title": "Escenario 6"
+      },
+      {
+        "code": "CP07",
+        "conditioned": false,
+        "row": 22,
+        "status": "No ejecutado",
+        "title": "Escenario 7"
+      },
+      {
+        "code": "CP08",
+        "conditioned": false,
+        "row": 23,
+        "status": "No ejecutado",
+        "title": "Escenario 8"
+      },
+      {
+        "code": "CP09",
+        "conditioned": false,
+        "row": 24,
+        "status": "No ejecutado",
+        "title": "Escenario 9"
+      },
+      {
+        "code": "CP10",
+        "conditioned": false,
+        "row": 25,
+        "status": "No ejecutado",
+        "title": "Escenario 10"
+      },
+      {
+        "code": "CP11",
+        "conditioned": false,
+        "row": 26,
+        "status": "No ejecutado",
+        "title": "Escenario 11"
+      },
+      {
+        "code": "CP12",
+        "conditioned": false,
+        "row": 27,
+        "status": "No ejecutado",
+        "title": "Escenario 12"
+      },
+      {
+        "code": "CP13",
+        "conditioned": false,
+        "row": 28,
+        "status": "No ejecutado",
+        "title": "Escenario 13"
+      },
+      {
+        "code": "CP14",
+        "conditioned": false,
+        "row": 29,
+        "status": "No ejecutado",
+        "title": "Escenario 14"
+      },
+      {
+        "code": "CP15",
+        "conditioned": false,
+        "row": 30,
+        "status": "No ejecutado",
+        "title": "Escenario 15"
+      },
+      {
+        "code": "CP16",
+        "conditioned": false,
+        "row": 31,
+        "status": "No ejecutado",
+        "title": "Escenario 16"
+      },
+      {
+        "code": "CP17",
+        "conditioned": false,
+        "row": 32,
+        "status": "No ejecutado",
+        "title": "Escenario 17"
+      },
+      {
+        "code": "CP18",
+        "conditioned": false,
+        "row": 33,
+        "status": "No ejecutado",
+        "title": "Escenario 18"
+      },
+      {
+        "code": "CP19",
+        "conditioned": false,
+        "row": 34,
+        "status": "No ejecutado",
+        "title": "Escenario 19"
+      },
+      {
+        "code": "CP20",
+        "conditioned": false,
+        "row": 35,
+        "status": "No ejecutado",
+        "title": "Escenario 20"
+      },
+      {
+        "code": "CP21",
+        "conditioned": false,
+        "row": 36,
+        "status": "No ejecutado",
+        "title": "Escenario 21"
+      },
+      {
+        "code": "CP22",
+        "conditioned": false,
+        "row": 37,
+        "status": "No ejecutado",
+        "title": "Escenario 22"
+      },
+      {
+        "code": "CP23",
+        "conditioned": false,
+        "row": 38,
+        "status": "No ejecutado",
+        "title": "Escenario 23"
+      },
+      {
+        "code": "CP24",
+        "conditioned": false,
+        "row": 39,
+        "status": "No ejecutado",
+        "title": "Escenario 24"
+      },
+      {
+        "code": "CP25",
+        "conditioned": false,
+        "row": 40,
+        "status": "No ejecutado",
+        "title": "Escenario 25"
+      },
+      {
+        "code": "CP26",
+        "conditioned": false,
+        "row": 41,
+        "status": "No ejecutado",
+        "title": "Escenario 26"
+      },
+      {
+        "code": "CP27",
+        "conditioned": false,
+        "row": 42,
+        "status": "No ejecutado",
+        "title": "Escenario 27"
+      },
+      {
+        "code": "CP28",
+        "conditioned": false,
+        "row": 43,
+        "status": "No ejecutado",
+        "title": "Escenario 28"
+      },
+      {
+        "code": "CP29",
+        "conditioned": false,
+        "row": 44,
+        "status": "No ejecutado",
+        "title": "Escenario 29"
+      },
+      {
+        "code": "CP30",
+        "conditioned": false,
+        "row": 45,
+        "status": "No ejecutado",
+        "title": "Escenario 30"
+      },
+      {
+        "code": "CP31",
+        "conditioned": false,
+        "row": 46,
+        "status": "No ejecutado",
+        "title": "Escenario 31"
+      },
+      {
+        "code": "CP32",
+        "conditioned": false,
+        "row": 47,
+        "status": "No ejecutado",
+        "title": "Escenario 32"
+      },
+      {
+        "code": "CP33",
+        "conditioned": false,
+        "row": 48,
+        "status": "No ejecutado",
+        "title": "Escenario 33"
+      },
+      {
+        "code": "CP34",
+        "conditioned": false,
+        "row": 49,
+        "status": "No ejecutado",
+        "title": "Escenario 34"
+      },
+      {
+        "code": "CP35",
+        "conditioned": false,
+        "row": 50,
+        "status": "No ejecutado",
+        "title": "Escenario 35"
+      },
+      {
+        "code": "CP36",
+        "conditioned": false,
+        "row": 51,
+        "status": "No ejecutado",
+        "title": "Escenario 36"
+      }
+    ],
+    "errors": [],
+    "fields": [
+      {
+        "key": "modulo",
+        "label": "Módulo",
+        "options": [],
+        "type": "text"
+      },
+      {
+        "key": "submodulo",
+        "label": "SubMódulo",
+        "options": [],
+        "type": "text"
+      },
+      {
+        "key": "opcion",
+        "label": "Opción",
+        "options": [],
+        "type": "text"
+      },
+      {
+        "key": "rn",
+        "label": "RN",
+        "options": [],
+        "type": "text"
+      },
+      {
+        "key": "resultado_esperado",
+        "label": "Resultado Esperado",
+        "options": [],
+        "type": "text"
+      },
+      {
+        "key": "criticidad",
+        "label": "Criticidad",
+        "options": [
+          "Crítico",
+          "Importante"
+        ],
+        "type": "list"
+      },
+      {
+        "key": "fecha_prueba",
+        "label": "Fecha de Prueba",
+        "options": [],
+        "type": "date"
+      },
+      {
+        "key": "version",
+        "label": "Version",
+        "options": [],
+        "type": "text"
+      },
+      {
+        "key": "tester",
+        "label": "Nombre del tester",
+        "options": [],
+        "type": "text"
+      },
+      {
+        "key": "condiciones",
+        "label": "Condiciones",
+        "options": [],
+        "type": "longtext"
+      },
+      {
+        "key": "condicionado",
+        "label": "Condicionado",
+        "options": [],
+        "type": "boolean"
+      }
+    ],
+    "warnings": []
+  },
+  "importProfile": {
+    "createdAt": "2026-11-10T12:00:00.000Z",
+    "definition": {
+      "columns": [
+        {
+          "column": "A",
+          "header": "Módulo",
+          "target": {
+            "key": "modulo",
+            "kind": "field",
+            "label": "Módulo",
+            "options": [],
+            "role": null,
+            "type": "text"
+          }
+        },
+        {
+          "column": "B",
+          "header": "SubMódulo",
+          "target": {
+            "key": "submodulo",
+            "kind": "field",
+            "label": "SubMódulo",
+            "options": [],
+            "role": null,
+            "type": "text"
+          }
+        },
+        {
+          "column": "C",
+          "header": "ID",
+          "target": {
+            "kind": "code"
+          }
+        },
+        {
+          "column": "D",
+          "header": "Opción",
+          "target": {
+            "key": "opcion",
+            "kind": "field",
+            "label": "Opción",
+            "options": [],
+            "role": null,
+            "type": "text"
+          }
+        },
+        {
+          "column": "E",
+          "header": "RN",
+          "target": {
+            "key": "rn",
+            "kind": "field",
+            "label": "RN",
+            "options": [],
+            "role": null,
+            "type": "text"
+          }
+        },
+        {
+          "column": "F",
+          "header": "Escenario de Prueba",
+          "target": {
+            "kind": "title"
+          }
+        },
+        {
+          "column": "G",
+          "header": "Resultado Esperado",
+          "target": {
+            "key": "resultado_esperado",
+            "kind": "field",
+            "label": "Resultado Esperado",
+            "options": [],
+            "role": null,
+            "type": "text"
+          }
+        },
+        {
+          "column": "H",
+          "header": "Criticidad",
+          "target": {
+            "key": "criticidad",
+            "kind": "field",
+            "label": "Criticidad",
+            "options": [
+              "Crítico",
+              "Importante"
+            ],
+            "role": null,
+            "type": "list"
+          }
+        },
+        {
+          "column": "I",
+          "header": "Fecha de Prueba",
+          "target": {
+            "key": "fecha_prueba",
+            "kind": "field",
+            "label": "Fecha de Prueba",
+            "options": [],
+            "role": "executionDate",
+            "type": "date"
+          }
+        },
+        {
+          "column": "J",
+          "header": "Version",
+          "target": {
+            "key": "version",
+            "kind": "field",
+            "label": "Version",
+            "options": [],
+            "role": null,
+            "type": "text"
+          }
+        },
+        {
+          "column": "K",
+          "header": "Status",
+          "target": {
+            "kind": "status"
+          }
+        },
+        {
+          "column": "L",
+          "header": "Nombre del tester",
+          "target": {
+            "key": "tester",
+            "kind": "field",
+            "label": "Nombre del tester",
+            "options": [],
+            "role": "tester",
+            "type": "text"
+          }
+        },
+        {
+          "column": "M",
+          "header": "Condiciones",
+          "target": {
+            "key": "condiciones",
+            "kind": "field",
+            "label": "Condiciones",
+            "options": [],
+            "role": "conditions",
+            "type": "longtext"
+          }
+        }
+      ],
+      "cover": {
+        "executionDate": "D5",
+        "observations": "D8",
+        "responsible": "D6"
+      },
+      "headerRow": 15,
+      "sheet": "Guión de Pruebas",
+      "statusMap": {
+        "export": {
+          "Aprobado": "Aceptado",
+          "Aprobado+condicionado": "Condicionado",
+          "Fallido": "Rechazado"
+        },
+        "import": {
+          "": "No ejecutado",
+          "aceptado": "Aprobado",
+          "aprobado": "Aprobado",
+          "condicionado": "Aprobado+condicionado",
+          "rechazado": "Fallido"
+        }
+      },
+      "version": 1
+    },
+    "id": "profile-1",
+    "name": "Guion sintético · v1",
+    "updatedAt": "2026-11-10T12:00:00.000Z"
+  },
   "importSummary": {
     "cases": 3,
     "evidence": 2,
@@ -216,6 +1504,181 @@
       "required": false,
       "type": "list",
       "width": 14
+    },
+    "guionImportInput": {
+      "profile": {
+        "columns": [
+          {
+            "column": "A",
+            "header": "Módulo",
+            "target": {
+              "key": "modulo",
+              "kind": "field",
+              "label": "Módulo",
+              "options": [],
+              "role": null,
+              "type": "text"
+            }
+          },
+          {
+            "column": "B",
+            "header": "SubMódulo",
+            "target": {
+              "key": "submodulo",
+              "kind": "field",
+              "label": "SubMódulo",
+              "options": [],
+              "role": null,
+              "type": "text"
+            }
+          },
+          {
+            "column": "C",
+            "header": "ID",
+            "target": {
+              "kind": "code"
+            }
+          },
+          {
+            "column": "D",
+            "header": "Opción",
+            "target": {
+              "key": "opcion",
+              "kind": "field",
+              "label": "Opción",
+              "options": [],
+              "role": null,
+              "type": "text"
+            }
+          },
+          {
+            "column": "E",
+            "header": "RN",
+            "target": {
+              "key": "rn",
+              "kind": "field",
+              "label": "RN",
+              "options": [],
+              "role": null,
+              "type": "text"
+            }
+          },
+          {
+            "column": "F",
+            "header": "Escenario de Prueba",
+            "target": {
+              "kind": "title"
+            }
+          },
+          {
+            "column": "G",
+            "header": "Resultado Esperado",
+            "target": {
+              "key": "resultado_esperado",
+              "kind": "field",
+              "label": "Resultado Esperado",
+              "options": [],
+              "role": null,
+              "type": "text"
+            }
+          },
+          {
+            "column": "H",
+            "header": "Criticidad",
+            "target": {
+              "key": "criticidad",
+              "kind": "field",
+              "label": "Criticidad",
+              "options": [
+                "Crítico",
+                "Importante"
+              ],
+              "role": null,
+              "type": "list"
+            }
+          },
+          {
+            "column": "I",
+            "header": "Fecha de Prueba",
+            "target": {
+              "key": "fecha_prueba",
+              "kind": "field",
+              "label": "Fecha de Prueba",
+              "options": [],
+              "role": "executionDate",
+              "type": "date"
+            }
+          },
+          {
+            "column": "J",
+            "header": "Version",
+            "target": {
+              "key": "version",
+              "kind": "field",
+              "label": "Version",
+              "options": [],
+              "role": null,
+              "type": "text"
+            }
+          },
+          {
+            "column": "K",
+            "header": "Status",
+            "target": {
+              "kind": "status"
+            }
+          },
+          {
+            "column": "L",
+            "header": "Nombre del tester",
+            "target": {
+              "key": "tester",
+              "kind": "field",
+              "label": "Nombre del tester",
+              "options": [],
+              "role": "tester",
+              "type": "text"
+            }
+          },
+          {
+            "column": "M",
+            "header": "Condiciones",
+            "target": {
+              "key": "condiciones",
+              "kind": "field",
+              "label": "Condiciones",
+              "options": [],
+              "role": "conditions",
+              "type": "longtext"
+            }
+          }
+        ],
+        "cover": {
+          "executionDate": "D5",
+          "observations": "D8",
+          "responsible": "D6"
+        },
+        "headerRow": 15,
+        "sheet": "Guión de Pruebas",
+        "statusMap": {
+          "export": {
+            "Aprobado": "Aceptado",
+            "Aprobado+condicionado": "Condicionado",
+            "Fallido": "Rechazado"
+          },
+          "import": {
+            "": "No ejecutado",
+            "aceptado": "Aprobado",
+            "aprobado": "Aprobado",
+            "condicionado": "Aprobado+condicionado",
+            "rechazado": "Fallido"
+          }
+        },
+        "version": 1
+      },
+      "projectName": "guion_sintetico",
+      "saveProfileAs": "Guion sintético · v1",
+      "token": "guion-token"
     },
     "newEvidenceMeta": {
       "annotations": "{\"version\":1,\"crop\":null,\"shapes\":[]}",

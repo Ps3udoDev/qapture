@@ -2,7 +2,74 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::transfer::guion::profile::{CoverCells, ProfileDefinition};
 use crate::{domain::fields::FieldType, settings::Settings, system::shortcuts::ShortcutAction};
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GuionSheetDto {
+    pub name: String,
+    pub rows: Vec<Vec<String>>,
+    pub suggested_header_row: Option<u32>,
+    pub cover: CoverCells,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GuionInspectDto {
+    pub token: String,
+    pub file_name: String,
+    pub sheets: Vec<GuionSheetDto>,
+    pub suggested_profile_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GuionImportInput {
+    pub token: String,
+    pub profile: ProfileDefinition,
+    pub project_name: String,
+    pub save_profile_as: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GuionPreviewCaseDto {
+    pub row: u32,
+    pub code: String,
+    pub title: String,
+    pub status: String,
+    pub conditioned: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GuionPreviewFieldDto {
+    pub key: String,
+    pub label: String,
+    #[serde(rename = "type")]
+    pub field_type: FieldType,
+    pub options: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GuionPreviewDto {
+    pub cases: Vec<GuionPreviewCaseDto>,
+    pub fields: Vec<GuionPreviewFieldDto>,
+    pub warnings: Vec<String>,
+    pub errors: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportProfileDto {
+    pub id: String,
+    pub name: String,
+    pub definition: crate::transfer::guion::profile::ProfileDefinition,
+    pub created_at: String,
+    pub updated_at: String,
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -522,7 +589,9 @@ mod contract {
             "exportOptions": { "tester": "Ana Pérez", "docVersionId": "ver-1", "includeEvidence": true,
                                "includeSummary": true, "imageMaxWidth": 940 },
             "projectGithubInput": project_github_input_json(),
-            "reportInput": report_input_json()
+            "reportInput": report_input_json(),
+            "guionImportInput": { "token": "guion-token", "profile": crate::transfer::guion::profile::tests::reference(),
+                "projectName": "guion_sintetico", "saveProfileAs": "Guion sintético · v1" }
         })
     }
 
@@ -572,6 +641,37 @@ mod contract {
 
     /// F5: en un objeto aparte para no superar el límite de recursión de `json!`.
     fn data_samples() -> Value {
+        use crate::transfer::guion::{import, profile, read};
+        let book = read::read(&crate::excel::guion_fixture::build()).unwrap();
+        let definition = profile::tests::reference();
+        let guion_preview = import::plan(&book, &definition).preview;
+        let guion_inspect = GuionInspectDto {
+            token: "guion-token".into(),
+            file_name: "guion_sintetico.xlsx".into(),
+            sheets: book
+                .sheets
+                .iter()
+                .map(|sheet| GuionSheetDto {
+                    name: sheet.name.clone(),
+                    rows: sheet
+                        .rows
+                        .iter()
+                        .take(200)
+                        .map(|row| row.iter().take(52).map(|cell| cell.text()).collect())
+                        .collect(),
+                    suggested_header_row: read::suggest_header_row(sheet),
+                    cover: read::detect_cover(sheet, definition.header_row),
+                })
+                .collect(),
+            suggested_profile_id: Some("profile-1".into()),
+        };
+        let import_profile = ImportProfileDto {
+            id: "profile-1".into(),
+            name: "Guion sintético · v1".into(),
+            definition,
+            created_at: "2026-11-10T12:00:00.000Z".into(),
+            updated_at: "2026-11-10T12:00:00.000Z".into(),
+        };
         let backup = BackupDto {
             file_name: "qapture-diario-20261016.db".into(),
             kind: BackupKind::Daily,
@@ -579,6 +679,9 @@ mod contract {
             size_bytes: 98_304,
         };
         json!({
+            "guionInspect": guion_inspect,
+            "guionPreview": guion_preview,
+            "importProfile": import_profile,
             "importSummary": ImportSummaryDto {
                 projects: vec![ImportedProjectDto { id: "prj-2".into(), name: "Aplicación de recibos".into() }],
                 cases: 3, evidence: 2, warnings: vec![],
@@ -752,6 +855,7 @@ mod contract {
     #[test]
     fn inputs_deserialize_from_ts_shape() {
         let i = inputs_json();
+        serde_json::from_value::<GuionImportInput>(i["guionImportInput"].clone()).unwrap();
         serde_json::from_value::<NewProjectInput>(i["newProjectInput"].clone()).unwrap();
         serde_json::from_value::<ProjectMetaInput>(i["projectMetaInput"].clone()).unwrap();
         serde_json::from_value::<FieldInput>(i["fieldInput"].clone()).unwrap();
@@ -768,6 +872,12 @@ mod contract {
 
     #[test]
     fn inputs_reject_unknown_fields() {
+        let mut guion = inputs_json()["guionImportInput"].clone();
+        guion["extra"] = json!(1);
+        assert!(serde_json::from_value::<GuionImportInput>(guion).is_err());
+        let mut guion = inputs_json()["guionImportInput"].clone();
+        guion["profile"]["extra"] = json!(1);
+        assert!(serde_json::from_value::<GuionImportInput>(guion).is_err());
         let mut case = inputs_json()["caseInput"].clone();
         case["extra"] = json!(1);
         assert!(serde_json::from_value::<CaseInput>(case).is_err());

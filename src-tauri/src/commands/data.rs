@@ -21,7 +21,7 @@ fn now() -> NaiveDateTime {
 }
 
 /// `None`: el usuario cerró el diálogo sin elegir archivo.
-fn pick_file(
+pub(crate) fn pick_file(
     window: &WebviewWindow,
     title: &str,
     filter: &str,

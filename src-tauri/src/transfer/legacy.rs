@@ -470,6 +470,7 @@ fn to_bundles(
                 .filter(|(_, value)| !value.is_empty())
                 .collect();
             cases.push(BundleCase {
+                source_row: None,
                 code: c.code,
                 title: c.title,
                 status: c.status,
@@ -480,6 +481,7 @@ fn to_bundles(
             });
         }
         bundles.push(ProjectBundle {
+            source: None,
             id,
             meta: ProjectMetaInput {
                 name: p.name,

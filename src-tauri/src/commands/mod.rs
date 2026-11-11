@@ -6,6 +6,7 @@ pub mod evidence;
 pub mod export;
 mod frame;
 pub mod github;
+pub mod guion;
 pub mod projects;
 pub mod settings;
 pub mod templates;

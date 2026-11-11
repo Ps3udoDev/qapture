@@ -1,0 +1,96 @@
+# Handoffs · G Bloque 1 (importar guion de pruebas)
+
+**Plan:** [2026-11-10-g1-importar-guion](../../plans/2026-11-10-g1-importar-guion.md) · **Spec:** [guion-a-evidencias](../../specs/2026-11-10-guion-a-evidencias-design.md) · **Contrato:** [G](../../contracts/G-guion-a-evidencias.md) · **Rama:** `feat/g1-importar-guion`
+
+Esta carpeta es la memoria versionada del bloque. Mantiene el formato de [G0](../g0/README.md).
+
+## Cómo se trabaja
+
+1. El controlador lee el plan y despacha una tarea a la vez.
+2. Un implementador nuevo por tarea implementa con TDD, crea los commits y escribe `tarea-<N>.md`.
+3. Otro subagente revisa el diff contra el plan y el spec. El controlador registra el veredicto.
+4. Los hallazgos Critical o Important se corrigen y revisan, hasta cinco rondas, en el mismo reporte.
+5. Al terminar se revisa toda la rama.
+
+## Formato del reporte del implementador (`tarea-<N>.md`)
+
+```markdown
+# Tarea <N> · <nombre>
+
+**Estado:** DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
+**Commits:** <sha corto> <asunto>
+
+## Qué se implementó
+## Archivos
+## Pruebas
+- RED: comando, salida relevante del fallo y por qué era el esperado
+- GREEN: comando y salida
+- Lint: comandos y salida
+## Autorrevisión
+## Dudas o riesgos
+
+## Revisión (la llena el controlador)
+- Spec: ✅ / ❌ · Calidad: Aprobada / Necesita correcciones
+- Hallazgos y cómo se resolvieron
+## Correcciones (ronda <R>)
+- Qué cambió, pruebas que lo cubren, comando y salida
+```
+
+Sin rutas personales, contraseñas ni datos de clientes. Los comandos indican desde qué directorio se ejecutaron.
+
+## Qué revisa el revisor
+
+**Cumplimiento del plan**
+- Archivos, firmas, constantes y mensajes exactos.
+- Sin funciones ni dependencias ajenas al alcance.
+- Aserciones del plan completas, sin debilitarlas.
+
+**Restricciones globales**
+- La única dependencia modificada es `calamine = "0.36.1"`: pasa a producción sin features. Se conserva el parche `zip8`.
+- Ningún archivo real de cliente; el fixture se genera en memoria.
+- Límites: 50 MB, 10000 casos, inspección de 200 filas × 52 columnas.
+- Pruebas, formato, clippy, typecheck y lint según cada tarea.
+
+**Riesgos propios del bloque**
+- Proyecto, perfil opcional, origen y copia se importan todo o nada.
+- `project_source.definition` sobrevive al borrado del perfil.
+- Estados y listas se comparan sin acentos, mayúsculas ni espacios adicionales.
+- Fechas normalizadas y avisos para fechas inválidas.
+- El webview usa un token, nunca rutas del archivo elegido.
+- Códigos vacíos o repetidos bloquean la importación.
+- G2 y G4 siguen fuera de alcance, incluida la reimportación de paquetes con códigos arbitrarios.
+
+**Severidad**
+- Critical: pérdida de datos o libro roto.
+- Important: requisito faltante, comportamiento frágil, prueba ineficaz o errores tragados.
+- Minor: estilo o cobertura ampliable; se documenta sin frenar la tarea.
+
+## Registro
+
+| Tarea | Estado | Commits | Revisión |
+|---|---|---|---|
+| 1 · Lector de guion | ✅ | `806a186` | Spec ✅ · Calidad aprobada · 1 Minor |
+| 2 · Perfil de importación | ✅ | `ed09680` | Spec ✅ · Calidad aprobada · 1 Minor |
+| 3 · Migración y repositorios | ✅ | `248d731` | Spec ✅ · 1 Important corregido en ronda 1 |
+| 4 · Vista previa | ✅ | `fe9ea84`, `1609889` | Spec ✅ · Important corregidos en rondas 1 y 2 |
+| 5 · Importación transaccional | ✅ | `361397d`, `1609889` | Spec ✅ · Calidad aprobada · Integración corregida |
+| 6 · Comandos y contrato | ✅ | `1afa730` | Spec ✅ · Calidad aprobada · 1 Minor |
+| 7 · Puerto y estado | ✅ | `a13fbe1` | Spec ✅ · Calidad aprobada · Minor corregido |
+| 8 · Asistente y cierre | ✅ código, pruebas automáticas y prueba de escritorio | `f5a4d3e`, `3065e53` | Spec ✅ · Calidad aprobada · 2 Minor |
+
+## Cierre de implementación · 2026-11-11
+
+- [Tarea 1](tarea-1.md), [tarea 2](tarea-2.md), [tarea 3](tarea-3.md), [tarea 4](tarea-4.md), [tarea 5](tarea-5.md), [tarea 6](tarea-6.md), [tarea 7](tarea-7.md) y [tarea 8](tarea-8.md): implementación, pruebas y revisión por tarea.
+- [Correcciones de integración](correcciones-integracion.md): listas grandes conservadas como texto largo y generación de códigos que salta los `EJ-NNN` ocupados. Se conserva la definición del perfil de origen y `next_sequence = 1` al importar.
+- [Revisión final independiente](revision-final.md): veredicto de la rama y limitaciones para el siguiente revisor.
+- Verificación final: **405 pruebas TS** en 58 archivos; **543 pruebas Rust de biblioteca y 4 de integración**, todas correctas. Las 4 pruebas Rust ignoradas requieren condiciones especiales y no se contabilizan como realizadas.
+- `npm run typecheck`, `npm run lint`, `npm run build`, `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` y `git diff --check`: correctos. El build avisa de un chunk principal de 505,92 kB; no bloquea la compilación. El aviso de enlace MSVC está documentado en los reportes.
+- **Prueba de escritorio (2026-11-11):** ✅ hecha por una persona y comprobada por el controlador con el MCP local y leyendo la base sin modificarla. Resultado: 36 casos, fila 15, Criticidad como lista, un recorrido de unos 60 segundos y el perfil reutilizado sin volver a mapear. Detalle en [tarea 8](tarea-8.md). Criterio G1 del contrato marcado.
+- G2, G4, cambios de versión y release quedan fuera de este bloque. El formato 1 de paquetes todavía no permite reimportar códigos arbitrarios del guion; G2 debe resolverlo junto con el traslado de los archivos de origen.
+
+## Notas del controlador
+
+- La rama solicitada ya existía, basada en `main` con G0 integrado y el plan G1. El árbol inicial estaba limpio.
+- La skill `superpowers:subagent-driven-development` no está instalada. Se aplica el flujo de implementador y revisor por tarea documentado arriba.
+- Los commits usan la autoría real de Git; no se agrega una atribución a Claude porque esta ejecución utiliza agentes Codex.
+- Las comprobaciones manuales permanecen pendientes hasta contar con evidencia de su ejecución.
