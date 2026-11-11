@@ -60,6 +60,28 @@ pub fn save_atomic(workbook: &mut Workbook, dest: &Path) -> AppResult<()> {
     Ok(())
 }
 
+/// Escribe los bytes dados en un temporal junto al destino y lo renombra de forma atómica.
+#[allow(dead_code)] // Consumido por el comando export_origin (G4-T5).
+pub fn save_bytes_atomic(bytes: &[u8], dest: &Path) -> AppResult<()> {
+    ensure_writable(dest)?;
+    let tmp = dest.with_extension(format!("{}.tmp", new_id()));
+    if let Err(error) = fs::write(&tmp, bytes) {
+        let _ = fs::remove_file(&tmp);
+        return Err(error.into());
+    }
+    if let Err(error) = fs::rename(&tmp, dest) {
+        let _ = fs::remove_file(&tmp);
+        return Err(
+            if is_locked(&error) || (error.kind() == ErrorKind::PermissionDenied && dest.exists()) {
+                locked(dest)
+            } else {
+                error.into()
+            },
+        );
+    }
+    Ok(())
+}
+
 /// El diálogo «Guardar como» deja escribir cualquier nombre: el libro siempre termina en `.xlsx`.
 pub fn with_xlsx_extension(path: PathBuf) -> PathBuf {
     if path
@@ -136,6 +158,23 @@ mod tests {
             crate::excel::testing::Book::at(&dest).text("Sheet1", 0, 0),
             "dos"
         );
+    }
+
+    #[test]
+    fn save_bytes_atomic_leaves_no_temporary_files() {
+        let tmp = TempDir::new();
+        let dest = tmp.path().join("guion_ejecutado.xlsx");
+        save_bytes_atomic(b"primer contenido", &dest).unwrap();
+        assert_eq!(fs::read(&dest).unwrap(), b"primer contenido");
+        assert_eq!(files_in(tmp.path()), ["guion_ejecutado.xlsx"]);
+
+        save_bytes_atomic(b"segundo contenido", &dest).unwrap();
+        assert_eq!(fs::read(&dest).unwrap(), b"segundo contenido");
+        assert_eq!(files_in(tmp.path()), ["guion_ejecutado.xlsx"]);
+
+        let missing = tmp.path().join("sub").join("guion.xlsx");
+        assert!(save_bytes_atomic(b"fallo", &missing).is_err());
+        assert_eq!(files_in(tmp.path()), ["guion_ejecutado.xlsx"]);
     }
 
     #[cfg(windows)]

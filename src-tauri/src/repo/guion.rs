@@ -83,7 +83,6 @@ pub fn delete_profile(conn: &Connection, id: &str) -> AppResult<()> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-#[allow(dead_code)] // El exportador al formato de origen (G4) consume estos datos.
 pub struct ProjectSource {
     pub file_name: String,
     pub stored_path: String,
@@ -95,7 +94,6 @@ pub struct ProjectSource {
     pub imported_at: String,
 }
 
-#[allow(dead_code)] // Consumido por G4; probado desde G1.
 pub fn source(conn: &Connection, project_id: &str) -> AppResult<Option<ProjectSource>> {
     let row = conn.query_row(
         "SELECT file_name, stored_path, sha256, sheet, header_row, profile_id, definition, imported_at FROM project_source WHERE project_id = ?1",
@@ -119,7 +117,6 @@ pub fn source(conn: &Connection, project_id: &str) -> AppResult<Option<ProjectSo
     .transpose()
 }
 
-#[allow(dead_code)] // Consumido por G4; probado desde G1.
 pub fn case_rows(conn: &Connection, project_id: &str) -> AppResult<Vec<(String, u32)>> {
     let mut stmt = conn.prepare(
         "SELECT c.id, s.row FROM test_case c JOIN case_source s ON s.case_id = c.id WHERE c.project_id = ?1 ORDER BY c.rowid",
