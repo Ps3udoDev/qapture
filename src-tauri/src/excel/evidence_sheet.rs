@@ -19,15 +19,28 @@ const KEY_FIELDS: [&str; 4] = [
     "response_obtenido",
 ];
 
-/// Un bloque por caso: banda con código y título, «Volver a la matriz», entorno y estado,
-/// campos clave y cada captura (descripción e imagen). `images` trae una entrada por
-/// evidencia en el orden de `data.cases[..].evidence`; cada una se suelta al insertarla.
-/// Devuelve la fila donde empieza cada caso, para los vínculos de la matriz.
+/// Destino del vínculo de regreso en cada sección de caso.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BackLink<'a> {
+    Matrix,
+    #[allow(dead_code)]
+    Sheet {
+        name: &'a str,
+        rows: &'a [u32], // fila 1-based por caso de data.cases
+    },
+}
+
+/// Un bloque por caso: banda con código y título, vínculo de regreso («Volver a la matriz»
+/// o «Volver al guion»), entorno y estado, campos clave y cada captura (descripción e imagen).
+/// `images` trae una entrada por evidencia en el orden de `data.cases[..].evidence`; cada
+/// una se suelta al insertarla. Devuelve la fila donde empieza cada caso, para los vínculos
+/// de la matriz.
 pub fn write(
     ws: &mut Worksheet,
     data: &ExportData,
     images: Vec<Option<SheetImage>>,
     styles: &Styles,
+    back: BackLink,
 ) -> AppResult<Vec<u32>> {
     ws.set_name(SHEET)?;
     ws.set_screen_gridlines(false);
@@ -69,13 +82,26 @@ pub fn write(
             24.0,
         )?;
         row += 1;
-        let back = Url::new(format!(
-            "internal:'{}'!A{}",
-            matrix::SHEET,
-            matrix::row_of(index) + 1
-        ))
-        .set_text("Volver a la matriz");
-        ws.write_url_with_format(row, 0, back, &styles.link)?;
+        let (text, target) = match back {
+            BackLink::Matrix => (
+                "Volver a la matriz",
+                format!(
+                    "internal:'{}'!A{}",
+                    matrix::SHEET,
+                    matrix::row_of(index) + 1
+                ),
+            ),
+            BackLink::Sheet { name, rows } => {
+                let escaped_name = name.replace('\'', "''");
+                let row_num = rows.get(index).copied().unwrap_or(1);
+                (
+                    "Volver al guion",
+                    format!("internal:'{escaped_name}'!A{row_num}"),
+                )
+            }
+        };
+        let back_url = Url::new(target).set_text(text);
+        ws.write_url_with_format(row, 0, back_url, &styles.link)?;
         row += 1;
         let mut status = format!("Estado: {}", c.case.status);
         if let Some(value) = environment
@@ -163,7 +189,14 @@ mod tests {
 
     fn render(data: &ExportData, images: Vec<Option<SheetImage>>) -> (Book, Vec<u32>) {
         let mut workbook = styles::workbook().unwrap();
-        let anchors = write(workbook.add_worksheet(), data, images, &Styles::new()).unwrap();
+        let anchors = write(
+            workbook.add_worksheet(),
+            data,
+            images,
+            &Styles::new(),
+            BackLink::Matrix,
+        )
+        .unwrap();
         (Book::save(&mut workbook), anchors)
     }
 
@@ -253,5 +286,28 @@ mod tests {
         let (book, anchors) = render(&data, Vec::new());
         assert!(anchors.is_empty());
         assert_eq!(book.text(SHEET, 3, 0), "No hay casos registrados.");
+    }
+
+    #[test]
+    fn back_link_points_to_the_guion_row() {
+        let mut data = fixture();
+        data.cases.truncate(1);
+        let mut workbook = styles::workbook().unwrap();
+        let anchors = write(
+            workbook.add_worksheet(),
+            &data,
+            vec![None, None],
+            &Styles::new(),
+            BackLink::Sheet {
+                name: "Guión de Pruebas",
+                rows: &[16],
+            },
+        )
+        .unwrap();
+        let book = Book::save(&mut workbook);
+        assert_eq!(book.text(SHEET, anchors[0] + 1, 0), "Volver al guion");
+        let links = book.hyperlinks(SHEET);
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].1, "'Guión de Pruebas'!A16");
     }
 }
