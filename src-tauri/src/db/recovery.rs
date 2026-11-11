@@ -544,4 +544,33 @@ mod tests {
             .join("e1.orig.png");
         assert_eq!(fs::read(aside).unwrap(), b"png");
     }
+
+    #[test]
+    fn references_of_tolerates_a_schema_without_guion_tables() {
+        let tmp = TempDir::new();
+        let path = tmp.path().join("v6.db");
+        db::write_version_for_tests(&path, 6).unwrap();
+        {
+            let conn = Connection::open(&path).unwrap();
+            conn.execute(
+                "INSERT INTO project (id, name, created_at, updated_at) VALUES ('p1', 'P1', '', '')",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO test_case (id, project_id, code, title, status, created_at, updated_at) VALUES ('c1', 'p1', 'TC1', 'T1', 'untouched', '', '')",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO evidence (id, case_id, position, description, original_path, rendered_path, annotations, width, height, captured_at, updated_at) VALUES ('e1', 'c1', 0, 'Desc', 'evidence/p1/e1.orig.png', 'evidence/p1/e1.render.png', '{}', 10, 10, '', '')",
+                [],
+            )
+            .unwrap();
+        }
+        let (referenced, projects) = references_of(&path).unwrap();
+        assert_eq!(projects, HashSet::from(["p1".to_string()]));
+        assert!(referenced.contains("evidence/p1/e1.orig.png"));
+        assert!(referenced.contains("evidence/p1/e1.render.png"));
+    }
 }

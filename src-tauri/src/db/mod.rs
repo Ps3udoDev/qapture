@@ -84,12 +84,27 @@ fn init(conn: Connection) -> AppResult<Connection> {
     Ok(conn)
 }
 
+/// Solo para tests: crea una base en `path` con las migraciones hasta `version`.
+#[cfg(test)]
+pub(crate) fn write_version_for_tests(path: &Path, version: usize) -> AppResult<()> {
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    let conn = Connection::open(path)?;
+    for (index, sql) in MIGRATIONS[..version].iter().enumerate() {
+        let tx = conn.unchecked_transaction()?;
+        tx.execute_batch(sql)?;
+        tx.pragma_update(None, "user_version", (index + 1) as i64)?;
+        tx.commit()?;
+    }
+    Ok(())
+}
+
 /// Solo para tests: escribe una base en el esquema v1 con un proyecto «Antiguo».
 #[cfg(test)]
 pub(crate) fn write_v1_for_tests(path: &Path) {
+    write_version_for_tests(path, 1).unwrap();
     let old = Connection::open(path).unwrap();
-    old.execute_batch(MIGRATIONS[0]).unwrap();
-    old.pragma_update(None, "user_version", 1).unwrap();
     old.execute(
         "INSERT INTO project (id, name, created_at, updated_at) VALUES ('p-old', 'Antiguo', '', '')",
         [],

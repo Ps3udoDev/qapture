@@ -359,6 +359,14 @@ pub fn missing_images(conn: &Connection, files: &EvidenceFiles) -> AppResult<i64
     Ok(missing)
 }
 
+pub(crate) fn has_table(conn: &Connection, name: &str) -> AppResult<bool> {
+    Ok(conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1)",
+        [name],
+        |r| r.get(0),
+    )?)
+}
+
 /// Rutas relativas que la base referencia y los ids de proyecto existentes.
 pub fn references(conn: &Connection) -> AppResult<(HashSet<String>, HashSet<String>)> {
     let mut referenced = HashSet::new();
@@ -368,9 +376,11 @@ pub fn references(conn: &Connection) -> AppResult<(HashSet<String>, HashSet<Stri
         referenced.insert(original);
         referenced.insert(rendered);
     }
-    let mut stmt = conn.prepare("SELECT stored_path FROM project_source")?;
-    for row in stmt.query_map([], |r| r.get::<_, String>(0))? {
-        referenced.insert(row?);
+    if has_table(conn, "project_source")? {
+        let mut stmt = conn.prepare("SELECT stored_path FROM project_source")?;
+        for row in stmt.query_map([], |r| r.get::<_, String>(0))? {
+            referenced.insert(row?);
+        }
     }
     let mut stmt = conn.prepare("SELECT id FROM project")?;
     let projects = stmt
@@ -409,6 +419,14 @@ mod tests {
         ).unwrap();
         assert_eq!(sweep_orphans(&conn, &files).unwrap(), 0);
         assert_eq!(fs::read(files.absolute(&rel)).unwrap(), b"copia del guion");
+    }
+
+    #[test]
+    fn has_table_checks_table_existence() {
+        let conn = conn();
+        assert!(has_table(&conn, "project").unwrap());
+        assert!(has_table(&conn, "evidence").unwrap());
+        assert!(!has_table(&conn, "non_existent_table").unwrap());
     }
 
     struct Env {

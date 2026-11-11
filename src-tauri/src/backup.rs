@@ -699,6 +699,38 @@ mod tests {
             .collect();
         assert!(leftovers.is_empty(), "{leftovers:?}");
     }
+
+    #[test]
+    fn a_backup_from_before_the_guion_tables_is_restorable() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let backups = Backups::new(tmp.path());
+        fs::create_dir_all(backups.dir()).unwrap();
+        let backup_name = "qapture-manual-20261110-120000.db";
+        let backup_path = backups.dir().join(backup_name);
+        db::write_version_for_tests(&backup_path, 6).unwrap();
+        {
+            let conn = Connection::open(&backup_path).unwrap();
+            conn.execute(
+                "INSERT INTO project (id, name, created_at, updated_at) VALUES ('p-antiguo', 'Antiguo', '', '')",
+                [],
+            )
+            .unwrap();
+        }
+        let mut conn = open(&tmp);
+        let result = backups
+            .restore(&mut conn, &files, backup_name, at(10, 0, 0))
+            .unwrap();
+        assert_eq!(result.restored.file_name, backup_name);
+        assert_eq!(db::schema_version(&conn).unwrap(), db::latest_version());
+        let names: Vec<String> = projects::list(&conn)
+            .unwrap()
+            .into_iter()
+            .map(|p| p.name)
+            .collect();
+        assert_eq!(names, ["Antiguo"]);
+    }
+
     #[test]
     fn a_backup_from_a_newer_app_is_refused() {
         let tmp = TempDir::new();
