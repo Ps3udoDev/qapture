@@ -2,7 +2,7 @@
 
 **Estado:** ✅ Contrato aprobado (2026-11-10). Bloque 0 cerrado con **go** (2026-11-10). Sigue: Bloque 1.
 
-**Depende de:** F1–F9a · **Spec:** [2026-11-10-guion-a-evidencias-design](../specs/2026-11-10-guion-a-evidencias-design.md) · **Planes:** uno por bloque, escrito al iniciar el bloque (ver «Orden»). Bloque 0: [2026-11-10-g0-fixture-y-pico](../plans/2026-11-10-g0-fixture-y-pico.md).
+**Depende de:** F1–F9a · **Spec:** [2026-11-10-guion-a-evidencias-design](../specs/2026-11-10-guion-a-evidencias-design.md) · **Planes:** uno por bloque, escrito al iniciar el bloque (ver «Orden»). Bloque 0: [2026-11-10-g0-fixture-y-pico](../plans/2026-11-10-g0-fixture-y-pico.md). Bloque 1: [2026-11-10-g1-importar-guion](../plans/2026-11-10-g1-importar-guion.md).
 
 ## Objetivo
 El tester importa el guion de pruebas del cliente en Excel, adjunta a cada caso su archivo de prueba, ejecuta a mano con `Ctrl+Alt+S` y devuelve **el mismo archivo del cliente** con los resultados escritos y una hoja «Evidencias» añadida. Caso de referencia: el guion de un cliente real (se omite su nombre).
