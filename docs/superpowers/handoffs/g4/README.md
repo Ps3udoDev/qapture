@@ -46,6 +46,6 @@ Sin rutas personales, contraseñas ni datos de clientes. Los comandos indican de
 | 2 · Valores por fila y carátula (G4-T2) | DONE | `6b6c4fc` | Pendiente |
 | 3 · Hoja «Evidencias» injertada (G4-T3) | DONE | `53b3ccb` | Pendiente |
 | 4 · Exportación completa y prueba de ida y vuelta (G4-T4) | DONE | `6d18041` | Pendiente |
-| 5 · Comandos y contrato (G4-T5) | Pendiente | — | — |
+| 5 · Comandos y contrato (G4-T5) | DONE | `78277f4` | Pendiente |
 | 6 · Opción «Formato de origen» en el diálogo de exportar (G4-T6) | Pendiente | — | — |
 | 7 · Cierre del bloque | Pendiente | — | — |
