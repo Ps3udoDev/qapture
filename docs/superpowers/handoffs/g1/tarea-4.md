@@ -36,6 +36,9 @@ Todos los comandos desde `src-tauri/`, salvo `git diff --check` desde la raíz.
 - Esta tarea solo construye la vista previa. La importación transaccional y la copia del archivo corresponden a G1-T5.
 
 ## Revisión (la llena el controlador)
+- Spec: ✅ · Calidad: Aprobada. Revisión independiente del diff `279487c..fe9ea84`.
+- Important corregido en ronda 1: si Condiciones era lista o fecha, anexar el estado original producía un valor inválido para el campo. Se promueve a texto largo al finalizar la normalización de todas las filas y se limpian las opciones. Prueba de ambas variantes, incluida una fecha serial posterior.
+- La detección de carátula también respeta el inicio de combinaciones verticales. Sin hallazgos pendientes.
 
 ## Correcciones (ronda 1)
 - Hallazgo Important: el perfil admite el rol Conditions sobre lista o fecha. Anexar `Estado original: …` produciría un valor incompatible con ese tipo de campo.
