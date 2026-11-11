@@ -44,3 +44,6 @@ Desde la raíz:
 - El enlazador MSVC emite su mensaje previo `linker_messages` al compilar la DLL; las comprobaciones de código no producen advertencias.
 
 ## Revisión (la llena el controlador)
+- Spec: ✅ · Calidad: Aprobada. Revisión independiente del diff `3717784..1afa730`.
+- Sin Critical ni Important. Cinco comandos, registro, permisos, token, límites y muestras de contrato verificados. El mutex se libera antes de limpiar el archivo pendiente.
+- Minor documentado: el consumo y la limpieza del token usan dos adquisiciones de bloqueo, por lo que llamadas IPC simultáneas podrían reutilizarlo o limpiar una inspección nueva. El flujo de T7 debe mantener exclusión mediante `dataBusy`.
