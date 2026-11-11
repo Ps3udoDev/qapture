@@ -832,4 +832,131 @@ mod tests {
             "La hoja «Guión de Pruebas» ya no está en el guion original."
         );
     }
+
+    #[test]
+    #[ignore = "genera archivo para abrir a mano"]
+    fn write_origin_for_manual_check() {
+        let (conn, tmp, base, project_id) = setup_imported_guion();
+        let files = tmp.files();
+
+        let case_list = cases::list(&conn, &project_id).unwrap();
+        let cp01 = &case_list[0];
+        let cp02 = &case_list[1];
+        let cp03 = &case_list[2];
+        let cp04 = &case_list[3];
+
+        // CP01: Aprobado + 2 evidencias
+        fs::create_dir_all(files.project_dir(&project_id)).unwrap();
+        let rel_img1 = EvidenceFiles::render_rel(&project_id, "e1");
+        write_png(
+            &files.project_dir(&project_id),
+            "e1.render.png",
+            100,
+            100,
+            1,
+        );
+        conn.execute(
+            "INSERT INTO evidence (id, case_id, position, description, original_path, rendered_path, annotations, width, height, captured_at, updated_at) VALUES ('e1', ?1, 0, 'Captura 1 del CP01', ?2, ?2, '{}', 100, 100, '2026-11-10T12:00:00Z', '2026-11-10T12:00:00Z')",
+            params![cp01.id, rel_img1],
+        ).unwrap();
+
+        let rel_img2 = EvidenceFiles::render_rel(&project_id, "e2");
+        write_png(
+            &files.project_dir(&project_id),
+            "e2.render.png",
+            100,
+            100,
+            2,
+        );
+        conn.execute(
+            "INSERT INTO evidence (id, case_id, position, description, original_path, rendered_path, annotations, width, height, captured_at, updated_at) VALUES ('e2', ?1, 1, 'Captura 2 del CP01', ?2, ?2, '{}', 100, 100, '2026-11-10T12:05:00Z', '2026-11-10T12:05:00Z')",
+            params![cp01.id, rel_img2],
+        ).unwrap();
+
+        cases::update(
+            &conn,
+            &cp01.id,
+            &CaseInput {
+                title: cp01.title.clone(),
+                status: "Aprobado".into(),
+                values: cp01.values.clone(),
+            },
+        )
+        .unwrap();
+
+        // CP02: Fallido
+        cases::update(
+            &conn,
+            &cp02.id,
+            &CaseInput {
+                title: cp02.title.clone(),
+                status: "Fallido".into(),
+                values: cp02.values.clone(),
+            },
+        )
+        .unwrap();
+
+        // CP03: Aprobado condicionado (condicionado = "true")
+        let fields = crate::repo::fields::list_for_project(&conn, &project_id).unwrap();
+        let cond_field = fields
+            .iter()
+            .find(|f| f.key == profile::CONDITIONED_KEY)
+            .unwrap();
+        let mut cp03_values = cp03.values.clone();
+        cp03_values.insert(cond_field.id.clone(), "true".into());
+        cases::update(
+            &conn,
+            &cp03.id,
+            &CaseInput {
+                title: cp03.title.clone(),
+                status: "Aprobado".into(),
+                values: cp03_values,
+            },
+        )
+        .unwrap();
+
+        // CP04: Bloqueado (con Condiciones "Sin ambiente")
+        let conditions_field = fields
+            .iter()
+            .find(|f| f.label.eq_ignore_ascii_case("condiciones") || f.key == "condiciones")
+            .unwrap();
+        let mut cp04_values = cp04.values.clone();
+        cp04_values.insert(conditions_field.id.clone(), "Sin ambiente".into());
+        cases::update(
+            &conn,
+            &cp04.id,
+            &CaseInput {
+                title: cp04.title.clone(),
+                status: "Bloqueado".into(),
+                values: cp04_values,
+            },
+        )
+        .unwrap();
+
+        let data = OriginData::load(&conn, &files, &project_id)
+            .unwrap()
+            .unwrap();
+
+        let req = OriginRequest {
+            tester: "Ana Tester",
+            observations: "Ejecución de prueba del bloque G4.",
+            include_evidence: true,
+            image_max_width: 940,
+        };
+
+        let built = build(&data, &base, &req).unwrap();
+        assert_eq!(built.cases_written, 36);
+        assert_eq!(built.evidence, 2);
+
+        let out_dir = std::path::Path::new("target/manual-check");
+        fs::create_dir_all(out_dir).unwrap();
+        let dest = out_dir.join("guion_ejecutado.xlsx");
+        fs::write(&dest, &built.bytes).unwrap();
+
+        if std::path::Path::new("../package.json").exists() {
+            let root_out = std::path::Path::new("../target/manual-check");
+            let _ = fs::create_dir_all(root_out);
+            let _ = fs::write(root_out.join("guion_ejecutado.xlsx"), &built.bytes);
+        }
+    }
 }

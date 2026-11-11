@@ -1,8 +1,8 @@
 # G — Del guion de pruebas a las evidencias · `v1.3.0`
 
-**Estado:** ✅ Contrato aprobado (2026-11-10). Bloque 0 cerrado con **go** (2026-11-10). Bloque 1 cerrado (2026-11-11). Bloque 2 cerrado (2026-11-11): verificación automática aprobada; prueba manual en escritorio lista. Sigue: Bloque 3 (G4).
+**Estado:** ✅ Contrato aprobado (2026-11-10). Bloque 0 cerrado con **go** (2026-11-10). Bloque 1 cerrado (2026-11-11). Bloque 2 cerrado (2026-11-11): verificación automática aprobada; prueba manual en escritorio lista. Bloque 3 (G4) cerrado en la parte de código y pruebas automáticas. Sigue: Bloque 4 (cierre).
 
-**Depende de:** F1–F9a · **Spec:** [2026-11-10-guion-a-evidencias-design](../specs/2026-11-10-guion-a-evidencias-design.md) · **Planes:** uno por bloque, escrito al iniciar el bloque (ver «Orden»). Bloque 0: [2026-11-10-g0-fixture-y-pico](../plans/2026-11-10-g0-fixture-y-pico.md). Bloque 1: [2026-11-10-g1-importar-guion](../plans/2026-11-10-g1-importar-guion.md). Bloque 2: [2026-11-11-g2-archivos-de-prueba](../plans/2026-11-11-g2-archivos-de-prueba.md).
+**Depende de:** F1–F9a · **Spec:** [2026-11-10-guion-a-evidencias-design](../specs/2026-11-10-guion-a-evidencias-design.md) · **Planes:** uno por bloque, escrito al iniciar el bloque (ver «Orden»). Bloque 0: [2026-11-10-g0-fixture-y-pico](../plans/2026-11-10-g0-fixture-y-pico.md). Bloque 1: [2026-11-10-g1-importar-guion](../plans/2026-11-10-g1-importar-guion.md). Bloque 2: [2026-11-11-g2-archivos-de-prueba](../plans/2026-11-11-g2-archivos-de-prueba.md). Bloque 3: [2026-11-11-g4-formato-de-origen](../plans/2026-11-11-g4-formato-de-origen.md).
 
 ## Objetivo
 El tester importa el guion de pruebas del cliente en Excel, adjunta a cada caso su archivo de prueba, ejecuta a mano con `Ctrl+Alt+S` y devuelve **el mismo archivo del cliente** con los resultados escritos y una hoja «Evidencias» añadida. Caso de referencia: el guion de un cliente real (se omite su nombre).
@@ -62,12 +62,12 @@ El bloque 0 va primero porque el trasplante de la hoja con imágenes (D10) es el
 ### Bloque 3 · G4 Formato de origen
 | ID | Task | Qué entrega | Estado |
 |---|---|---|---|
-| G4-T1 | Escritura de celdas | `excel/origin/cells.rs`: texto en línea, fecha con el estilo existente, celda o fila inexistente creada en orden, fórmula quitada (D9) | ☐ |
-| G4-T2 | Valores por fila | Estado con el vocabulario del perfil (D6), fecha y tester (D7), Condiciones con «Bloqueado: …», carátula (D8); escribe por `case_source.row` | ☐ |
-| G4-T3 | Hoja «Evidencias» | `excel/origin/evidence_graft.rs` a partir del pico G-T2: una sección por caso ejecutado, imágenes con descripción; nombre alternativo si ya existe la hoja | ☐ |
-| G4-T4 | Exportación completa | `excel/origin/mod.rs` y la prueba de ida y vuelta parte por parte del ZIP (criterio de éxito 2 del spec) | ☐ |
-| G4-T5 | Comando | `export_origin`: valida copia y `sha256`, diálogo de guardar con sufijo `_ejecutado`, aviso de datos personales, sin sobrescribir sin confirmación; contrato | ☐ |
-| G4-T6 | Interfaz | Opción «Formato de origen» en el diálogo de exportar, solo en proyectos importados (spec §6) | ☐ |
+| G4-T1 | Escritura de celdas | `excel/origin/cells.rs`: texto en línea, fecha con el estilo existente, celda o fila inexistente creada en orden, fórmula quitada (D9) | ✅ 2026-11-11 |
+| G4-T2 | Valores por fila | Estado con el vocabulario del perfil (D6), fecha y tester (D7), Condiciones con «Bloqueado: …», carátula (D8); escribe por `case_source.row` | ✅ 2026-11-11 |
+| G4-T3 | Hoja «Evidencias» | `excel/origin/evidence_graft.rs` a partir del pico G-T2: una sección por caso ejecutado, imágenes con descripción; nombre alternativo si ya existe la hoja | ✅ 2026-11-11 |
+| G4-T4 | Exportación completa | `excel/origin/mod.rs` y la prueba de ida y vuelta parte por parte del ZIP (criterio de éxito 2 del spec) | ✅ 2026-11-11 |
+| G4-T5 | Comando | `export_origin`: valida copia y `sha256`, diálogo de guardar con sufijo `_ejecutado`, aviso de datos personales, sin sobrescribir sin confirmación; contrato | ✅ 2026-11-11 |
+| G4-T6 | Interfaz | Opción «Formato de origen» en el diálogo de exportar, solo en proyectos importados (spec §6) | ✅ 2026-11-11 |
 
 ### Bloque 4 · Cierre
 | ID | Task | Qué entrega | Estado |
@@ -108,11 +108,20 @@ G2 produce los cinco comandos Tauri (`fixture_add`, `fixture_list`, `fixture_rem
 | `case_fixture` | `id`, `case_id`, `file_name`, `size`, `sha256`, `note`, `position`, `stored_path`, `added_at`. Cascada con caso y proyecto |
 | Paquete formato 2 | `formatVersion: 2`, incluye carpeta `fixtures/<código-caso>/<nombre>` y `guion/` si existen; lectura tolerante de códigos libres |
 
+### G4 · Formato de origen
+G4 produce los dos comandos Tauri (`export_origin_info`, `export_origin`), los DTOs `OriginInfoDto` y `OriginExportInput`, los métodos `originInfo` y `exportOrigin` en el puerto `Exporter` (con adaptadores en memoria y Tauri), y la integración en `ExportDialog` con aviso de privacidad y conteos.
+
+Estrategia de no sobreescritura:
+- Nunca se escribe sobre el archivo original del tester ni sobre la copia guardada (`project_source.stored_path`).
+- Se lee la copia guardada, se verifica su integridad por `sha256`, y se construye un nuevo archivo temporal en memoria.
+- Rust abre el cuadro de diálogo nativo de «Guardar como» con el sufijo sugerido `_ejecutado.xlsx` y confirmación antes de sobrescribir.
+- La escritura final es atómica (`save_bytes_atomic`) previa comprobación de que el archivo destino sea modificable (`save::ensure_writable`).
+
 ## Criterios de aceptación
 - [x] **G-T1–T2:** el fixture reproduce la estructura del spec §8; el libro con la hoja injertada abre sin reparación (verificado a mano en Excel y LibreOffice) y `calamine` lee sus dos hojas.
 - [x] **G1** (pruebas automáticas y de escritorio, 2026-11-11; ver [tarea 8](../handoffs/g1/tarea-8.md)): importar el fixture produce 36 casos con 13 columnas; códigos repetidos o vacíos bloquean el import; «Crìtico» se normaliza; un estado desconocido entra como «No ejecutado» con el original en Condiciones; el perfil guardado importa un segundo guion sin mapear; un fallo a mitad no deja nada en la base ni en disco.
 - [x] **G2:** extensión no permitida y archivo de más de 25 MB se rechazan; los archivos sobreviven a exportar e importar un paquete y a restaurar un respaldo; un paquete de formato 1 se sigue importando.
-- [ ] **G4:** ida y vuelta: solo cambian las celdas destino y se agregan la hoja y sus partes; las columnas I, K, L y M quedan llenas según D6 y D7; «Condicionado» se escribe cuando la casilla está activa; copia faltante o con otro `sha256` deshabilita la opción.
+- [x] **G4:** ida y vuelta: solo cambian las celdas destino y se agregan la hoja y sus partes; las columnas I, K, L y M quedan llenas según D6 y D7; «Condicionado» se escribe cuando la casilla está activa; copia faltante o con otro sha256 deshabilita la opción; verificado con prueba manual sintética.
 - [ ] Contrato Rust ↔ TS de todos los comandos nuevos; `cargo fmt --check`, `clippy -D warnings`, `cargo test`, lint, typecheck y Vitest en verde.
 
 ## Mensajes fijos
