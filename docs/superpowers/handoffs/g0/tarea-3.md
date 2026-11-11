@@ -40,3 +40,14 @@
 - Tamaño: 518 líneas (≈ 330 de implementación con helpers pequeños y ≈ 190 de pruebas). No se partió el archivo; queda a criterio del controlador.
 - El `<sheet>` insertado usa el prefijo `r:`; un libro cuyo `workbook.xml` declarara el espacio de nombres de relaciones con otro prefijo no lo entendería. Excel y `rust_xlsxwriter` siempre usan `r:`; la verificación manual (Tarea 4) lo confirmará con libros reales.
 - La búsqueda de texto supone XML como el que escriben Excel y `rust_xlsxwriter` (atributos entre comillas dobles, sin comentarios ni CDATA en la hoja). El donante siempre lo genera Qapture, así que el supuesto se cumple.
+
+## Revisión (controlador)
+- Revisión (Opus, diff `41a4ffe..93a62c3`): Spec ✅ en los 9 pasos del algoritmo · Calidad: Aprobada. Sin Critical ni Important.
+- Decisión del controlador: el nombre duplicado se compara sin distinguir mayúsculas (más estricto que el plan), porque Excel también lo rechaza.
+- Minor anotados para la revisión final y para el plan de G4 (endurecer frente a libros de clientes poco comunes):
+  1. Lectura frágil de `<sheet>` del libro base (un `>` dentro de un atributo o comillas simples) → fallar cerrado si falta `sheetId` o `name`.
+  2. `next_free` distingue mayúsculas; los nombres de parte OPC no.
+  3. El límite de 31 caracteres debe contarse en UTF-16; faltan las reglas del apóstrofo inicial/final y de los caracteres de control.
+  4. Prefijo `r:` y tipo de relación transicional fijos: un libro Strict OOXML fallaría (verificar en la Tarea 4).
+  5. No se quitan los `dxfId` del donante (hoy el donante no tiene formato condicional).
+  6. Faltan pruebas de que `[Content_Types].xml` y `workbook.xml.rels` solo ganan entradas, de la relación de dibujo no-imagen y del duplicado sin mayúsculas.
