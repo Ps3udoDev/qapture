@@ -285,9 +285,10 @@ mod tests {
             raster::sample_png,
             storage::{TempDir, UNUSED_DIR},
         },
-        repo::{evidence, projects, test_support},
+        repo::{evidence, fixtures, projects, test_support},
         transfer::bundle::EMPTY_ANNOTATIONS,
     };
+    use rusqlite::params;
 
     fn day(d: u32) -> NaiveDate {
         NaiveDate::from_ymd_opt(2026, 10, d).unwrap()
@@ -746,5 +747,67 @@ mod tests {
             Backups::check(&path).unwrap_err().to_string(),
             "El respaldo es de una versión más nueva de Qapture. Actualiza la app para restaurarlo."
         );
+    }
+
+    #[test]
+    fn restore_keeps_fixtures_and_the_guion_copy() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let mut conn = open(&tmp);
+        let project = test_support::project(&conn);
+        let case = test_support::case(&conn, &project);
+
+        // Copia de guion en disco y project_source
+        let guion_rel = format!("evidence/{}/guion.xlsx", project.id);
+        let guion_abs = files.absolute(&guion_rel);
+        fs::create_dir_all(guion_abs.parent().unwrap()).unwrap();
+        fs::write(&guion_abs, b"copia guion").unwrap();
+        let def = crate::transfer::guion::profile::tests::reference();
+        conn.execute(
+            "INSERT INTO project_source (project_id, file_name, stored_path, sha256, sheet, header_row, profile_id, definition, imported_at) VALUES (?1, 'guion.xlsx', ?2, 'hash', 'Guión de Pruebas', 15, NULL, ?3, '')",
+            params![project.id, guion_rel, serde_json::to_string(&def).unwrap()],
+        ).unwrap();
+
+        // Fixture 1
+        let f1 = fixtures::add(&conn, &files, &case.id, "f1.txt", "", b"fixture 1").unwrap();
+        let f1_path = fixtures::absolute(&conn, &files, &f1.id).unwrap();
+
+        // Respaldo manual
+        let backups = Backups::new(tmp.path());
+        let saved = backups.create_manual(&conn, at(9, 0, 0)).unwrap();
+
+        // Fixture 2 agregado después del respaldo
+        let f2 = fixtures::add(&conn, &files, &case.id, "f2.txt", "", b"fixture 2").unwrap();
+        let f2_path = fixtures::absolute(&conn, &files, &f2.id).unwrap();
+
+        // Restaurar
+        let result = backups
+            .restore(&mut conn, &files, &saved.file_name, at(10, 0, 0))
+            .unwrap();
+        assert_eq!(result.restored.file_name, saved.file_name);
+
+        // Comprobaciones
+        assert!(f1_path.is_file(), "el primer fixture sigue en su ruta");
+        assert!(guion_abs.is_file(), "la copia del guión sigue en su ruta");
+        assert!(
+            !f2_path.exists(),
+            "el segundo fixture ya no está en la ruta activa"
+        );
+
+        // El segundo está en evidence-sin-uso/
+        let aside_f2 = tmp
+            .path()
+            .join(UNUSED_DIR)
+            .join("20261016-100000")
+            .join(&project.id)
+            .join("fixtures")
+            .join(&f2.id)
+            .join("f2.txt");
+        assert!(
+            aside_f2.is_file(),
+            "el segundo fixture fue apartado en evidence-sin-uso"
+        );
+
+        assert_eq!(fixtures::missing_files(&conn, &files).unwrap(), 0);
     }
 }

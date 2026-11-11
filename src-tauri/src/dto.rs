@@ -201,6 +201,20 @@ pub struct CaseInput {
     pub values: BTreeMap<String, String>,
 }
 
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FixtureDto {
+    pub id: String,
+    pub case_id: String,
+    pub file_name: String,
+    pub size: i64,
+    pub sha256: String,
+    pub note: String,
+    pub position: i64,
+    pub added_at: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EvidenceDto {

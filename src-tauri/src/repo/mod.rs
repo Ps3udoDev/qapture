@@ -3,6 +3,7 @@ pub mod cases;
 pub mod doc_versions;
 pub mod evidence;
 pub mod fields;
+pub mod fixtures;
 pub mod guion;
 pub mod integrations;
 pub mod projects;
