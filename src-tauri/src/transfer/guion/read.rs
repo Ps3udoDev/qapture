@@ -210,6 +210,52 @@ pub fn parse_date(cell: &Cell) -> Option<String> {
     }
 }
 
+/// Detecta las celdas de valor de la carátula sin depender de su posición.
+pub fn detect_cover(sheet: &GuionSheet, header_row: u32) -> super::profile::CoverCells {
+    use crate::domain::text::fold;
+    let mut cover = super::profile::CoverCells::default();
+    for (row, cells) in sheet
+        .rows
+        .iter()
+        .take(header_row.saturating_sub(1) as usize)
+        .enumerate()
+    {
+        for (col, cell) in cells.iter().enumerate() {
+            let label = fold(&cell.text());
+            let destination = match label.trim_end_matches(':').trim_end() {
+                "fecha de la prueba" => &mut cover.execution_date,
+                "responsable" => &mut cover.responsible,
+                "observaciones" => &mut cover.observations,
+                _ => continue,
+            };
+            if destination.is_some() {
+                continue;
+            }
+            let (value_col, value_row) = cells
+                .iter()
+                .enumerate()
+                .skip(col + 1)
+                .find(|(_, cell)| !cell.text().trim().is_empty())
+                .map(|(col, _)| (col as u32, row as u32))
+                .or_else(|| {
+                    sheet
+                        .merged
+                        .iter()
+                        .filter(|(start_row, start_col, end_row, _)| {
+                            *start_row <= row as u32
+                                && row as u32 <= *end_row
+                                && *start_col > col as u32
+                        })
+                        .map(|(row, col, _, _)| (*col, *row))
+                        .min()
+                })
+                .unwrap_or((col as u32 + 1, row as u32));
+            *destination = Some(format!("{}{}", column_letter(value_col), value_row + 1));
+        }
+    }
+    cover
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

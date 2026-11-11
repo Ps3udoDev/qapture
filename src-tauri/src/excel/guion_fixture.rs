@@ -53,6 +53,7 @@ pub(crate) fn build() -> Vec<u8> {
 }
 
 pub(crate) enum Put {
+    Blank,
     Text(&'static str),
     Date(u16, u8, u8),
 }
@@ -124,6 +125,10 @@ pub(crate) fn build_edited(puts: &[(u32, u16, Put)]) -> Vec<u8> {
 
     for (row, col, put) in puts {
         match put {
+            Put::Blank => {
+                ws.write_blank(*row, *col, &plain)
+                    .expect("celda vacía editada");
+            }
             Put::Text(text) => {
                 ws.write_string(*row, *col, *text).expect("texto editado");
             }

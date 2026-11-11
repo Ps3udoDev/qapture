@@ -6,6 +6,35 @@ use crate::{domain::fields::FieldType, settings::Settings, system::shortcuts::Sh
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct GuionPreviewCaseDto {
+    pub row: u32,
+    pub code: String,
+    pub title: String,
+    pub status: String,
+    pub conditioned: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GuionPreviewFieldDto {
+    pub key: String,
+    pub label: String,
+    #[serde(rename = "type")]
+    pub field_type: FieldType,
+    pub options: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GuionPreviewDto {
+    pub cases: Vec<GuionPreviewCaseDto>,
+    pub fields: Vec<GuionPreviewFieldDto>,
+    pub warnings: Vec<String>,
+    pub errors: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ImportProfileDto {
     pub id: String,
     pub name: String,
