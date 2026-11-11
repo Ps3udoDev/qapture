@@ -307,8 +307,11 @@ export function createWorkspaceStore(repos: Repositories, prefs: Preferences = b
   // Las evidencias siguen al caso seleccionado, sin importar qué acción cambió la selección.
   store.subscribe((state, previous) => {
     if (state.selectedCaseId !== previous.selectedCaseId) void state.loadEvidence();
-    // Y las versiones del documento siguen al proyecto abierto.
-    if (state.project?.id !== previous.project?.id) void state.loadDocVersions();
+    // Y las versiones del documento y origen siguen al proyecto abierto.
+    if (state.project?.id !== previous.project?.id) {
+      void state.loadDocVersions();
+      void state.loadOriginInfo();
+    }
   });
   return store;
 }

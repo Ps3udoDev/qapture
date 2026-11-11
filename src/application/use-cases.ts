@@ -1,7 +1,15 @@
 import { normalizeCaseInput, validateCaseInput, type CaseInput, type CaseRecord, type FormErrors } from "../domain/cases";
 import { trimDocVersion, validateDocVersion, type DocVersion, type DocVersionInput } from "../domain/doc-versions";
 import { validateDescription, type Evidence, type EvidenceUpdateInput, type NewEvidenceInput } from "../domain/evidence";
-import { validateExportOptions, type ExportKind, type ExportOptions, type ExportProgress, type ExportResult } from "../domain/export";
+import {
+  validateExportOptions,
+  validateOriginExportOptions,
+  type ExportKind,
+  type ExportOptions,
+  type ExportProgress,
+  type ExportResult,
+  type OriginExportOptions,
+} from "../domain/export";
 import type { FieldDef } from "../domain/fields";
 import {
   normalizeFieldInput,
@@ -122,6 +130,33 @@ export async function exportWorkbook(
       const off = await repos.exporter.onProgress(onProgress);
       try {
         return kind === "project" ? await repos.exporter.exportProject(projectId, clean) : await repos.exporter.exportTemplate(projectId, clean);
+      } finally {
+        off();
+      }
+    });
+  } catch (error) {
+    if (error instanceof AppError && error.code === "file_locked") return { ok: false, errors: { _form: error.message } };
+    throw error;
+  }
+}
+
+/**
+ * G4. Exportación al formato de origen. `value: null` = el usuario canceló «Guardar como».
+ */
+export async function exportOrigin(
+  repos: Repositories,
+  projectId: string,
+  options: OriginExportOptions,
+  onProgress: (progress: ExportProgress) => void,
+): Promise<Outcome<ExportResult | null>> {
+  const errors = validateOriginExportOptions(options);
+  if (invalid(errors)) return { ok: false, errors };
+  try {
+    return await guard(async () => {
+      const clean = { ...options, tester: options.tester.trim() };
+      const off = await repos.exporter.onProgress(onProgress);
+      try {
+        return await repos.exporter.exportOrigin(projectId, clean);
       } finally {
         off();
       }
