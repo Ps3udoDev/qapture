@@ -1,6 +1,6 @@
 # G — Del guion de pruebas a las evidencias · `v1.3.0`
 
-**Estado:** ✅ Contrato aprobado (2026-11-10). Bloque 0 cerrado con **go** (2026-11-10). Bloque 1 implementado y verificado automáticamente (2026-11-11); validación manual de G1 pendiente.
+**Estado:** ✅ Contrato aprobado (2026-11-10). Bloque 0 cerrado con **go** (2026-11-10). Bloque 1 cerrado (2026-11-11): verificación automática y prueba de escritorio aprobadas. Sigue: Bloque 2.
 
 **Depende de:** F1–F9a · **Spec:** [2026-11-10-guion-a-evidencias-design](../specs/2026-11-10-guion-a-evidencias-design.md) · **Planes:** uno por bloque, escrito al iniciar el bloque (ver «Orden»). Bloque 0: [2026-11-10-g0-fixture-y-pico](../plans/2026-11-10-g0-fixture-y-pico.md). Bloque 1: [2026-11-10-g1-importar-guion](../plans/2026-11-10-g1-importar-guion.md).
 
@@ -49,7 +49,7 @@ El bloque 0 va primero porque el trasplante de la hoja con imágenes (D10) es el
 | G1-T5 | Importar todo o nada | Proyecto, campos (incluida la casilla «Condicionado»), casos, valores, `case_source` y copia del `.xlsx` con `sha256`, en una transacción; perfil guardado si se pidió | ✅ 2026-11-11 |
 | G1-T6 | Comandos y contrato | `guion_inspect`, `guion_preview`, `guion_import`, `import_profiles_list`, `import_profile_delete`; permisos en la capability; DTO y test de contrato Rust ↔ TS | ✅ 2026-11-11 |
 | G1-T7 | Puerto y estado | `GuionImporter` (memoria y Tauri), casos de uso y slice | ✅ 2026-11-11 |
-| G1-T8 | Asistente «Importar guion de pruebas…» | Pantalla de 3 pasos en el menú Datos (spec §6) | ✅ 2026-11-11 · automática; manual pendiente |
+| G1-T8 | Asistente «Importar guion de pruebas…» | Pantalla de 3 pasos en el menú Datos (spec §6) | ✅ 2026-11-11 |
 
 ### Bloque 2 · G2 Archivos de prueba
 | ID | Task | Qué entrega | Estado |
@@ -102,7 +102,7 @@ La migración 0007 también prepara `case_fixture`; su funcionalidad corresponde
 
 ## Criterios de aceptación
 - [x] **G-T1–T2:** el fixture reproduce la estructura del spec §8; el libro con la hoja injertada abre sin reparación (verificado a mano en Excel y LibreOffice) y `calamine` lee sus dos hojas.
-- [ ] **G1 (automático verificado; pendiente prueba de escritorio y tiempo, ver [tarea 8](../handoffs/g1/tarea-8.md)):** importar el fixture produce 36 casos con 13 columnas; códigos repetidos o vacíos bloquean el import; «Crìtico» se normaliza; un estado desconocido entra como «No ejecutado» con el original en Condiciones; el perfil guardado importa un segundo guion sin mapear; un fallo a mitad no deja nada en la base ni en disco.
+- [x] **G1** (pruebas automáticas y de escritorio, 2026-11-11; ver [tarea 8](../handoffs/g1/tarea-8.md)): importar el fixture produce 36 casos con 13 columnas; códigos repetidos o vacíos bloquean el import; «Crìtico» se normaliza; un estado desconocido entra como «No ejecutado» con el original en Condiciones; el perfil guardado importa un segundo guion sin mapear; un fallo a mitad no deja nada en la base ni en disco.
 - [ ] **G2:** extensión no permitida y archivo de más de 25 MB se rechazan; los archivos sobreviven a exportar e importar un paquete y a restaurar un respaldo; un paquete de formato 1 se sigue importando.
 - [ ] **G4:** ida y vuelta: solo cambian las celdas destino y se agregan la hoja y sus partes; las columnas I, K, L y M quedan llenas según D6 y D7; «Condicionado» se escribe cuando la casilla está activa; copia faltante o con otro `sha256` deshabilita la opción.
 - [ ] Contrato Rust ↔ TS de todos los comandos nuevos; `cargo fmt --check`, `clippy -D warnings`, `cargo test`, lint, typecheck y Vitest en verde.

@@ -1,6 +1,6 @@
 # G · Bloque 1 — Importar guion de pruebas (G1) · Implementation Plan
 
-> **Seguimiento de ejecución (2026-11-11):** T1–T7 completadas y revisadas; T8 tiene código y verificación automática completos. La prueba de escritorio y el cierre del criterio G1 siguen pendientes de resultado humano. Ver [handoffs G1](../handoffs/g1/README.md) y [revisión final](../handoffs/g1/revision-final.md).
+> **Seguimiento de ejecución (2026-11-11):** T1–T7 completadas y revisadas; T8 completa, con la prueba de escritorio aprobada. Criterio G1 cerrado. Ver [handoffs G1](../handoffs/g1/README.md) y [revisión final](../handoffs/g1/revision-final.md).
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -604,11 +604,11 @@ Contenido de cada paso (textos fijos entre comillas):
 
 - [x] **Step 4: Run tests to verify they pass** — el archivo, más `npx vitest run` (toda la suite), `npm run typecheck`, `npm run lint` y, desde `src-tauri/`, `cargo test`, `cargo fmt --check` y `cargo clippy --all-targets -- -D warnings`.
 
-- [ ] **Step 5: Prueba manual (la pide el implementador a una persona)**
+- [x] **Step 5: Prueba manual (la pide el implementador a una persona)**
 
 Con `npm run tauri dev`, importar `%TEMP%\g0\guion_sintetico.xlsx` (lo generó G0). Se espera: 36 casos CP01–CP36, las 13 columnas del guion (código, título y estado como datos del caso, 10 campos y «Condicionado»), «Criticidad» como lista y menos de un minuto. Después, guardar el perfil e importar el mismo archivo otra vez: el perfil se sugiere y entra sin mapear. Anotar el resultado en `handoffs/g1/tarea-8.md`.
 
-- [ ] **Step 6: Actualizar el contrato y commit**
+- [x] **Step 6: Actualizar el contrato y commit**
 
 En `G-guion-a-evidencias.md`: G1-T1 a G1-T8 pasan a `✅` con la fecha, se marca el criterio **G1** y se ajusta G1-T3 (P4) y el modelo (P1).
 

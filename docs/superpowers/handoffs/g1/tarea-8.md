@@ -1,6 +1,6 @@
 # Tarea 8 · Asistente «Importar guion de pruebas…» y cierre de G1 (G1-T8)
 
-**Estado:** DONE_WITH_CONCERNS (código y verificación automática completos; prueba de escritorio pendiente)
+**Estado:** DONE. Código, verificación automática y prueba de escritorio completos (2026-11-11).
 **Commits:** ver `git log` (`feat(g1): asistente de 3 pasos para importar el guion`).
 
 ## Qué se implementó
@@ -43,12 +43,15 @@ Con `npm run tauri dev`, elegir «Datos › Importar guion de pruebas…» e imp
 
 | Comprobación | Esperado | Resultado |
 |---|---|---|
-| Primera importación | 36 casos CP01–CP36, encabezados fila 15, 10 campos del guion y casilla Condicionado | Pendiente |
-| Criticidad | Lista y valores normalizados | Pendiente |
-| Tiempo | Menos de un minuto sin editar el archivo | Pendiente |
-| Guardar perfil e importar de nuevo | Perfil sugerido, vista previa sin volver a mapear | Pendiente |
+| Primera importación | 36 casos CP01–CP36, encabezados fila 15, 10 campos del guion y casilla Condicionado | ✅ La persona vio la fila 15 sugerida; el MCP confirma 36 casos CP01–CP36, 10 campos + `condicionado` (boolean) |
+| Criticidad | Lista y valores normalizados | ✅ `list` con `Importante`/`Crítico`; los 36 valores dentro de la lista (MCP) |
+| Tiempo | Menos de un minuto sin editar el archivo | ✅ Aproximadamente un minuto, según la persona |
+| Guardar perfil e importar de nuevo | Perfil sugerido, vista previa sin volver a mapear | ✅ Tras marcar «Guardar como perfil», la siguiente importación preselecciona el perfil y pasa directo a la vista previa |
 
-El controlador solicitará esta comprobación a una persona y agregará la evidencia; el criterio G1 permanece sin marcar hasta entonces.
+**Prueba de escritorio · 2026-11-11.** Una persona la hizo con `npm run tauri dev` y el guion sintético. El controlador revisó el resultado de dos formas: con el MCP local de Qapture (proyectos, campos y casos) y leyendo la base SQLite sin modificarla (`import_profile` y `project_source`). Se crearon cuatro proyectos, todos con 36 casos y encabezados en la fila 15. El perfil quedó guardado y vinculado al proyecto que lo creó.
+
+- Al principio la segunda importación no sugería nada porque todavía no había ningún perfil guardado: «Guardar como perfil» es opcional. Con el perfil guardado, se comportó como se esperaba.
+- **Minor para G4:** si se importa con un perfil ya guardado sin guardarlo de nuevo, `project_source.profile_id` queda `NULL`. Así lo define el plan: solo se enlaza el perfil creado con `save_profile_as`. G4 usa `definition`, que sí se guarda, así que no bloquea. Si hace falta saber qué perfil se usó, conviene enlazarlo en G4.
 
 ## Revisión (la llena el controlador)
 - Spec: ✅ · Calidad: Aprobada. Revisión independiente del diff `1609889..f5a4d3e`, completada junto con la auditoría global.

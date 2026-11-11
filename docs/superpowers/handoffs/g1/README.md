@@ -76,7 +76,7 @@ Sin rutas personales, contraseñas ni datos de clientes. Los comandos indican de
 | 5 · Importación transaccional | ✅ | `361397d`, `1609889` | Spec ✅ · Calidad aprobada · Integración corregida |
 | 6 · Comandos y contrato | ✅ | `1afa730` | Spec ✅ · Calidad aprobada · 1 Minor |
 | 7 · Puerto y estado | ✅ | `a13fbe1` | Spec ✅ · Calidad aprobada · Minor corregido |
-| 8 · Asistente y cierre | ✅ código y pruebas automáticas; manual pendiente | `f5a4d3e` | Spec ✅ · Calidad aprobada · 1 Minor |
+| 8 · Asistente y cierre | ✅ código, pruebas automáticas y prueba de escritorio | `f5a4d3e`, `3065e53` | Spec ✅ · Calidad aprobada · 2 Minor |
 
 ## Cierre de implementación · 2026-11-11
 
@@ -85,7 +85,7 @@ Sin rutas personales, contraseñas ni datos de clientes. Los comandos indican de
 - [Revisión final independiente](revision-final.md): veredicto de la rama y limitaciones para el siguiente revisor.
 - Verificación final: **405 pruebas TS** en 58 archivos; **543 pruebas Rust de biblioteca y 4 de integración**, todas correctas. Las 4 pruebas Rust ignoradas requieren condiciones especiales y no se contabilizan como realizadas.
 - `npm run typecheck`, `npm run lint`, `npm run build`, `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` y `git diff --check`: correctos. El build avisa de un chunk principal de 505,92 kB; no bloquea la compilación. El aviso de enlace MSVC está documentado en los reportes.
-- **Pendiente:** prueba de escritorio y tiempo menor de un minuto, incluida la reutilización del perfil. Se solicitó a una persona en la conversación; no hay resultado recibido al cerrar esta implementación. El criterio G1 del contrato sigue pendiente.
+- **Prueba de escritorio (2026-11-11):** ✅ hecha por una persona y comprobada por el controlador con el MCP local y leyendo la base sin modificarla. Resultado: 36 casos, fila 15, Criticidad como lista, un recorrido de unos 60 segundos y el perfil reutilizado sin volver a mapear. Detalle en [tarea 8](tarea-8.md). Criterio G1 del contrato marcado.
 - G2, G4, cambios de versión y release quedan fuera de este bloque. El formato 1 de paquetes todavía no permite reimportar códigos arbitrarios del guion; G2 debe resolverlo junto con el traslado de los archivos de origen.
 
 ## Notas del controlador

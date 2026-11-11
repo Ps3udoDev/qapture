@@ -1,6 +1,6 @@
 # Revisión final · G1 Importar guion de pruebas
 
-**Estado:** código y verificación automática aprobados; aceptación manual pendiente.
+**Estado:** código, verificación automática y aceptación manual aprobados (2026-11-11).
 **Rama:** `feat/g1-importar-guion`.
 **Diff revisado:** `7b9eab6..f5a4d3e`.
 **Fecha:** 2026-11-11.
@@ -76,8 +76,10 @@ La suite Rust final corresponde a `1609889`; T8 no modifica Rust. Los resultados
 - Contrastados contra el plan: dependencia única (`calamine`), migración 0007, snapshot `definition`, copia referenciada por `references`, token en `AppState`, `insert_in` transaccional y pruebas de rollback (perfil duplicado, errores de vista previa, fallo SQL después de crear el perfil).
 - **Minor corregido:** `ImportGuionDialog.tsx` tenía líneas de hasta 705 caracteres (el resto de pantallas no pasa de ~250). Se reformateó y se extrajeron los manejadores (`chooseSheet`, `changeType`, `changeStatus`, `previewMapping`, `removeProfile`, `back`, `canImport`) sin cambiar el comportamiento; máximo 122 caracteres. `ImportGuion.test.tsx` → 9 correctas; typecheck y lint limpios. G4 ampliará este diálogo.
 
-## Validación manual pendiente
+## Validación manual
 
-**PENDIENTE:** una persona debe ejecutar el recorrido de [tarea 8](tarea-8.md) con `npm run tauri dev` y `%TEMP%\g0\guion_sintetico.xlsx`: comprobar 36 casos CP01–CP36, diez campos del guion más Condicionado, Criticidad como lista, duración inferior a un minuto y segunda importación con perfil sugerido sin remapear.
+**✅ Hecha el 2026-11-11.** Resultados en [tarea 8](tarea-8.md). El G1 queda aceptado.
+
+Checklist original: una persona debe ejecutar el recorrido de [tarea 8](tarea-8.md) con `npm run tauri dev` y `%TEMP%\g0\guion_sintetico.xlsx`: comprobar 36 casos CP01–CP36, diez campos del guion más Condicionado, Criticidad como lista, duración inferior a un minuto y segunda importación con perfil sugerido sin remapear.
 
 La comprobación fue solicitada por el controlador, pero no hay resultado humano registrado en esta revisión. El criterio de aceptación manual de G1 debe permanecer pendiente hasta incorporar esa evidencia.
