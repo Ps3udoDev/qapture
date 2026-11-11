@@ -46,6 +46,17 @@ pub struct BundleEvidence {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct BundleFixture {
+    pub id: String,
+    pub file_name: String,
+    pub stored_path: String,
+    pub size: i64,
+    pub sha256: String,
+    pub note: String,
+    pub added_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct BundleCase {
     pub source_row: Option<u32>,
     pub code: String,
@@ -56,6 +67,7 @@ pub struct BundleCase {
     /// Clave de columna → valor. Los vacíos no se guardan.
     pub values: BTreeMap<String, String>,
     pub evidence: Vec<BundleEvidence>,
+    pub fixtures: Vec<BundleFixture>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -88,6 +100,7 @@ pub struct BundleSource {
     pub header_row: u32,
     pub profile_id: Option<String>,
     pub definition: String,
+    pub imported_at: Option<String>,
 }
 
 /// Problemas de validación con su ubicación; se informan los primeros 10 (spec §8).
@@ -195,6 +208,22 @@ impl<'a> ImportFiles<'a> {
         Ok(relative)
     }
 
+    pub fn write_fixture(
+        &mut self,
+        project_id: &str,
+        fixture_id: &str,
+        name: &str,
+        bytes: &[u8],
+    ) -> AppResult<String> {
+        if !self.projects.iter().any(|p| p == project_id) {
+            self.projects.push(project_id.to_string());
+            std::fs::create_dir_all(self.files.project_dir(project_id))?;
+        }
+        let relative = crate::media::fixtures::fixture_rel(project_id, fixture_id, name);
+        crate::media::fixtures::write(self.files, &relative, bytes)?;
+        Ok(relative)
+    }
+
     pub fn commit(mut self) {
         self.committed = true;
     }
@@ -260,10 +289,11 @@ fn insert_project(conn: &Connection, b: &ProjectBundle, name: &str) -> AppResult
         ],
     )?;
     if let Some(source) = &b.source {
+        let imported_at = source.imported_at.as_deref().unwrap_or(&b.created_at);
         conn.execute(
             "INSERT INTO project_source (project_id, file_name, stored_path, sha256, sheet, header_row, profile_id, definition, imported_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            params![b.id, source.file_name, source.stored_path, source.sha256, source.sheet, source.header_row, source.profile_id, source.definition, b.created_at],
+            params![b.id, source.file_name, source.stored_path, source.sha256, source.sheet, source.header_row, source.profile_id, source.definition, imported_at],
         )?;
     }
     Ok(())
@@ -345,6 +375,23 @@ fn insert_case(
                 e.height,
                 e.captured_at,
                 e.updated_at
+            ],
+        )?;
+    }
+    for (position, f) in c.fixtures.iter().enumerate() {
+        conn.execute(
+            "INSERT INTO case_fixture (id, case_id, file_name, stored_path, size, sha256, note, position, added_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                f.id,
+                case_id,
+                f.file_name,
+                f.stored_path,
+                f.size,
+                f.sha256,
+                f.note,
+                position as i64,
+                f.added_at,
             ],
         )?;
     }
@@ -518,6 +565,7 @@ pub(crate) mod tests {
                     captured_at: TS.into(),
                     updated_at: TS.into(),
                 }],
+                fixtures: Vec::new(),
             }],
             github: GithubPayload::Absent,
             versions: vec![BundleVersion {

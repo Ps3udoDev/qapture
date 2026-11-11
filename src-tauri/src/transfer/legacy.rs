@@ -478,6 +478,7 @@ fn to_bundles(
                 updated_at: ts.clone(),
                 values,
                 evidence,
+                fixtures: Vec::new(),
             });
         }
         bundles.push(ProjectBundle {

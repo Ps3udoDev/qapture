@@ -64,6 +64,7 @@ pub fn import(
             header_row: request.def.header_row,
             profile_id,
             definition: serde_json::to_string(request.def)?,
+            imported_at: Some(stamp.clone()),
         }),
         id,
         meta: ProjectMetaInput {
@@ -112,6 +113,7 @@ pub fn import(
                 updated_at: stamp.clone(),
                 values: c.values,
                 evidence: Vec::new(),
+                fixtures: Vec::new(),
             })
             .collect(),
         versions: Vec::new(),
