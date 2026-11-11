@@ -65,4 +65,4 @@ Correcciones aplicadas en `fix(g2): correcciones de la revisión de la rama`:
 
 Verificación final (desde `src-tauri/`): `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ · `cargo test` → 564 + 4 passed, 4 ignored. Desde la raíz: `npm run typecheck` ✅ · `npm run lint` ✅ · `npx vitest run` → 61 archivos, 427 tests.
 
-Pendiente antes del PR: la **prueba manual** de la Task 7 (Step 5) con `npm run tauri dev`. El contrato ya marca G2 como completado; según el plan eso se confirma cuando esa prueba pase.
+Prueba manual de la Task 7 (Step 5) con `npm run tauri dev`: **aprobada** por el tester el 2026-11-11 (las 4 comprobaciones). El criterio G2 del contrato queda confirmado.
