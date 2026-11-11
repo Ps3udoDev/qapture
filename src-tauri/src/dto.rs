@@ -6,6 +6,16 @@ use crate::{domain::fields::FieldType, settings::Settings, system::shortcuts::Sh
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ImportProfileDto {
+    pub id: String,
+    pub name: String,
+    pub definition: crate::transfer::guion::profile::ProfileDefinition,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ActivityDto {
     pub id: String,
     pub at: String,

@@ -368,6 +368,10 @@ pub fn references(conn: &Connection) -> AppResult<(HashSet<String>, HashSet<Stri
         referenced.insert(original);
         referenced.insert(rendered);
     }
+    let mut stmt = conn.prepare("SELECT stored_path FROM project_source")?;
+    for row in stmt.query_map([], |r| r.get::<_, String>(0))? {
+        referenced.insert(row?);
+    }
     let mut stmt = conn.prepare("SELECT id FROM project")?;
     let projects = stmt
         .query_map([], |r| r.get::<_, String>(0))?
@@ -388,6 +392,24 @@ mod tests {
     };
 
     const ANN: &str = r#"{"version":1,"crop":null,"shapes":[]}"#;
+
+    #[test]
+    fn sweep_keeps_the_guion_copy() {
+        let tmp = TempDir::new();
+        let files = tmp.files();
+        let conn = conn();
+        let p = project(&conn);
+        let rel = format!("evidence/{}/guion.xlsx", p.id);
+        fs::create_dir_all(files.project_dir(&p.id)).unwrap();
+        fs::write(files.absolute(&rel), b"copia del guion").unwrap();
+        let def = crate::transfer::guion::profile::tests::reference();
+        conn.execute(
+            "INSERT INTO project_source (project_id, file_name, stored_path, sha256, sheet, header_row, profile_id, definition, imported_at) VALUES (?1, 'guion.xlsx', ?2, 'hash', 'Guión de Pruebas', 15, NULL, ?3, '')",
+            params![p.id, rel, serde_json::to_string(&def).unwrap()],
+        ).unwrap();
+        assert_eq!(sweep_orphans(&conn, &files).unwrap(), 0);
+        assert_eq!(fs::read(files.absolute(&rel)).unwrap(), b"copia del guion");
+    }
 
     struct Env {
         _tmp: TempDir,
