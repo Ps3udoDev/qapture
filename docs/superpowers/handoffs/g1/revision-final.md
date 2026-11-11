@@ -70,6 +70,12 @@ La suite Rust final corresponde a `1609889`; T8 no modifica Rust. Los resultados
 - La promoción de campos para mantenerlos editables modifica los campos del proyecto, conservando la definición de origen y los roles que utilizará G4.
 - Paquetes de formato 2, respaldo de los nuevos archivos y exportación al formato de origen permanecen en G2/G4; no forman parte de la aprobación de código de G1.
 
+## Revisión del controlador · 2026-11-11
+
+- Suites repetidas de forma independiente sobre `5853fa7`: `cargo test` → 543 correctas, 4 ignoradas previas, y 4 de `tests/bridge.rs`; `cargo fmt --check` y `cargo clippy --all-targets -- -D warnings` limpios; `npx vitest run` → 405 correctas; `npm run typecheck` y `npm run lint` → exit 0.
+- Contrastados contra el plan: dependencia única (`calamine`), migración 0007, snapshot `definition`, copia referenciada por `references`, token en `AppState`, `insert_in` transaccional y pruebas de rollback (perfil duplicado, errores de vista previa, fallo SQL después de crear el perfil).
+- **Minor corregido:** `ImportGuionDialog.tsx` tenía líneas de hasta 705 caracteres (el resto de pantallas no pasa de ~250). Se reformateó y se extrajeron los manejadores (`chooseSheet`, `changeType`, `changeStatus`, `previewMapping`, `removeProfile`, `back`, `canImport`) sin cambiar el comportamiento; máximo 122 caracteres. `ImportGuion.test.tsx` → 9 correctas; typecheck y lint limpios. G4 ampliará este diálogo.
+
 ## Validación manual pendiente
 
 **PENDIENTE:** una persona debe ejecutar el recorrido de [tarea 8](tarea-8.md) con `npm run tauri dev` y `%TEMP%\g0\guion_sintetico.xlsx`: comprobar 36 casos CP01–CP36, diez campos del guion más Condicionado, Criticidad como lista, duración inferior a un minuto y segunda importación con perfil sugerido sin remapear.
