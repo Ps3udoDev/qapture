@@ -1,6 +1,6 @@
 # G — Del guion de pruebas a las evidencias · `v1.3.0`
 
-**Estado:** ✅ Contrato aprobado (2026-11-10). Bloque 0 cerrado con **go** (2026-11-10). Bloque 1 cerrado (2026-11-11). Bloque 2 cerrado (2026-11-11): verificación automática aprobada; prueba manual en escritorio lista. Bloque 3 (G4) cerrado en la parte de código y pruebas automáticas. Sigue: Bloque 4 (cierre).
+**Estado:** ✅ Contrato aprobado (2026-11-10). Bloque 0 cerrado con **go** (2026-11-10). Bloque 1 cerrado (2026-11-11). Bloque 2 cerrado (2026-11-11): verificación automática aprobada; prueba manual en escritorio lista. Bloque 3 (G4) cerrado. Bloque 4: G-T3 cerrado con el release v1.3.0 (2026-11-11); sigue G-T4 (prueba con el guion real del cliente).
 
 **Depende de:** F1–F9a · **Spec:** [2026-11-10-guion-a-evidencias-design](../specs/2026-11-10-guion-a-evidencias-design.md) · **Planes:** uno por bloque, escrito al iniciar el bloque (ver «Orden»). Bloque 0: [2026-11-10-g0-fixture-y-pico](../plans/2026-11-10-g0-fixture-y-pico.md). Bloque 1: [2026-11-10-g1-importar-guion](../plans/2026-11-10-g1-importar-guion.md). Bloque 2: [2026-11-11-g2-archivos-de-prueba](../plans/2026-11-11-g2-archivos-de-prueba.md). Bloque 3: [2026-11-11-g4-formato-de-origen](../plans/2026-11-11-g4-formato-de-origen.md).
 
@@ -72,7 +72,7 @@ El bloque 0 va primero porque el trasplante de la hoja con imágenes (D10) es el
 ### Bloque 4 · Cierre
 | ID | Task | Qué entrega | Estado |
 |---|---|---|---|
-| G-T3 | Documentación y release | `docs/usuario/uso.md` (importar guion, archivos de prueba, formato de origen), `CHANGELOG.md`, versión 1.3.0, tabla de contratos (F8c → v1.4, F8d → v1.5) | ☐ |
+| G-T3 | Documentación y release | `docs/usuario/uso.md` (importar guion, archivos de prueba, formato de origen), `CHANGELOG.md`, versión 1.3.0, tabla de contratos (F8c → v1.4, F8d → v1.5) | ✅ 2026-11-11 |
 | G-T4 | Prueba real y checklist | Ida y vuelta con el guion real del cliente **en local** (no se versiona) y checklist firmado | ☐ |
 
 ## Trabajo fuera del código (orden de trabajo de referencia)
