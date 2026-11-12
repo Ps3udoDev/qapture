@@ -1,19 +1,22 @@
 import type { StoreApi } from "zustand/vanilla";
 import * as useCases from "../../application/use-cases";
 import type { DocVersion, DocVersionInput } from "../../domain/doc-versions";
-import type { ExportProgress } from "../../domain/export";
+import type { ExportProgress, OriginExportOptions, OriginInfo } from "../../domain/export";
 import type { Repositories } from "../../ports/repositories";
 import type { SliceHelpers } from "./evidence-slice";
 import type { FormResult, WorkspaceState } from "./workspace";
 
 export interface ExportSlice {
   docVersions: DocVersion[];
+  originInfo: OriginInfo | null;
   /** Avance del export en curso; `null` si no hay ninguno. */
   exporting: ExportProgress | null;
   loadDocVersions(): Promise<void>;
+  loadOriginInfo(): Promise<void>;
   saveDocVersion(input: DocVersionInput, id?: string): Promise<FormResult>;
   deleteDocVersion(id: string): Promise<void>;
   exportExcel(request: useCases.ExportRequest): Promise<FormResult>;
+  exportOrigin(options: OriginExportOptions): Promise<FormResult>;
 }
 
 type Set = StoreApi<WorkspaceState>["setState"];
@@ -30,6 +33,7 @@ const missingMessage = (n: number) =>
 export function createExportSlice(repos: Repositories, set: Set, get: Get, h: SliceHelpers): ExportSlice {
   return {
     docVersions: [],
+    originInfo: null,
     exporting: null,
 
     async loadDocVersions() {
@@ -41,6 +45,20 @@ export function createExportSlice(repos: Repositories, set: Set, get: Get, h: Sl
       try {
         const docVersions = await repos.docVersions.list(projectId);
         if (get().project?.id === projectId) set({ docVersions });
+      } catch (error) {
+        h.report(error);
+      }
+    },
+
+    async loadOriginInfo() {
+      const projectId = get().project?.id;
+      if (!projectId) {
+        set({ originInfo: null });
+        return;
+      }
+      try {
+        const originInfo = await repos.exporter.originInfo(projectId);
+        if (get().project?.id === projectId) set({ originInfo });
       } catch (error) {
         h.report(error);
       }
@@ -92,6 +110,31 @@ export function createExportSlice(repos: Repositories, set: Set, get: Get, h: Sl
       } finally {
         // Una versión nueva queda registrada aunque la exportación falle o se cancele «Guardar como».
         if (request.newVersion) await get().loadDocVersions();
+        set({ exporting: null });
+      }
+    },
+
+    async exportOrigin(options) {
+      const current = get().project;
+      if (!current) return NO_PROJECT;
+      if (get().exporting) return BUSY;
+      set({ exporting: { stage: "preparing", current: 0, total: 0 } });
+      try {
+        const outcome = await useCases.exportOrigin(repos, current.id, options, (exporting) => set({ exporting }));
+        if (!outcome.ok) return outcome;
+        const result = outcome.value;
+        if (!result) return { ok: false, errors: {} };
+        const open = (run: (path: string) => Promise<void>) => () => void run(result.path).catch(h.report);
+        get().pushToast("success", `Guion ejecutado guardado: ${result.fileName}`, [
+          { label: "Abrir archivo", run: open(repos.exporter.openFile) },
+          { label: "Abrir carpeta", run: open(repos.exporter.revealFile) },
+        ]);
+        if (result.missingImages > 0) get().pushToast("error", missingMessage(result.missingImages));
+        return { ok: true };
+      } catch (error) {
+        h.report(error);
+        return { ok: false, errors: {} };
+      } finally {
         set({ exporting: null });
       }
     },

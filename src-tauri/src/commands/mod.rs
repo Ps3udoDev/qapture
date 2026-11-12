@@ -8,6 +8,7 @@ pub mod fixtures;
 mod frame;
 pub mod github;
 pub mod guion;
+pub mod origin;
 pub mod projects;
 pub mod settings;
 pub mod templates;

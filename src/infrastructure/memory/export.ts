@@ -1,5 +1,5 @@
 import { trimDocVersion, validateDocVersion, type DocVersion, type DocVersionInput } from "../../domain/doc-versions";
-import type { ExportOptions, ExportProgress, ExportResult } from "../../domain/export";
+import type { ExportOptions, ExportProgress, ExportResult, OriginExportOptions, OriginInfo } from "../../domain/export";
 import { AppError } from "../../ports/errors";
 import type { DocVersionRepository, Exporter } from "../../ports/export";
 
@@ -75,7 +75,12 @@ export type MemoryExportMode = "save" | "cancel" | "locked";
 
 export interface MemoryExporter extends Exporter {
   mode: MemoryExportMode;
-  calls: { kind: "project" | "template"; projectId: string; options: ExportOptions }[];
+  calls: (
+    | { kind: "project" | "template"; projectId: string; options: ExportOptions }
+    | { kind: "origin"; projectId: string; options: OriginExportOptions }
+  )[];
+  originInfoValue: OriginInfo | null;
+  setOriginInfo(info: OriginInfo | null): void;
   opened: string[];
   revealed: string[];
   /** Imágenes que el próximo export no pudo incluir. */
@@ -106,11 +111,30 @@ export function createMemoryExporter(countFor: (projectId: string) => { cases: n
   const exporter: MemoryExporter = {
     mode: "save",
     calls: [],
+    originInfoValue: null,
+    setOriginInfo(info) {
+      exporter.originInfoValue = info;
+    },
     opened: [],
     revealed: [],
     missingImages: 0,
     exportProject: (projectId, options) => run("project", projectId, options),
     exportTemplate: (projectId, options) => run("template", projectId, options),
+    async originInfo() {
+      return exporter.originInfoValue;
+    },
+    async exportOrigin(projectId, options) {
+      exporter.calls.push({ kind: "origin", projectId, options: structuredClone(options) });
+      if (exporter.mode === "cancel") return null;
+      if (exporter.mode === "locked") throw new AppError("file_locked", "Cierra el archivo en Excel y vuelve a intentar.");
+      exporter.emit({ stage: "preparing", current: 0, total: 0 });
+      exporter.emit({ stage: "saving", current: 0, total: 0 });
+      const fileName = exporter.originInfoValue?.suggestedName ?? "guion_cliente_ejecutado.xlsx";
+      const path = `C:\\Users\\ana\\Documents\\${fileName}`;
+      exported.add(path);
+      const counts = countFor(projectId);
+      return { path, fileName, ...counts, missingImages: exporter.missingImages };
+    },
     async onProgress(handler) {
       handlers.add(handler);
       return () => void handlers.delete(handler);

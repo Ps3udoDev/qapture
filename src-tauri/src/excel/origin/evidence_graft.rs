@@ -8,6 +8,8 @@ use std::fmt::Write;
 use super::parts::XlsxParts;
 use crate::error::{AppError, AppResult, validation};
 
+pub const STRICT: &str = "El libro usa el formato «Strict» de Excel. Ábrelo en Excel, guárdalo como «Libro de Excel (.xlsx)» y vuelve a importarlo.";
+const STRICT_NS: &str = "http://purl.oclc.org/ooxml/spreadsheetml/main";
 const WORKBOOK: &str = "xl/workbook.xml";
 const WORKBOOK_RELS: &str = "xl/_rels/workbook.xml.rels";
 const CONTENT_TYPES: &str = "[Content_Types].xml";
@@ -15,14 +17,24 @@ const BAD_NAME: &str = "El nombre de hoja no es válido.";
 const ONE_SHEET: &str = "El libro de evidencias debe tener una sola hoja.";
 const LINKS: &str = "El libro de evidencias tiene vínculos que no se pueden trasladar.";
 /// Atributos de estilo y selección que no tienen sentido fuera del libro donante.
-const DROPPED: [&str; 4] = [" s=\"", " style=\"", " customFormat=\"", " tabSelected=\""];
+const DROPPED: [&str; 5] = [
+    " s=\"",
+    " style=\"",
+    " customFormat=\"",
+    " tabSelected=\"",
+    " dxfId=\"",
+];
 
 /// Agrega como última hoja de `base` la única hoja de `donor`, con el nombre `name`.
 pub fn graft_sheet(base: &[u8], donor: &[u8], name: &str) -> AppResult<Vec<u8>> {
     let mut parts = XlsxParts::read(base)?;
     let donor = XlsxParts::read(donor)?;
     let workbook = parts.text(WORKBOOK)?;
-    check_name(&workbook, name)?;
+    if workbook.contains(STRICT_NS) {
+        return Err(validation(STRICT));
+    }
+    let base_sheets = parse_sheets(&workbook)?;
+    check_name(&base_sheets, name)?;
 
     let sheets: Vec<&str> = donor
         .names()
@@ -46,7 +58,7 @@ pub fn graft_sheet(base: &[u8], donor: &[u8], name: &str) -> AppResult<Vec<u8>> 
         let names = parts.names();
         let media: Vec<&str> = names
             .iter()
-            .filter(|n| n.starts_with("xl/media/"))
+            .filter(|n| n.len() >= 9 && n[..9].eq_ignore_ascii_case("xl/media/"))
             .map(|n| n.rsplit_once('.').map_or(*n, |(stem, _)| stem))
             .collect();
         (
@@ -115,11 +127,7 @@ pub fn graft_sheet(base: &[u8], donor: &[u8], name: &str) -> AppResult<Vec<u8>> 
         }
     }
 
-    let sheet_id = tags(&workbook, "<sheet ")
-        .filter_map(|t| attr(t, "sheetId")?.parse::<u32>().ok())
-        .max()
-        .unwrap_or(0)
-        + 1;
+    let sheet_id = base_sheets.iter().map(|s| s.sheet_id).max().unwrap_or(0) + 1;
     let workbook_rels = parts.text(WORKBOOK_RELS)?;
     let ids: Vec<&str> = tags(&workbook_rels, "<Relationship ")
         .filter_map(|t| attr(t, "Id"))
@@ -152,6 +160,7 @@ pub fn graft_sheet(base: &[u8], donor: &[u8], name: &str) -> AppResult<Vec<u8>> 
 }
 
 /// El menor `n` mayor que todos los `prefix{n}suffix` de `names` (1 si no hay ninguno).
+/// Compara ignorando mayúsculas según la convención de Open Packaging Conventions (OPC).
 pub(crate) fn next_free(names: &[&str], prefix: &str, suffix: &str) -> u32 {
     names
         .iter()
@@ -160,24 +169,70 @@ pub(crate) fn next_free(names: &[&str], prefix: &str, suffix: &str) -> u32 {
         .map_or(1, |n| n + 1)
 }
 
+fn strip_prefix_ignore_case<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
+    if s.len() >= prefix.len() && s[..prefix.len()].eq_ignore_ascii_case(prefix) {
+        Some(&s[prefix.len()..])
+    } else {
+        None
+    }
+}
+
+fn strip_suffix_ignore_case<'a>(s: &'a str, suffix: &str) -> Option<&'a str> {
+    if suffix.is_empty() {
+        return Some(s);
+    }
+    if s.len() >= suffix.len() && s[s.len() - suffix.len()..].eq_ignore_ascii_case(suffix) {
+        Some(&s[..s.len() - suffix.len()])
+    } else {
+        None
+    }
+}
+
 fn number(name: &str, prefix: &str, suffix: &str) -> Option<u32> {
-    let digits = name.strip_prefix(prefix)?.strip_suffix(suffix)?;
+    let digits = strip_suffix_ignore_case(strip_prefix_ignore_case(name, prefix)?, suffix)?;
     if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
         return None;
     }
     digits.parse().ok()
 }
 
-fn check_name(workbook: &str, name: &str) -> AppResult<()> {
-    let length = name.chars().count();
-    if length == 0 || length > 31 || name.contains(['[', ']', ':', '*', '?', '/', '\\']) {
+pub(crate) struct SheetInfo<'a> {
+    pub name: &'a str,
+    pub sheet_id: u32,
+}
+
+pub(crate) fn parse_sheets<'a>(workbook: &'a str) -> AppResult<Vec<SheetInfo<'a>>> {
+    let mut sheets = Vec::new();
+    for tag in tags(workbook, "<sheet ") {
+        let name = attr(tag, "name")
+            .ok_or_else(|| validation("La etiqueta de hoja del libro no es válida."))?;
+        let sheet_id = attr(tag, "sheetId")
+            .and_then(|id| id.parse::<u32>().ok())
+            .ok_or_else(|| validation("La etiqueta de hoja del libro no es válida."))?;
+        sheets.push(SheetInfo { name, sheet_id });
+    }
+    if sheets.is_empty() {
+        return Err(validation("El libro no contiene hojas válidas."));
+    }
+    Ok(sheets)
+}
+
+fn check_name(sheets: &[SheetInfo], name: &str) -> AppResult<()> {
+    let length = name.encode_utf16().count();
+    if length == 0
+        || length > 31
+        || name.starts_with('\'')
+        || name.ends_with('\'')
+        || name.chars().any(|c| c.is_control())
+        || name.contains(['[', ']', ':', '*', '?', '/', '\\'])
+    {
         return Err(validation(BAD_NAME));
     }
     // Excel no distingue mayúsculas al comparar nombres de hoja.
     let wanted = name.to_lowercase();
-    if tags(workbook, "<sheet ")
-        .filter_map(|t| attr(t, "name"))
-        .any(|existing| unescape(existing).to_lowercase() == wanted)
+    if sheets
+        .iter()
+        .any(|s| unescape(s.name).to_lowercase() == wanted)
     {
         return Err(validation(format!("Ya existe una hoja llamada «{name}».")));
     }
@@ -192,7 +247,7 @@ fn escape(text: &str) -> String {
         .replace('\'', "&apos;")
 }
 
-fn unescape(text: &str) -> String {
+pub(crate) fn unescape(text: &str) -> String {
     text.replace("&lt;", "<")
         .replace("&gt;", ">")
         .replace("&quot;", "\"")
@@ -206,14 +261,14 @@ fn malformed() -> AppError {
 
 /// Cada etiqueta que empieza con `open` (que termina en espacio), desde ese espacio hasta antes
 /// de `>`; así `attr` puede buscar siempre ` nombre="`.
-fn tags<'a>(xml: &'a str, open: &'a str) -> impl Iterator<Item = &'a str> {
+pub(crate) fn tags<'a>(xml: &'a str, open: &'a str) -> impl Iterator<Item = &'a str> {
     xml.match_indices(open).map(move |(i, _)| {
         let tag = &xml[i + open.len() - 1..];
         &tag[..tag.find('>').unwrap_or(tag.len())]
     })
 }
 
-fn attr<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
+pub(crate) fn attr<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
     let key = format!(" {name}=\"");
     let start = tag.find(&key)? + key.len();
     let end = tag[start..].find('"')? + start;
@@ -548,6 +603,164 @@ mod tests {
         ];
         assert_eq!(next_free(&names, "xl/worksheets/sheet", ".xml"), 8);
         assert_eq!(next_free(&[], "xl/drawings/drawing", ".xml"), 1);
+    }
+
+    #[test]
+    fn sheets_without_id_or_name_fail_closed() {
+        let base = guion_fixture::build();
+        let mut parts = XlsxParts::read(&base).unwrap();
+        // sheet without sheetId
+        let bad_xml = r#"<workbook><sheets><sheet name="Hoja1"/></sheets></workbook>"#;
+        parts.set("xl/workbook.xml", bad_xml.as_bytes().to_vec());
+        assert!(graft_sheet(&parts.write().unwrap(), &donor(1), "Evidencias").is_err());
+
+        // sheet without name
+        let bad_xml2 = r#"<workbook><sheets><sheet sheetId="1"/></sheets></workbook>"#;
+        parts.set("xl/workbook.xml", bad_xml2.as_bytes().to_vec());
+        assert!(graft_sheet(&parts.write().unwrap(), &donor(1), "Evidencias").is_err());
+
+        // sheet with single quotes (name='x')
+        let bad_xml3 = r#"<workbook><sheets><sheet name='x' sheetId='1'/></sheets></workbook>"#;
+        parts.set("xl/workbook.xml", bad_xml3.as_bytes().to_vec());
+        assert!(graft_sheet(&parts.write().unwrap(), &donor(1), "Evidencias").is_err());
+    }
+
+    #[test]
+    fn next_free_ignores_case() {
+        let names = ["xl/media/Image1"];
+        assert_eq!(next_free(&names, "xl/media/image", ""), 2);
+    }
+
+    #[test]
+    fn names_count_utf16_and_reject_quotes_at_the_ends() {
+        let base = guion_fixture::build();
+        // 31 emojis (4 bytes UTF-8 each = 2 UTF-16 code units each -> 62 UTF-16 units)
+        let emojis = "😀".repeat(31);
+        assert_eq!(
+            graft_sheet(&base, &donor(1), &emojis)
+                .unwrap_err()
+                .to_string(),
+            "El nombre de hoja no es válido."
+        );
+        // Quotes at the ends
+        assert_eq!(
+            graft_sheet(&base, &donor(1), "'Ev'")
+                .unwrap_err()
+                .to_string(),
+            "El nombre de hoja no es válido."
+        );
+        assert_eq!(
+            graft_sheet(&base, &donor(1), "'Ev")
+                .unwrap_err()
+                .to_string(),
+            "El nombre de hoja no es válido."
+        );
+        assert_eq!(
+            graft_sheet(&base, &donor(1), "Ev'")
+                .unwrap_err()
+                .to_string(),
+            "El nombre de hoja no es válido."
+        );
+        // Control characters
+        assert_eq!(
+            graft_sheet(&base, &donor(1), "Ev\u{0007}idencias")
+                .unwrap_err()
+                .to_string(),
+            "El nombre de hoja no es válido."
+        );
+        // 31 BMP characters is Ok
+        let bmp31 = "a".repeat(31);
+        assert!(graft_sheet(&base, &donor(1), &bmp31).is_ok());
+    }
+
+    #[test]
+    fn strict_workbooks_are_rejected() {
+        let base = guion_fixture::build();
+        let mut parts = XlsxParts::read(&base).unwrap();
+        let wb = parts.text("xl/workbook.xml").unwrap();
+        let strict_wb = wb.replace(
+            "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+            "http://purl.oclc.org/ooxml/spreadsheetml/main",
+        );
+        parts.set("xl/workbook.xml", strict_wb.into_bytes());
+        let err = graft_sheet(&parts.write().unwrap(), &donor(1), "Evidencias").unwrap_err();
+        assert_eq!(err.to_string(), STRICT);
+    }
+
+    #[test]
+    fn donor_dxf_ids_are_dropped() {
+        let base = guion_fixture::build();
+        let donor_bytes = donor(1);
+        let mut parts = XlsxParts::read(&donor_bytes).unwrap();
+        let sheet_xml = parts.text("xl/worksheets/sheet1.xml").unwrap();
+        let with_dxf = sheet_xml.replace("<c ", r#"<c dxfId="0" "#);
+        parts.set("xl/worksheets/sheet1.xml", with_dxf.into_bytes());
+
+        let grafted = graft_sheet(&base, &parts.write().unwrap(), "Evidencias").unwrap();
+        let grafted_parts = XlsxParts::read(&grafted).unwrap();
+        let grafted_sheet_xml = grafted_parts.text("xl/worksheets/sheet3.xml").unwrap();
+        assert!(!grafted_sheet_xml.contains("dxfId"));
+    }
+
+    #[test]
+    fn index_parts_only_gain_entries() {
+        let base = guion_fixture::build();
+        let before = XlsxParts::read(&base).unwrap();
+        let grafted = graft_sheet(&base, &donor(1), "Evidencias").unwrap();
+        let after = XlsxParts::read(&grafted).unwrap();
+
+        // 1. Cada <sheet .../>, <Relationship .../> y <Override .../>/<Default .../> del base sigue igual
+        let before_wb = before.text("xl/workbook.xml").unwrap();
+        let after_wb = after.text("xl/workbook.xml").unwrap();
+        for sheet_tag in tags(&before_wb, "<sheet ") {
+            assert!(
+                after_wb.contains(sheet_tag),
+                "sheet tag missing: {sheet_tag}"
+            );
+        }
+
+        let before_wb_rels = before.text("xl/_rels/workbook.xml.rels").unwrap();
+        let after_wb_rels = after.text("xl/_rels/workbook.xml.rels").unwrap();
+        for rel_tag in tags(&before_wb_rels, "<Relationship ") {
+            assert!(
+                after_wb_rels.contains(rel_tag),
+                "rel tag missing: {rel_tag}"
+            );
+        }
+
+        let before_ct = before.text("[Content_Types].xml").unwrap();
+        let after_ct = after.text("[Content_Types].xml").unwrap();
+        for override_tag in tags(&before_ct, "<Override ") {
+            assert!(
+                after_ct.contains(override_tag),
+                "override missing: {override_tag}"
+            );
+        }
+        for default_tag in tags(&before_ct, "<Default ") {
+            assert!(
+                after_ct.contains(default_tag),
+                "default missing: {default_tag}"
+            );
+        }
+
+        // 2. Donante cuya relación de dibujo no apunta a una imagen -> Err(LINKS)
+        let donor_bytes = donor(1);
+        let mut d_parts = XlsxParts::read(&donor_bytes).unwrap();
+        let drawing_rels = d_parts.text("xl/drawings/_rels/drawing1.xml.rels").unwrap();
+        let non_image_rels = drawing_rels.replace("relationships/image", "relationships/chart");
+        d_parts.set(
+            "xl/drawings/_rels/drawing1.xml.rels",
+            non_image_rels.into_bytes(),
+        );
+        let err = graft_sheet(&base, &d_parts.write().unwrap(), "Evidencias").unwrap_err();
+        assert_eq!(err.to_string(), LINKS);
+
+        // 3. Nombre duplicado que solo cambia en mayúsculas -> Err
+        let err2 = graft_sheet(&base, &donor(1), "guión de pruebas").unwrap_err();
+        assert_eq!(
+            err2.to_string(),
+            "Ya existe una hoja llamada «guión de pruebas»."
+        );
     }
 
     #[test]

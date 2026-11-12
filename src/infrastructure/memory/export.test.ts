@@ -60,4 +60,44 @@ describe("exportador en memoria", () => {
     });
     expect(repos.exporter.calls.map((c) => c.kind)).toEqual(["template", "project"]);
   });
+
+  it("gestiona la información y exportación de origen", async () => {
+    const { repos, p } = await setup();
+    expect(await repos.exporter.originInfo(p.id)).toBeNull();
+    const info = {
+      fileName: "guion.xlsx",
+      sheet: "Casos",
+      casesWritten: 10,
+      unmapped: [],
+      evidence: 2,
+      formulas: [],
+      unavailable: null,
+      suggestedName: "guion_ejecutado.xlsx",
+    };
+    repos.exporter.setOriginInfo(info);
+    expect(await repos.exporter.originInfo(p.id)).toEqual(info);
+
+    const result = await repos.exporter.exportOrigin(p.id, {
+      tester: "Ana",
+      observations: "Obs",
+      includeEvidence: true,
+      imageMaxWidth: 940,
+    });
+    expect(result).toMatchObject({
+      fileName: "guion_ejecutado.xlsx",
+      path: "C:\\Users\\ana\\Documents\\guion_ejecutado.xlsx",
+      cases: 0,
+      evidence: 0,
+    });
+    expect(repos.exporter.calls.at(-1)).toEqual({
+      kind: "origin",
+      projectId: p.id,
+      options: {
+        tester: "Ana",
+        observations: "Obs",
+        includeEvidence: true,
+        imageMaxWidth: 940,
+      },
+    });
+  });
 });

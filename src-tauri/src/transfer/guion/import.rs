@@ -446,11 +446,27 @@ pub fn plan(book: &GuionBook, def: &ProfileDefinition) -> Plan {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::super::{profile, read};
     use super::*;
     use crate::{domain::fields::FieldType, excel::guion_fixture};
     use guion_fixture::Put;
+
+    pub(crate) fn request<'a>(
+        book: &'a GuionBook,
+        bytes: &'a [u8],
+        def: &'a ProfileDefinition,
+        save_profile_as: Option<&'a str>,
+    ) -> ImportRequest<'a> {
+        ImportRequest {
+            book,
+            bytes,
+            file_name: "guion_cliente.xlsx",
+            def,
+            project_name: "guion_cliente",
+            save_profile_as,
+        }
+    }
 
     #[test]
     fn the_reference_guion_gives_36_cases_and_the_13_columns() {
@@ -767,22 +783,7 @@ mod persistence_tests {
         repo::{cases, fields, guion, projects, test_support},
         transfer::bundle::{IMPORT_FAILED, tests::project_dirs},
     };
-
-    fn request<'a>(
-        book: &'a GuionBook,
-        bytes: &'a [u8],
-        def: &'a ProfileDefinition,
-        save_profile_as: Option<&'a str>,
-    ) -> ImportRequest<'a> {
-        ImportRequest {
-            book,
-            bytes,
-            file_name: "guion_cliente.xlsx",
-            def,
-            project_name: "guion_cliente",
-            save_profile_as,
-        }
-    }
+    use tests::request;
 
     fn new_case() -> CaseInput {
         CaseInput {

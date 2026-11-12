@@ -89,7 +89,13 @@ pub fn build(data: &ExportData, settings: &ExportSettings, progress: Progress) -
         missing_images = prepared.iter().filter(|i| i.is_none()).count();
         report(progress, ExportStage::Writing, 0, 0);
         let ws = workbook.worksheet_from_index(EVIDENCE)?;
-        anchors = Some(evidence_sheet::write(ws, data, prepared, &styles)?);
+        anchors = Some(evidence_sheet::write(
+            ws,
+            data,
+            prepared,
+            &styles,
+            evidence_sheet::BackLink::Matrix,
+        )?);
     } else {
         report(progress, ExportStage::Writing, 0, 0);
     }

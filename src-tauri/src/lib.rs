@@ -225,6 +225,8 @@ pub fn run() {
             commands::doc_versions::delete_doc_version,
             commands::export::export_project,
             commands::export::export_template,
+            commands::origin::export_origin_info,
+            commands::origin::export_origin,
             commands::export::open_export,
             commands::export::reveal_export,
             commands::data::get_startup_status,

@@ -42,7 +42,7 @@ fn run(
     Ok(Some(result))
 }
 
-fn ask_destination(window: &WebviewWindow, name: &str) -> Option<PathBuf> {
+pub(crate) fn ask_destination(window: &WebviewWindow, name: &str) -> Option<PathBuf> {
     let path = window
         .dialog()
         .file()

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { defaultExportOptions, progressLabel, progressPercent, validateExportOptions } from "./export";
+import {
+  defaultExportOptions,
+  defaultOriginExportOptions,
+  formulasMessage,
+  progressLabel,
+  progressPercent,
+  unmappedMessage,
+  validateExportOptions,
+  validateOriginExportOptions,
+} from "./export";
 
 describe("opciones de exportación", () => {
   const ok = { ...defaultExportOptions("Ana Pérez"), docVersionId: "ver-1" };
@@ -30,5 +39,36 @@ describe("opciones de exportación", () => {
     expect(progressPercent({ stage: "images", current: 150, total: 300 })).toBe(45);
     expect(progressPercent({ stage: "images", current: 0, total: 0 })).toBe(5);
     expect(progressPercent({ stage: "writing", current: 0, total: 0 })).toBe(85);
+  });
+});
+
+describe("formato de origen", () => {
+  it("mensajes de casos sin fila", () => {
+    expect(unmappedMessage([])).toBeNull();
+    expect(unmappedMessage(["CP99"])).toBe("1 caso no tiene fila en el guion y no se escribe: CP99.");
+    expect(unmappedMessage(["CP99", "X"])).toBe("2 casos no tienen fila en el guion y no se escriben: CP99, X.");
+  });
+
+  it("mensajes de fórmulas quitadas", () => {
+    expect(formulasMessage([])).toBeNull();
+    expect(formulasMessage(["I16", "I17"])).toBe("Las celdas I16, I17 tenían fórmula: se escribe el valor y se quita la fórmula.");
+  });
+
+  it("valida opciones de exportación de origen", () => {
+    const ok = defaultOriginExportOptions("Ana Pérez");
+    expect(validateOriginExportOptions(ok)).toEqual({});
+
+    expect(validateOriginExportOptions({ ...ok, tester: "   " })).toEqual({
+      tester: "«Tester» es obligatorio.",
+    });
+    expect(validateOriginExportOptions({ ...ok, tester: "a".repeat(101) }).tester).toBe("«Tester» supera 100 caracteres.");
+
+    expect(validateOriginExportOptions({ ...ok, observations: "a".repeat(501) })).toEqual({
+      observations: "La observación supera 500 caracteres.",
+    });
+
+    expect(validateOriginExportOptions({ ...ok, imageMaxWidth: 200 }).imageMaxWidth).toBe(
+      "El ancho máximo de imagen debe estar entre 400 y 1600 px.",
+    );
   });
 });

@@ -86,4 +86,57 @@ describe("slice de exportación", () => {
     expect(store.getState().toasts.at(-1)?.message).toBe("No se pudo generar el Excel. Inténtalo nuevamente.");
     expect(store.getState().docVersions).toHaveLength(1);
   });
+
+  it("carga originInfo y permite exportar en formato de origen", async () => {
+    const { store, repos } = await setup();
+    expect(store.getState().originInfo).toBeNull();
+
+    const info = {
+      fileName: "guion_cliente.xlsx",
+      sheet: "Casos",
+      casesWritten: 25,
+      unmapped: ["CP99"],
+      evidence: 5,
+      formulas: [],
+      unavailable: null,
+      suggestedName: "guion_cliente_ejecutado.xlsx",
+    };
+    repos.exporter.setOriginInfo(info);
+    await store.getState().loadOriginInfo();
+    expect(store.getState().originInfo).toEqual(info);
+
+    const originOptions = {
+      tester: "Ana Pérez",
+      observations: "Observación de prueba",
+      includeEvidence: true,
+      imageMaxWidth: 940,
+    };
+    expect(await store.getState().exportOrigin(originOptions)).toEqual({ ok: true });
+    expect(store.getState().toasts.at(-1)?.message).toBe("Guion ejecutado guardado: guion_cliente_ejecutado.xlsx");
+    expect(store.getState().toasts.at(-1)?.actions?.map((a) => a.label)).toEqual(["Abrir archivo", "Abrir carpeta"]);
+  });
+
+  it("un error de validación o bloqueo de origen aparece en errors._form", async () => {
+    const { store, repos } = await setup();
+    const originOptions = {
+      tester: "Ana Pérez",
+      observations: "",
+      includeEvidence: true,
+      imageMaxWidth: 940,
+    };
+
+    vi.spyOn(repos.exporter, "exportOrigin").mockRejectedValueOnce(
+      new AppError("validation", "El guion original cambió desde que se importó."),
+    );
+    expect(await store.getState().exportOrigin(originOptions)).toEqual({
+      ok: false,
+      errors: { _form: "El guion original cambió desde que se importó." },
+    });
+
+    repos.exporter.mode = "locked";
+    expect(await store.getState().exportOrigin(originOptions)).toEqual({
+      ok: false,
+      errors: { _form: "Cierra el archivo en Excel y vuelve a intentar." },
+    });
+  });
 });

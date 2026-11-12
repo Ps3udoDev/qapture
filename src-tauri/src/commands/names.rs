@@ -46,6 +46,8 @@ pub const APP_COMMANDS: &[&str] = &[
     "delete_doc_version",
     "export_project",
     "export_template",
+    "export_origin_info",
+    "export_origin",
     "open_export",
     "reveal_export",
     "get_startup_status",

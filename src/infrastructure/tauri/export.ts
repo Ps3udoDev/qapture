@@ -2,7 +2,7 @@ import { listen } from "@tauri-apps/api/event";
 import { z } from "zod";
 import type { DocVersionRepository, Exporter } from "../../ports/export";
 import { call } from "./client";
-import { docVersionSchema, exportProgressSchema, exportResultSchema } from "./dto";
+import { docVersionSchema, exportProgressSchema, exportResultSchema, originInfoSchema } from "./dto";
 
 const nothing = z.null();
 
@@ -23,6 +23,8 @@ export function tauriExporter(): Exporter {
   return {
     exportProject: (projectId, options) => call("export_project", { projectId, options }, exportResultSchema.nullable()),
     exportTemplate: (projectId, options) => call("export_template", { projectId, options }, exportResultSchema.nullable()),
+    originInfo: (projectId) => call("export_origin_info", { projectId }, originInfoSchema.nullable()),
+    exportOrigin: (projectId, options) => call("export_origin", { projectId, input: options }, exportResultSchema.nullable()),
     onProgress: (handler) =>
       listen<unknown>(EXPORT_PROGRESS_EVENT, (event) => {
         const parsed = exportProgressSchema.safeParse(event.payload);

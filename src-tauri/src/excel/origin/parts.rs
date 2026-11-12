@@ -79,6 +79,13 @@ impl XlsxParts {
         }
     }
 
+    /// Elimina una parte por su nombre exacto. Devuelve true si existía.
+    pub fn remove(&mut self, name: &str) -> bool {
+        let before = self.parts.len();
+        self.parts.retain(|p| p.name != name);
+        self.parts.len() < before
+    }
+
     pub fn write(&self) -> AppResult<Vec<u8>> {
         let mut zip = ZipWriter::new(Cursor::new(Vec::new()));
         for part in &self.parts {

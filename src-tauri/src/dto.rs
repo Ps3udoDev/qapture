@@ -316,6 +316,28 @@ pub struct ExportResultDto {
     pub missing_images: i64,
 }
 
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OriginInfoDto {
+    pub file_name: String,
+    pub sheet: String,
+    pub cases_written: i64,
+    pub unmapped: Vec<String>,
+    pub evidence: i64,
+    pub formulas: Vec<String>,
+    pub unavailable: Option<String>,
+    pub suggested_name: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OriginExportInput {
+    pub tester: String,
+    pub observations: String,
+    pub include_evidence: bool,
+    pub image_max_width: u32,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ExportStage {
@@ -616,7 +638,9 @@ mod contract {
             "reportInput": report_input_json(),
             "newFixtureMeta": { "caseId": "case-1", "fileName": "datos.csv", "note": "Datos de prueba" },
             "guionImportInput": { "token": "guion-token", "profile": crate::transfer::guion::profile::tests::reference(),
-                "projectName": "guion_sintetico", "saveProfileAs": "Guion sintético · v1" }
+                "projectName": "guion_sintetico", "saveProfileAs": "Guion sintético · v1" },
+            "originExportInput": { "tester": "Ana Pérez", "observations": "Corrida funcional completada.",
+                "includeEvidence": true, "imageMaxWidth": 940 }
         })
     }
 
@@ -659,6 +683,16 @@ mod contract {
                                               file_name: "T4S_ACME_Recibos_Evidencias_20261016_v1.0.xlsx".into(),
                                               cases: 10, evidence: 20, missing_images: 0 },
             "exportProgress": ExportProgressDto { stage: ExportStage::Images, current: 12, total: 20 },
+            "originInfo": OriginInfoDto {
+                file_name: "guion_sintetico.xlsx".into(),
+                sheet: "Guión de Pruebas".into(),
+                cases_written: 36,
+                unmapped: vec!["CP99".into()],
+                evidence: 12,
+                formulas: vec!["I16".into()],
+                unavailable: None,
+                suggested_name: "guion_sintetico_ejecutado.xlsx".into(),
+            },
             "lockedError": AppError::FileLocked("C:\\Users\\ana\\Documents\\matriz.xlsx".into()),
             "exportError": AppError::Export("rust_xlsxwriter: formato inválido".into()),
         })
@@ -904,6 +938,7 @@ mod contract {
         serde_json::from_value::<ProjectGithubInput>(i["projectGithubInput"].clone()).unwrap();
         serde_json::from_value::<ReportInputDto>(i["reportInput"].clone()).unwrap();
         serde_json::from_value::<NewFixtureMeta>(i["newFixtureMeta"].clone()).unwrap();
+        serde_json::from_value::<OriginExportInput>(i["originExportInput"].clone()).unwrap();
     }
 
     #[test]
@@ -929,6 +964,9 @@ mod contract {
         let mut report = inputs_json()["reportInput"].clone();
         report["extra"] = json!(1);
         assert!(serde_json::from_value::<ReportInputDto>(report).is_err());
+        let mut origin = inputs_json()["originExportInput"].clone();
+        origin["extra"] = json!(1);
+        assert!(serde_json::from_value::<OriginExportInput>(origin).is_err());
     }
 
     /// Regenerar: `UPDATE_CONTRACTS=1 cargo test contract`

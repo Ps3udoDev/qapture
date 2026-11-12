@@ -44,6 +44,8 @@
     "allow-delete-doc-version",
     "allow-export-project",
     "allow-export-template",
+    "allow-export-origin-info",
+    "allow-export-origin",
     "allow-open-export",
     "allow-reveal-export",
     "allow-get-startup-status",
