@@ -1,5 +1,21 @@
 # Cambios
 
+## 1.3.0 — 2026-11-11
+
+### Nuevo
+- Importar el guion de pruebas del cliente: **Datos › Importar guion de pruebas…** abre un asistente de 3 pasos (archivo y hoja, columnas, vista previa) que crea un proyecto con sus casos a partir de un `.xlsx`, sin editar el archivo
+- Perfiles de importación: guarda el mapeo de columnas, estados y carátula con un nombre y reutilízalo en el siguiente guion con el mismo formato
+- La vista previa avisa de códigos repetidos o vacíos, valores fuera de lista y estados desconocidos antes de importar; si algo falla, no se importa nada
+- Archivos de prueba por caso (xlsx, xls, csv, txt, pdf, json, xml, zip; hasta 25 MB y 50 por caso): sección «Archivos de prueba» en el detalle del caso, con «Agregar…», arrastrar, «Mostrar en carpeta» y «Copiar ruta»
+- Exportar al formato de origen: **Exportar › Formato de origen** devuelve `<guion>_ejecutado.xlsx`, el mismo archivo del cliente con estado, fecha, tester y condiciones en sus celdas, la carátula llena y una hoja «Evidencias» con las capturas
+- Los paquetes `.qapture` y los respaldos llevan los archivos de prueba y la copia del guion; un proyecto importado de un guion se puede compartir como paquete
+
+### Corregido
+- Restaurar un respaldo anterior a esta versión ya no falla con `no such table: project_source`
+
+### Nota al actualizar
+- Los paquetes de proyectos con guion o archivos de prueba usan el formato 2 y no se abren en Qapture 1.2 o anterior; los demás proyectos siguen en el formato de siempre
+
 ## 1.2.0 — 2026-10-30
 
 ### Nuevo

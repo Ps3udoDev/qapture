@@ -36,7 +36,7 @@ flowchart LR
 | F8a | [Conexión con GitHub](F8a-github-conexion.md) | [plan](../plans/2026-10-19-f8a-github-conexion.md) | 🧪 En pruebas del equipo (filas 5 y 7) | `v1.1.0` |
 | F8b | [Reportar casos como issues](F8b-reportar-issues.md) | [plan](../plans/2026-10-20-f8b-reportar-issues.md) | ✅ Cerrada | `v1.1.0` |
 | F9 | [Servidor MCP para agentes](F9a-servidor-mcp.md) | [plan](../plans/2026-10-29-f9a-servidor-mcp.md) | ✅ Cerrada (F9a, 2026-10-30; humo Linux pendiente, no bloqueante) | `v1.2.0` |
-| G | [Del guion de pruebas a las evidencias](G-guion-a-evidencias.md) (G1 importar guion, G2 archivos de prueba, G4 formato de origen) | [Bloque 0](../plans/2026-11-10-g0-fixture-y-pico.md) | 🚧 En curso (Bloque 0) | `v1.3.0` |
+| G | [Del guion de pruebas a las evidencias](G-guion-a-evidencias.md) (G1 importar guion, G2 archivos de prueba, G4 formato de origen) | [G0](../plans/2026-11-10-g0-fixture-y-pico.md) · [G1](../plans/2026-11-10-g1-importar-guion.md) · [G2](../plans/2026-11-11-g2-archivos-de-prueba.md) · [G4](../plans/2026-11-11-g4-formato-de-origen.md) | 🧪 Publicada en `v1.3.0`; falta la prueba con el guion real del cliente (G-T4) | `v1.3.0` |
 | F8c | Importar issues como casos ([spec §9](../specs/2026-10-19-integracion-github-design.md)) | — | ⏸️ Pospuesta, después de G | `v1.4.0` |
 | F8d | Sincronizar estados ([spec §10](../specs/2026-10-19-integracion-github-design.md)) | — | ⏸️ Pospuesta, después de F8c | `v1.5.0` |
 

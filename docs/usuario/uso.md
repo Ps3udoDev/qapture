@@ -40,6 +40,36 @@ Usa **Desenfoque** para ocultar datos personales o sensibles antes de exportar. 
 
 Si el archivo está abierto en Excel, ciérralo y vuelve a intentar. En **Ajustes › Exportación** puedes fijar la carpeta por defecto, el ancho máximo de las imágenes y si se incluye la hoja Resumen.
 
+## Trabajar con el guion de pruebas del cliente
+
+Cuando el cliente entrega su propio guion en Excel, Qapture lo importa, guarda una copia y al final te devuelve **el mismo archivo** con los resultados y las evidencias.
+
+### Importar el guion
+
+**Datos › Importar guion de pruebas…** abre un asistente de tres pasos:
+
+1. **Archivo y hoja:** elige el `.xlsx` y la hoja con los casos. Si ya tienes un **Perfil** que sirve para ese formato, elígelo y pasas directo a la vista previa.
+2. **Columnas:** confirma la **Fila de encabezados** (Qapture la sugiere; si no la encuentra, elígela a mano) y, por cada columna, su destino: código, título, estado, un **Campo nuevo** del proyecto o **No importar**. Aquí también defines qué **Valor del guion** corresponde a cada **Estado en Qapture** (por ejemplo «Aceptado» → Aprobado) y qué columnas se llenan al exportar (estado, fecha, tester, condiciones). Si quieres reutilizar este mapeo, marca **Guardar como perfil** y ponle nombre.
+3. **Vista previa:** revisa los casos que se crearán y los avisos (códigos repetidos o vacíos, valores fuera de lista, estados desconocidos). Pulsa **Importar**.
+
+Se crea un proyecto nuevo con un caso por fila; cada caso conserva su código del guion (por ejemplo `CP01`). Si algo falla a mitad, no queda nada a medias. Los estados que no están en el perfil entran como «No ejecutado» y el valor original queda en Condiciones.
+
+### Archivos de prueba
+
+En el detalle del caso, la sección **Archivos de prueba** guarda los archivos que usa la prueba (xlsx, xls, csv, txt, pdf, json, xml o zip, hasta 25 MB cada uno y 50 por caso). Usa **Agregar…** o arrástralos sobre la sección. Qapture guarda una copia de solo lectura; con **Mostrar en carpeta** o **Copiar ruta** la usas en la aplicación que pruebas. Los archivos viajan en los paquetes `.qapture` y en los respaldos.
+
+### Exportar en el formato de origen
+
+En un proyecto importado de un guion, **Exportar** muestra la opción **Formato de origen** («El guion del cliente con resultados y evidencias»):
+
+1. Revisa el resumen: archivo, hoja, cuántos casos se escriben y cuántas evidencias. Si un caso no tiene fila en el guion o alguna celda destino tiene fórmula, aparece un aviso.
+2. Revisa el **Tester**, las **Observaciones de la carátula** y si quieres **Agregar hoja Evidencias**.
+3. Pulsa **Exportar guion**. Qapture sugiere el nombre `<guion>_ejecutado.xlsx` y pide confirmación antes de sobrescribir.
+
+El resultado es el archivo del cliente, intacto salvo las celdas de resultado (estado, fecha, tester y condiciones), la carátula y la hoja «Evidencias» con una sección por caso ejecutado. La copia guardada al importar nunca se modifica. Si esa copia falta o cambió, la opción queda deshabilitada con el motivo: vuelve a importar el guion.
+
+Antes de entregar, revisa que las capturas no muestren datos personales o del cliente.
+
 ## Paquetes .qapture y respaldos
 
 Todo está en el menú **Datos** de la barra superior.
